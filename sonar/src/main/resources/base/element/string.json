@@ -1,0 +1,51 @@
+{
+  "string" : [ {
+    "name" : "module_desc",
+    "value" : "module description"
+  }, {
+    "name" : "EntryAbility_desc",
+    "value" : "description"
+  }, {
+    "name" : "EntryAbility_label",
+    "value" : "label"
+  }, {
+    "name" : "defaultForm_label",
+    "value" : "form_label"
+  }, {
+    "name" : "defaultForm_desc",
+    "value" : "form_description"
+  }, {
+    "name" : "EntryFormAbility_desc",
+    "value" : "form_description"
+  }, {
+    "name" : "EntryFormAbility_label",
+    "value" : "form_label"
+  }, {
+    "name" : "widget_desc",
+    "value" : "This is a service widget."
+  }, {
+    "name" : "widget_display_name",
+    "value" : "widget"
+  }, {
+    "name" : "widget1_desc",
+    "value" : "This is a service widget."
+  }, {
+    "name" : "widget1_display_name",
+    "value" : "widget1"
+  }, {
+    "name" : "SonarAbility_desc",
+    "value" : "description"
+  }, {
+    "name" : "SonarAbility_label",
+    "value" : "label"
+  }, {
+    "name" : "permission_keep_background_running_reason",
+    "value" : "Allow Sonar to keep audio playback running in the background."
+  }, {
+    "name" : "playback_notification_title",
+    "value" : "Sonar is playing"
+  }, {
+    "name" : "playback_notification_pause_hint",
+    "value" : "Playback paused"
+  } ]
+}

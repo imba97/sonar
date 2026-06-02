@@ -1,6 +1,6 @@
 import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window } from '@kit.ArkUI';
+import { display, window } from '@kit.ArkUI';
 import { AuthStore } from '../sonar/auth/AuthStore';
 import { PlaybackSession } from '../sonar/playback/PlaybackSession';
 
@@ -37,7 +37,41 @@ export default class SonarAbility extends UIAbility {
         return;
       }
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
+      this.setupImmersiveWindow(windowStage);
     });
+  }
+
+  private setupImmersiveWindow(windowStage: window.WindowStage): void {
+    try {
+      const win: window.Window = windowStage.getMainWindowSync();
+      win.setWindowLayoutFullScreen(true).catch((err: Error) => {
+        hilog.error(DOMAIN, 'testTag', 'setWindowLayoutFullScreen failed: %{public}s', err.message);
+      });
+      win.setWindowSystemBarProperties({
+        statusBarColor: '#00000000',
+        statusBarContentColor: '#FFFFFF',
+        navigationBarColor: '#00000000',
+        navigationBarContentColor: '#FFFFFF'
+      }).catch((err: Error) => {
+        hilog.error(DOMAIN, 'testTag', 'setWindowSystemBarProperties failed: %{public}s', err.message);
+      });
+      this.updateAvoidAreaInsets(win);
+      win.on('avoidAreaChange', () => {
+        this.updateAvoidAreaInsets(win);
+      });
+    } catch (err) {
+      hilog.error(DOMAIN, 'testTag', 'setupImmersiveWindow failed: %{public}s', JSON.stringify(err));
+    }
+  }
+
+  private updateAvoidAreaInsets(win: window.Window): void {
+    const density: number = display.getDefaultDisplaySync().densityPixels;
+    const topArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+    const bottomArea: window.AvoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
+    const topInset: number = topArea.topRect.height / density;
+    const bottomInset: number = bottomArea.bottomRect.height / density;
+    AppStorage.setOrCreate<number>('topRectHeight', topInset);
+    AppStorage.setOrCreate<number>('bottomRectHeight', bottomInset);
   }
 
   onWindowStageDestroy(): void {

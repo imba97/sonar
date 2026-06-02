@@ -51,16 +51,16 @@ export struct MiniPlayerBar {
   }
 
   @Builder
-  private iconButton(icon: Resource, bgColor: string, onTap: () => void) {
+  private iconButton(icon: Resource, onTap: () => void) {
     Button() {
       Image(icon)
-        .width(18)
-        .height(18)
+        .width(24)
+        .height(24)
+        .fillColor('#FFFFFF')
     }
-    .width(34)
-    .height(34)
-    .backgroundColor(bgColor)
-    .borderRadius(17)
+    .width(40)
+    .height(40)
+    .backgroundColor(Color.Transparent)
     .onClick(() => {
       onTap();
     })
@@ -69,20 +69,14 @@ export struct MiniPlayerBar {
   @Builder
   private playPauseButton() {
     Button() {
-      if (this.isPlaying) {
-        Image($r('app.media.cb_pause'))
-          .width(18)
-          .height(18)
-      } else {
-        Image($r('app.media.cb_play'))
-          .width(18)
-          .height(18)
-      }
+      Image(this.isPlaying ? $r('app.media.cb_pause') : $r('app.media.cb_play'))
+        .width(30)
+        .height(30)
+        .fillColor('#FFFFFF')
     }
-    .width(34)
-    .height(34)
-    .backgroundColor(UiTokens.COLOR_PRIMARY_SOFT_BG)
-    .borderRadius(17)
+    .width(44)
+    .height(44)
+    .backgroundColor(Color.Transparent)
     .onClick(() => {
       this.isPlaying = !this.isPlaying;
       void PlaybackSession.togglePlayPause();
@@ -94,22 +88,24 @@ export struct MiniPlayerBar {
     Button() {
       if (this.playbackMode === 'singleLoop') {
         Image($r('app.media.cb_mode_loop'))
-          .width(18)
-          .height(18)
+          .width(24)
+          .height(24)
+          .fillColor('#FFFFFF')
       } else if (this.playbackMode === 'random') {
         Image($r('app.media.cb_mode_shuffle'))
-          .width(18)
-          .height(18)
+          .width(24)
+          .height(24)
+          .fillColor('#FFFFFF')
       } else {
         Image($r('app.media.cb_mode_list'))
-          .width(18)
-          .height(18)
+          .width(24)
+          .height(24)
+          .fillColor('#FFFFFF')
       }
     }
-    .width(34)
-    .height(34)
-    .backgroundColor(UiTokens.COLOR_WARNING_SOFT_BG)
-    .borderRadius(17)
+    .width(40)
+    .height(40)
+    .backgroundColor(Color.Transparent)
     .onClick(() => {
       const nextMode: string = PlaybackSession.togglePlaybackMode();
       this.playbackMode = nextMode;
@@ -138,12 +134,12 @@ export struct MiniPlayerBar {
           .layoutWeight(1)
           .alignItems(HorizontalAlign.Start)
 
-          Row({ space: 6 }) {
-            this.iconButton($r('app.media.cb_prev'), UiTokens.COLOR_INFO_SOFT_BG, () => {
+          Row({ space: 8 }) {
+            this.iconButton($r('app.media.cb_prev'), () => {
                 void PlaybackSession.playPrevious();
               })
             this.playPauseButton()
-            this.iconButton($r('app.media.cb_next'), UiTokens.COLOR_SUCCESS_SOFT_BG, () => {
+            this.iconButton($r('app.media.cb_next'), () => {
                 void PlaybackSession.playNext(true);
               })
             this.modeButton()
@@ -200,11 +196,15 @@ export struct MiniPlayerBar {
         .padding({ left: 12, right: 12, bottom: 10 })
       }
       .width('100%')
-      .backgroundColor('#CCFFFFFF')
-      .backgroundBlurStyle(BlurStyle.Thin)
-      .border({ width: 1, color: '#33FFFFFF' })
+      .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+        colorMode: ThemeColorMode.DARK,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .borderRadius(18)
-      .margin({ left: 10, right: 10, bottom: this.calculateBottomMargin() })
+      .margin({ left: 16, right: 16, bottom: this.calculateBottomMargin() })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       } else {
         Column() {

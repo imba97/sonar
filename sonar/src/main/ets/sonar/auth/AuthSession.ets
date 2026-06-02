@@ -3,9 +3,10 @@ import { SubsonicApiError } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { AuthStore, SavedAuth } from './AuthStore';
 import { Logger } from '../common/Logger';
+import { NetworkStatus } from '../common/NetworkStatus';
 import { PlaybackSession } from '../playback/PlaybackSession';
 
-const LOCAL_PROBE_INTERVAL_MS: number = 60_000;
+const LOCAL_PROBE_INTERVAL_MS: number = 300_000;
 const WIFI_TRIGGER_DEBOUNCE_MS: number = 5_000;
 
 export class AuthSession {
@@ -15,6 +16,7 @@ export class AuthSession {
   private static netConnection = connection.createNetConnection();
   private static readonly netRegisterCallback: () => void = () => {};
   private static readonly netCapabilitiesCallback = (info: connection.NetCapabilityInfo): void => {
+    AuthSession.refreshNetworkType();
     const now: number = Date.now();
     if (now - AuthSession.lastWifiTriggerMs < WIFI_TRIGGER_DEBOUNCE_MS) {
       return;
@@ -26,6 +28,10 @@ export class AuthSession {
       void AuthSession.probeAndSwitchToLocalIfAvailable('wifi');
     }
   };
+
+  static refreshNetworkType(): void {
+    AppStorage.setOrCreate<string>('networkType', NetworkStatus.getNetworkType());
+  }
 
   static applyLoggedIn(auth: SavedAuth): void {
     const activeServer: string = AuthStore.resolveEndpointUrl(auth, auth.activeEndpoint);
@@ -42,6 +48,16 @@ export class AuthSession {
     AppStorage.setOrCreate<string>('loggedInEndpoint', 'remote');
   }
 
+  /**
+   * 统一的登录态生效入口：应用登录态、启动本地探测调度器并立即触发一次探测。
+   * 全新登录与冷启动恢复都走这里，保证 WIFI/定时探测立即生效。
+   */
+  static onLoggedIn(auth: SavedAuth, trigger: string = 'login'): void {
+    AuthSession.applyLoggedIn(auth);
+    AuthSession.startLocalProbeScheduler();
+    void AuthSession.probeAndSwitchToLocalIfAvailable(trigger);
+  }
+
   static async restoreFromStore(): Promise<void> {
     await AuthStore.getInstance().ensureReady();
     const creds: SavedAuth | null = AuthStore.getInstance().getCredentials();
@@ -51,9 +67,7 @@ export class AuthSession {
       AuthSession.applyLoggedOut();
       return;
     }
-    AuthSession.applyLoggedIn(creds);
-    AuthSession.startLocalProbeScheduler();
-    void AuthSession.probeAndSwitchToLocalIfAvailable('startup');
+    AuthSession.onLoggedIn(creds, 'startup');
   }
 
   static async logout(): Promise<void> {
@@ -83,6 +97,9 @@ export class AuthSession {
     if (creds.activeEndpoint !== 'remote') {
       return false;
     }
+    if (!NetworkStatus.isOnWifi()) {
+      return false;
+    }
     return true;
   }
 
@@ -96,6 +113,7 @@ export class AuthSession {
     }, LOCAL_PROBE_INTERVAL_MS);
     AuthSession.netConnection.on('netCapabilitiesChange', AuthSession.netCapabilitiesCallback);
     AuthSession.netConnection.register(AuthSession.netRegisterCallback);
+    AuthSession.refreshNetworkType();
     Logger.info('AuthSession', 'local probe scheduler started');
   }
 

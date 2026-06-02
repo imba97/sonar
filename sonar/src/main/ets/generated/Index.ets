@@ -5,6 +5,7 @@ import { PlaybackSession } from '../sonar/playback/PlaybackSession';
 import { MiniPlayerBar } from '../sonar/components/playback/MiniPlayerBar';
 import { common } from '@kit.AbilityKit';
 import { FloatingTabBar } from '../sonar/components/navigation/FloatingTabBar';
+import { UiTokens } from '../sonar/ui/tokens/UiTokens';
 
 const DOMAIN = 0x0000;
 const TAG = 'Sonar.Index';
@@ -53,7 +54,7 @@ struct Index {
         Column() {
           FloatingTabBar()
         }
-        .backgroundColor('#F1F3F5')
+        .backgroundColor(Color.Transparent)
         .width('100%')
         .height('100%')
       }
@@ -68,5 +69,10 @@ struct Index {
     }
     .width('100%')
     .height('100%')
+    .linearGradient({
+      angle: 160,
+      colors: [[UiTokens.COLOR_BG_GRADIENT_TOP, 0], [UiTokens.COLOR_BG_GRADIENT_BOTTOM, 1]]
+    })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 }

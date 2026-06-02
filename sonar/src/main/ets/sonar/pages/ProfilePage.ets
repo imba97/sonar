@@ -36,31 +36,34 @@ export struct ProfilePage {
         .width('100%')
         .padding({ left: 20, right: 20, top: 14, bottom: 0 })
 
-        CardContainer() {
-          Column({ space: 10 }) {
-            Text(this.isLoggedIn ? (this.loggedInUser.length > 0 ? this.loggedInUser : '已登录用户') : '未登录')
-              .fontSize(16)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-            Text(this.isLoggedIn ? this.loggedInServer : '请先在服务器页完成登录')
-              .fontSize(12)
-              .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-            if (this.isLoggedIn) {
-              DangerButton({
-                text: '退出登录',
-                onPressed: () => {
-                  this.handleLogout().catch((err: Error) => {
-                    console.error(`logout failed: ${err.message}`);
-                  });
-                }
-              })
-              .margin({ top: 6 })
+        Column() {
+          CardContainer() {
+            Column({ space: 10 }) {
+              Text(this.isLoggedIn ? (this.loggedInUser.length > 0 ? this.loggedInUser : '已登录用户') : '未登录')
+                .fontSize(16)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+              Text(this.isLoggedIn ? this.loggedInServer : '请先在服务器页完成登录')
+                .fontSize(12)
+                .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+              if (this.isLoggedIn) {
+                DangerButton({
+                  text: '退出登录',
+                  onPressed: () => {
+                    this.handleLogout().catch((err: Error) => {
+                      console.error(`logout failed: ${err.message}`);
+                    });
+                  }
+                })
+                .margin({ top: 6 })
+              }
             }
+            .width('100%')
+            .alignItems(HorizontalAlign.Start)
           }
-          .width('100%')
-          .alignItems(HorizontalAlign.Start)
         }
-        .margin({ left: 16, right: 16 })
+        .width('100%')
+        .padding({ left: 16, right: 16 })
 
         Blank()
       }

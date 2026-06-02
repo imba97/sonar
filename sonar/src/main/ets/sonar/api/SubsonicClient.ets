@@ -190,7 +190,7 @@ export class SubsonicClient {
       const apiErr: SubsonicApiError = err as SubsonicApiError;
       const shouldFallbackToRemote: boolean =
         preferredEndpoint === 'local' &&
-        credentials.localServerUrl === undefined &&
+        credentials.localServerUrl !== undefined &&
         SubsonicClient.isRetryableError(apiErr);
       if (!shouldFallbackToRemote) {
         throw apiErr;
@@ -230,23 +230,22 @@ export class SubsonicClient {
   }
 
   /**
-   * 静态登录：使用 token 鉴权 ping 服务器，验证通过后由调用方负责持久化凭据。
+   * 组装登录凭据：生成 salt/token 并构造 SavedAuth，不发起任何请求。
+   * 由调用方使用 pingEndpoint 分别探测远程/本地后决定 activeEndpoint 并持久化。
    */
-  static async login(serverUrl: string, username: string, password: string): Promise<SavedAuth> {
+  static async buildLoginAuth(remoteUrl: string, localUrl: string | undefined,
+    username: string, password: string): Promise<SavedAuth> {
     const salt: string = RandomUtil.generateSalt();
     const token: string = await Md5Util.md5Hex(password + salt);
-    const client = SubsonicClient.getInstance();
     const loginAuth: SavedAuth = {
-      remoteServerUrl: SubsonicClient.normalizeServerUrl(serverUrl),
+      remoteServerUrl: SubsonicClient.normalizeServerUrl(remoteUrl),
+      localServerUrl: localUrl !== undefined ? SubsonicClient.normalizeServerUrl(localUrl) : undefined,
       activeEndpoint: 'remote',
       username: username,
       salt,
       token,
       authMode: 'subsonicToken'
     };
-    const url: string = client.buildUrl('ping.view', [], loginAuth, 'remote');
-    Logger.info('SubsonicClient', `login attempt to ${loginAuth.remoteServerUrl} as ${username}`);
-    await client.requestWithRetry<SubsonicEnvelope>(url);
     return loginAuth;
   }
 
@@ -276,9 +275,10 @@ export class SubsonicClient {
     return resp;
   }
 
-  async getAlbumList2(type: string = 'newest', size: number = 60): Promise<AlbumListResponse> {
+  async getAlbumList2(type: string = 'newest', size: number = 60, offset: number = 0): Promise<AlbumListResponse> {
     const resp: AlbumListResponse =
-      await this.requestByAuth<AlbumListResponse>('getAlbumList2.view', ['type', type, 'size', String(size)]);
+      await this.requestByAuth<AlbumListResponse>('getAlbumList2.view',
+        ['type', type, 'size', String(size), 'offset', String(offset)]);
     const rawAlbums: Album[] | Album | undefined = resp.albumList2.album as Album[] | Album | undefined;
     resp.albumList2.album = SubsonicClient.toArray<Album>(rawAlbums);
     return resp;

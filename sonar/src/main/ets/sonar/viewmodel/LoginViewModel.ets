@@ -1,7 +1,8 @@
 import { SubsonicClient } from '../api/SubsonicClient';
 import { SubsonicApiError } from '../api/SubsonicTypes';
-import { AuthStore, RememberedLoginInfo } from '../auth/AuthStore';
+import { AuthStore, RememberedLoginInfo, SavedAuth } from '../auth/AuthStore';
 import { AuthSession } from '../auth/AuthSession';
+import { NetworkStatus } from '../common/NetworkStatus';
 
 @Observed
 export class LoginViewModel {
@@ -80,11 +81,27 @@ export class LoginViewModel {
       const serverUrl: string = SubsonicClient.normalizeServerUrl(serverUrlInput);
       const localServerUrl: string | undefined = localServerUrlInput.length > 0 ?
         SubsonicClient.normalizeServerUrl(localServerUrlInput) : undefined;
-      const loginTargetUrl: string = localServerUrl ?? serverUrl;
-      const loginAuth = await SubsonicClient.login(loginTargetUrl, username, password);
-      loginAuth.remoteServerUrl = serverUrl;
-      loginAuth.localServerUrl = localServerUrl;
-      loginAuth.activeEndpoint = localServerUrl !== undefined ? 'local' : 'remote';
+      const loginAuth: SavedAuth =
+        await SubsonicClient.buildLoginAuth(serverUrl, localServerUrl, username, password);
+      const client: SubsonicClient = SubsonicClient.getInstance();
+      let remoteErr: Error | null = null;
+      const tryLocal: boolean = localServerUrl !== undefined && NetworkStatus.isOnWifi();
+      const localTask: Promise<boolean> = tryLocal
+        ? client.pingEndpoint(loginAuth, 'local', false).then(() => true).catch(() => false)
+        : Promise.resolve(false);
+      const remoteTask: Promise<boolean> = client.pingEndpoint(loginAuth, 'remote', true)
+        .then(() => true).catch((e: Error) => {
+          remoteErr = e;
+          return false;
+        });
+      const results: boolean[] = await Promise.all([localTask, remoteTask]);
+      if (results[0]) {
+        loginAuth.activeEndpoint = 'local';
+      } else if (results[1]) {
+        loginAuth.activeEndpoint = 'remote';
+      } else {
+        throw (remoteErr ?? new SubsonicApiError(0, '无法连接服务器，请检查地址与网络'));
+      }
       const authStore: AuthStore = AuthStore.getInstance();
       await authStore.save(loginAuth);
       await authStore.rememberLoginInfo({
@@ -93,7 +110,7 @@ export class LoginViewModel {
         username,
         password
       });
-      AuthSession.applyLoggedIn(loginAuth);
+      AuthSession.onLoggedIn(loginAuth);
       onSuccess();
     } catch (err) {
       if (err instanceof SubsonicApiError) {

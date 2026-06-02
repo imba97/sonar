@@ -188,6 +188,24 @@ export struct LibraryPage {
                   this.appPathStack.pushPathByName('AlbumDetailPage', routeParam);
                 })
               }, (album: Album) => album.id)
+
+              if (this.vm.isLoadingMore) {
+                ListItem() {
+                  Row() {
+                    LoadingProgress()
+                      .width(22)
+                      .height(22)
+                      .color(UiTokens.COLOR_TEXT_SECONDARY)
+                    Text('加载中…')
+                      .fontSize(13)
+                      .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+                      .margin({ left: 8 })
+                  }
+                  .width('100%')
+                  .justifyContent(FlexAlign.Center)
+                  .padding({ top: 8, bottom: 8 })
+                }
+              }
             }
             .width('100%')
             .layoutWeight(1)
@@ -195,6 +213,9 @@ export struct LibraryPage {
             .listDirection(Axis.Vertical)
             .scrollBar(BarState.Off)
             .edgeEffect(EdgeEffect.Spring)
+            .onReachEnd(() => {
+              void this.vm.loadMore();
+            })
           }
         }
         .width('100%')

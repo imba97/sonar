@@ -20,7 +20,6 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     await AuthSession.restoreFromStore();
     AppStorage.setOrCreate<number>('rootTabIndex', 0);
-    AppStorage.setOrCreate<boolean>('rootTabActive', true);
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     PlaybackSession.setContext(context);
     await PlaybackSession.initialize(context);

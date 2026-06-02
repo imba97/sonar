@@ -46,6 +46,10 @@ export struct MiniPlayerBar {
     return `${minutes}:${secondText}`;
   }
 
+  private calculateBottomMargin(): number {
+    return this.rootTabActive ? UiTokens.MINI_PLAYER_TAB_OFFSET : UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM;
+  }
+
   @Builder
   private iconButton(icon: Resource, bgColor: string, onTap: () => void) {
     Button() {
@@ -113,7 +117,6 @@ export struct MiniPlayerBar {
   }
 
   build() {
-    const bottomMargin: number = this.rootTabActive ? UiTokens.MINI_PLAYER_TAB_OFFSET : UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM;
     Column() {
       if (this.showMiniPlayer) {
       Column() {
@@ -201,7 +204,7 @@ export struct MiniPlayerBar {
       .backgroundBlurStyle(BlurStyle.Thin)
       .border({ width: 1, color: '#33FFFFFF' })
       .borderRadius(18)
-      .margin({ left: 10, right: 10, bottom: bottomMargin })
+      .margin({ left: 10, right: 10, bottom: this.calculateBottomMargin() })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       } else {
         Column() {

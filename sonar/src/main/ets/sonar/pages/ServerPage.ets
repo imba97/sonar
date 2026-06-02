@@ -15,7 +15,7 @@ export struct ServerPage {
       pageBackground: UiTokens.COLOR_PAGE_BG,
       topPadding: 10,
       bottomPadding: this.showMiniPlayer ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
-        UiTokens.FLOATING_TAB_BAR_CONTENT_PADDING
+        UiTokens.BOTTOM_PADDING_WITH_TAB_BAR
     }) {
       Column({ space: 12 }) {
         Row() {

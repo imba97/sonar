@@ -4,6 +4,8 @@ import { CardContainer } from '../components/layout/CardContainer';
 import { PageScaffold } from '../components/layout/PageScaffold';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
+const LOGOUT_DESTINATION_TAB_INDEX: number = 1;
+
 @Component
 export struct ProfilePage {
   @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
@@ -13,7 +15,7 @@ export struct ProfilePage {
 
   private async handleLogout(): Promise<void> {
     await AuthSession.logout();
-    AppStorage.setOrCreate<number>('rootTabIndex', 1);
+    AppStorage.setOrCreate<number>('rootTabIndex', LOGOUT_DESTINATION_TAB_INDEX);
   }
 
   build() {
@@ -21,7 +23,7 @@ export struct ProfilePage {
       pageBackground: UiTokens.COLOR_PAGE_BG,
       topPadding: 10,
       bottomPadding: this.showMiniPlayer ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
-        UiTokens.FLOATING_TAB_BAR_CONTENT_PADDING
+        UiTokens.BOTTOM_PADDING_WITH_TAB_BAR
     }) {
       Column({ space: 12 }) {
         Row() {
@@ -47,7 +49,9 @@ export struct ProfilePage {
               DangerButton({
                 text: '退出登录',
                 onPressed: () => {
-                  void this.handleLogout();
+                  this.handleLogout().catch((err: Error) => {
+                    console.error(`logout failed: ${err.message}`);
+                  });
                 }
               })
               .margin({ top: 6 })

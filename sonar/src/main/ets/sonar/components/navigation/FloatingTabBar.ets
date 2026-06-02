@@ -16,10 +16,13 @@ export struct FloatingTabBar {
   }
 
   @Builder
-  private tabItem(index: number, iconText: string, title: string) {
+  private tabItem(index: number, icon: Resource, title: string) {
     Column({ space: 3 }) {
-      Text(iconText)
-        .fontSize(16)
+      Image(icon)
+        .width(18)
+        .height(18)
+        .opacity(this.currentIndex === index ? 1 : 0.68)
+        .accessibilityText(title)
       Text(title)
         .fontSize(11)
         .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Regular)
@@ -36,17 +39,17 @@ export struct FloatingTabBar {
       TabContent() {
         LibraryPage()
       }
-      .tabBar(this.tabItem(0, '🎵', '媒体库'))
+      .tabBar(this.tabItem(0, $r('app.media.lib_icon_12'), '媒体库'))
 
       TabContent() {
         ServerPage()
       }
-      .tabBar(this.tabItem(1, '🛰', '服务器'))
+      .tabBar(this.tabItem(1, $r('app.media.lib_icon_103'), '服务器'))
 
       TabContent() {
         ProfilePage()
       }
-      .tabBar(this.tabItem(2, '👤', '我的'))
+      .tabBar(this.tabItem(2, $r('app.media.lib_icon_7'), '我的'))
     }
     .barHeight(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .barMode(BarMode.Fixed)
@@ -56,7 +59,7 @@ export struct FloatingTabBar {
     .borderRadius(22)
     .margin({ left: 12, right: 12, bottom: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN })
     .onChange((index: number) => {
-      this.currentIndex = index;
+      AppStorage.setOrCreate<number>('rootTabIndex', index);
     })
     .scrollable(false)
   }

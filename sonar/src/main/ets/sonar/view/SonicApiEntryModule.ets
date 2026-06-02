@@ -45,8 +45,8 @@ export struct SonicApiEntryModule {
 
           TagButton({
             text: this.isLoggedIn ? '进入媒体库' : '连接服务器',
-            fontColor: '#FFFFFF',
-            bgColor: this.isLoggedIn ? UiTokens.COLOR_PRIMARY : '#34C759',
+            fontColor: UiTokens.COLOR_TEXT_ON_BRAND,
+            bgColor: this.isLoggedIn ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_SUCCESS_ALT,
             onPressed: () => {
               if (this.isLoggedIn) {
                 AppStorage.setOrCreate<number>('rootTabIndex', 0);

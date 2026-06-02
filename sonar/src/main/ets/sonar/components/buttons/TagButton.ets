@@ -3,8 +3,8 @@ import { UiTokens } from '../../ui/tokens/UiTokens';
 @Component
 export struct TagButton {
   @Prop text: string = '';
-  @Prop fontColor: string = UiTokens.COLOR_PRIMARY;
-  @Prop bgColor: string = UiTokens.COLOR_PRIMARY_SOFT_BG;
+  @Prop fontColor: ResourceColor = UiTokens.COLOR_PRIMARY;
+  @Prop bgColor: ResourceColor = UiTokens.COLOR_PRIMARY_SOFT_BG;
   @BuilderParam onPressed: () => void;
 
   build() {

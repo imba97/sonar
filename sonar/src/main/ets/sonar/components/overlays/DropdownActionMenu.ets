@@ -1,3 +1,5 @@
+import { UiTokens } from '../../ui/tokens/UiTokens';
+
 export interface DropdownActionItem {
   id: string;
   label: string;
@@ -20,7 +22,7 @@ export struct DropdownActionMenu {
         }
         .width('100%')
         .height('100%')
-        .backgroundColor('rgba(0,0,0,0.15)')
+        .backgroundColor(UiTokens.COLOR_OVERLAY_SCRIM)
         .onClick(() => {
           if (this.closeMenu !== undefined) {
             this.closeMenu();
@@ -30,7 +32,7 @@ export struct DropdownActionMenu {
         Column({ space: 10 }) {
           Text(this.title)
             .fontSize(13)
-            .fontColor('rgba(60,60,67,0.7)')
+            .fontColor(UiTokens.COLOR_DROPDOWN_TITLE)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
 
@@ -51,7 +53,7 @@ export struct DropdownActionMenu {
         }
         .width(188)
         .padding(12)
-        .backgroundColor(Color.White)
+        .backgroundColor(UiTokens.COLOR_DROPDOWN_PANEL_BG)
         .borderRadius(12)
         .alignItems(HorizontalAlign.Start)
         .margin({ right: 18, bottom: 26 })

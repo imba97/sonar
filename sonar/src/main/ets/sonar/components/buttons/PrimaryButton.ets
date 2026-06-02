@@ -12,10 +12,10 @@ export struct PrimaryButton {
       .width('100%')
       .height(48)
       .fontSize(16)
-      .fontColor(Color.White)
+      .fontColor(UiTokens.COLOR_TEXT_ON_BRAND)
       .fontWeight(FontWeight.Medium)
       .borderRadius(UiTokens.RADIUS_BUTTON)
-      .backgroundColor(this.isEnabled && !this.loading ? UiTokens.COLOR_PRIMARY : 'rgba(10,132,255,0.55)')
+      .backgroundColor(this.isEnabled && !this.loading ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_PRIMARY_DISABLED_BG)
       .enabled(this.isEnabled && !this.loading)
       .onClick(() => {
         if (this.isEnabled && !this.loading) {

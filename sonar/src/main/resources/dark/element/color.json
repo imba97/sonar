@@ -206,5 +206,98 @@
   }, {
     "name" : "description_font_color_List_HorizontalGraphicTextDisplayItem",
     "value" : "#E6E6E6"
+  }, {
+    "name" : "sonar_primary",
+    "value" : "#0A84FF"
+  }, {
+    "name" : "sonar_info",
+    "value" : "#5AC8FA"
+  }, {
+    "name" : "sonar_success",
+    "value" : "#30D158"
+  }, {
+    "name" : "sonar_danger",
+    "value" : "#FF453A"
+  }, {
+    "name" : "sonar_warning",
+    "value" : "#FF9F0A"
+  }, {
+    "name" : "sonar_bg_gradient_top",
+    "value" : "#21222B"
+  }, {
+    "name" : "sonar_bg_gradient_bottom",
+    "value" : "#121317"
+  }, {
+    "name" : "sonar_page_bg",
+    "value" : "#121317"
+  }, {
+    "name" : "sonar_text_primary",
+    "value" : "#F2F3F5"
+  }, {
+    "name" : "sonar_text_secondary",
+    "value" : "#9EEBEBF5"
+  }, {
+    "name" : "sonar_text_tertiary",
+    "value" : "#66EBEBF5"
+  }, {
+    "name" : "sonar_card_bg",
+    "value" : "#12FFFFFF"
+  }, {
+    "name" : "sonar_card_border",
+    "value" : "#1FFFFFFF"
+  }, {
+    "name" : "sonar_placeholder_bg",
+    "value" : "#1AFFFFFF"
+  }, {
+    "name" : "sonar_glass_bar_bg",
+    "value" : "#8C1A1B21"
+  }, {
+    "name" : "sonar_glass_bar_border",
+    "value" : "#24FFFFFF"
+  }, {
+    "name" : "sonar_primary_soft_bg",
+    "value" : "#330A84FF"
+  }, {
+    "name" : "sonar_info_soft_bg",
+    "value" : "#335AC8FA"
+  }, {
+    "name" : "sonar_success_soft_bg",
+    "value" : "#3330D158"
+  }, {
+    "name" : "sonar_warning_soft_bg",
+    "value" : "#33FF9F0A"
+  }, {
+    "name" : "sonar_danger_soft_bg",
+    "value" : "#33FF453A"
+  }, {
+    "name" : "sonar_tab_icon_inactive",
+    "value" : "#D9FFFFFF"
+  }, {
+    "name" : "sonar_overlay_scrim",
+    "value" : "#80000000"
+  }, {
+    "name" : "sonar_dropdown_title",
+    "value" : "#B3EBEBF5"
+  }, {
+    "name" : "sonar_dropdown_panel_bg",
+    "value" : "#F51E1F24"
+  }, {
+    "name" : "sonar_input_bg",
+    "value" : "#3D787880"
+  }, {
+    "name" : "sonar_text_on_brand",
+    "value" : "#FFFFFF"
+  }, {
+    "name" : "sonar_text_on_brand_secondary",
+    "value" : "#D9FFFFFF"
+  }, {
+    "name" : "sonar_success_alt",
+    "value" : "#34C759"
+  }, {
+    "name" : "sonar_primary_disabled_bg",
+    "value" : "#8C0A84FF"
+  }, {
+    "name" : "sonar_error",
+    "value" : "#FF6B6B"
   } ]
 }

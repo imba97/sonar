@@ -36,11 +36,11 @@ export struct LoginPage {
           Text('Sonar')
             .fontSize(48)
             .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
+            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
             .letterSpacing(2)
           Text('让自部署音乐，回到你的口袋')
             .fontSize(14)
-            .fontColor('rgba(255,255,255,0.85)')
+            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
             .margin({ top: 8 })
         }
         .margin({ top: 96, bottom: 48 })
@@ -107,7 +107,7 @@ export struct LoginPage {
             if (this.vm.errorMessage.length > 0) {
               Text(this.vm.errorMessage)
                 .fontSize(13)
-                .fontColor('#D70015')
+                .fontColor(UiTokens.COLOR_ERROR)
                 .margin({ top: 14 })
                 .alignSelf(ItemAlign.Start)
             }

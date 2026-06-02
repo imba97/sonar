@@ -39,6 +39,7 @@ export class PlaybackSession {
     AppStorage.setOrCreate<string>('nowPlayingSongId', '');
     AppStorage.setOrCreate<string>('nowPlayingTitle', '');
     AppStorage.setOrCreate<string>('nowPlayingArtist', '');
+    AppStorage.setOrCreate<string>('nowPlayingCoverArt', '');
     AppStorage.setOrCreate<boolean>('isPlaying', false);
     AppStorage.setOrCreate<string>('playbackMode', PlaybackSession.currentMode);
     AppStorage.setOrCreate<number>('playbackProgressMs', 0);
@@ -315,6 +316,7 @@ export class PlaybackSession {
       AppStorage.setOrCreate<string>('nowPlayingSongId', '');
       AppStorage.setOrCreate<string>('nowPlayingTitle', '');
       AppStorage.setOrCreate<string>('nowPlayingArtist', '');
+      AppStorage.setOrCreate<string>('nowPlayingCoverArt', '');
       AppStorage.setOrCreate<number>('playbackProgressMs', 0);
       AppStorage.setOrCreate<number>('playbackDurationMs', 0);
       return;
@@ -322,6 +324,7 @@ export class PlaybackSession {
     AppStorage.setOrCreate<string>('nowPlayingSongId', song.id);
     AppStorage.setOrCreate<string>('nowPlayingTitle', song.title);
     AppStorage.setOrCreate<string>('nowPlayingArtist', song.artist);
+    AppStorage.setOrCreate<string>('nowPlayingCoverArt', song.coverArt ?? '');
   }
 
   private static startHeartbeat(): void {

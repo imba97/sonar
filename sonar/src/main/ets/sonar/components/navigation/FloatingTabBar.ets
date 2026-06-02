@@ -45,7 +45,7 @@ export struct FloatingTabBar {
       Image(icon)
         .width(UiTokens.TAB_BAR_ICON_SIZE)
         .height(UiTokens.TAB_BAR_ICON_SIZE)
-        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : '#FFFFFF')
+        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TAB_ICON_INACTIVE)
         .opacity(this.currentIndex === index ? 1 : 0.85)
         .accessibilityText(label)
     }
@@ -61,7 +61,7 @@ export struct FloatingTabBar {
       Image(icon)
         .width(UiTokens.TAB_BAR_ICON_SIZE)
         .height(UiTokens.TAB_BAR_ICON_SIZE)
-        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : '#FFFFFF')
+        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TAB_ICON_INACTIVE)
         .opacity(this.currentIndex === index ? 1 : 0.85)
         .accessibilityText(label)
     }
@@ -85,7 +85,7 @@ export struct FloatingTabBar {
       .padding({ left: 10, right: 10, top: 8, bottom: 8 })
       .borderRadius(UiTokens.FLOATING_TAB_BAR_HEIGHT / 2)
       .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK, {
-        colorMode: ThemeColorMode.DARK,
+        colorMode: ThemeColorMode.SYSTEM,
         adaptiveColor: AdaptiveColor.DEFAULT,
         scale: 1.0
       })
@@ -128,9 +128,9 @@ export struct FloatingTabBar {
       },
       barBottomMargin: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset,
       barSideMargin: 0,
-      lightColor: '#14FFFFFF',
+      lightColor: UiTokens.COLOR_GLASS_BAR_BORDER,
       gradientMask: {
-        maskColor: '#66121317',
+        maskColor: UiTokens.COLOR_OVERLAY_SCRIM,
         maskHeight: UiTokens.FLOATING_TAB_BAR_HEIGHT + 16
       },
       systemMaterialEffect: {

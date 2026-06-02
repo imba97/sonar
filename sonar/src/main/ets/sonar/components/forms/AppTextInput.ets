@@ -12,7 +12,7 @@ export struct AppTextInput {
       .width('100%')
       .height(46)
       .borderRadius(12)
-      .backgroundColor('rgba(120,120,128,0.12)')
+      .backgroundColor(UiTokens.COLOR_INPUT_BG)
       .padding({ left: 14, right: 14 })
       .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
       .placeholderColor(UiTokens.COLOR_TEXT_SECONDARY)

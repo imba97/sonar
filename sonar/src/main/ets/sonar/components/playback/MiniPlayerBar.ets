@@ -1,4 +1,5 @@
 import { PlaybackSession } from '../../playback/PlaybackSession';
+import { SubsonicClient } from '../../api/SubsonicClient';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 @Component
@@ -7,12 +8,15 @@ export struct MiniPlayerBar {
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
   @StorageLink('nowPlayingTitle') nowPlayingTitle: string = '';
   @StorageLink('nowPlayingArtist') nowPlayingArtist: string = '';
+  @StorageLink('nowPlayingCoverArt') nowPlayingCoverArt: string = '';
   @StorageLink('isPlaying') isPlaying: boolean = false;
   @StorageLink('playbackMode') playbackMode: string = 'listLoop';
   @StorageLink('playbackProgressMs') playbackProgressMs: number = 0;
   @StorageLink('playbackDurationMs') playbackDurationMs: number = 0;
+  @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State private draggingValueMs: number = 0;
   @State private dragging: boolean = false;
+  @State private expanded: boolean = false;
 
   private effectiveDurationMs(): number {
     if (this.playbackDurationMs > 0) {
@@ -46,8 +50,14 @@ export struct MiniPlayerBar {
     return `${minutes}:${secondText}`;
   }
 
-  private calculateBottomMargin(): number {
-    return this.rootTabActive ? UiTokens.MINI_PLAYER_TAB_OFFSET : UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM;
+  private collapsedBottomMargin(): number {
+    return (this.rootTabActive ? UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN :
+      UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM) + this.bottomInset;
+  }
+
+  private expandedBottomMargin(): number {
+    return (this.rootTabActive ? UiTokens.MINI_PLAYER_TAB_OFFSET :
+      UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM) + this.bottomInset;
   }
 
   @Builder
@@ -56,7 +66,7 @@ export struct MiniPlayerBar {
       Image(icon)
         .width(24)
         .height(24)
-        .fillColor('#FFFFFF')
+        .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
     }
     .width(40)
     .height(40)
@@ -72,7 +82,7 @@ export struct MiniPlayerBar {
       Image(this.isPlaying ? $r('app.media.cb_pause') : $r('app.media.cb_play'))
         .width(30)
         .height(30)
-        .fillColor('#FFFFFF')
+        .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
     }
     .width(44)
     .height(44)
@@ -90,17 +100,17 @@ export struct MiniPlayerBar {
         Image($r('app.media.cb_mode_loop'))
           .width(24)
           .height(24)
-          .fillColor('#FFFFFF')
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
       } else if (this.playbackMode === 'random') {
         Image($r('app.media.cb_mode_shuffle'))
           .width(24)
           .height(24)
-          .fillColor('#FFFFFF')
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
       } else {
         Image($r('app.media.cb_mode_list'))
           .width(24)
           .height(24)
-          .fillColor('#FFFFFF')
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
       }
     }
     .width(40)
@@ -112,9 +122,75 @@ export struct MiniPlayerBar {
     })
   }
 
-  build() {
+  @Builder
+  private collapsedButton() {
     Column() {
+      Stack({ alignContent: Alignment.Center }) {
+        if (this.nowPlayingCoverArt.length > 0) {
+          Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .alt($r('app.media.cb_play'))
+            .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
+        } else {
+          Image($r('app.media.cb_play'))
+            .width(24)
+            .height(24)
+            .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+        }
+      }
+      .width(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+      .borderRadius(UiTokens.FLOATING_TAB_BAR_HEIGHT / 2)
+      .clip(true)
+      .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+        colorMode: ThemeColorMode.SYSTEM,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
+      .onClick(() => {
+        this.expanded = true;
+      })
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.End)
+    .padding({ right: 16 })
+    .margin({ bottom: this.collapsedBottomMargin() })
+    .hitTestBehavior(HitTestMode.None)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      if (this.showMiniPlayer && this.expanded) {
+        Column()
+          .width('100%')
+          .height('100%')
+          .backgroundColor(UiTokens.COLOR_OVERLAY_SCRIM)
+          .onClick(() => {
+            this.expanded = false;
+          })
+      }
+
       if (this.showMiniPlayer) {
+        if (this.expanded) {
+          this.expandedBar()
+        } else {
+          this.collapsedButton()
+        }
+      }
+    }
+    .width('100%')
+    .height('100%')
+    .hitTestBehavior(this.expanded ? HitTestMode.Default : HitTestMode.None)
+  }
+
+  @Builder
+  private expandedBar() {
+    Column() {
       Column() {
         Row() {
           Column() {
@@ -198,21 +274,16 @@ export struct MiniPlayerBar {
       .width('100%')
       .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
       .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-        colorMode: ThemeColorMode.DARK,
+        colorMode: ThemeColorMode.SYSTEM,
         adaptiveColor: AdaptiveColor.DEFAULT,
         scale: 1.0
       })
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .borderRadius(18)
-      .margin({ left: 16, right: 16, bottom: this.calculateBottomMargin() })
+      .margin({ left: 16, right: 16, bottom: this.expandedBottomMargin() })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-      } else {
-        Column() {
-        }
-        .width('100%')
-        .height(0)
-      }
     }
     .width('100%')
+    .hitTestBehavior(HitTestMode.None)
   }
 }

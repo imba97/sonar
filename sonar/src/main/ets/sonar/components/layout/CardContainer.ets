@@ -13,7 +13,7 @@ export struct CardContainer {
     .borderRadius(UiTokens.RADIUS_CARD)
     .backgroundColor(UiTokens.COLOR_CARD_BG)
     .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-      colorMode: ThemeColorMode.DARK,
+      colorMode: ThemeColorMode.SYSTEM,
       adaptiveColor: AdaptiveColor.DEFAULT,
       scale: 1.0
     })

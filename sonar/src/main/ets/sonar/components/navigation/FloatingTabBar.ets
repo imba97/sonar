@@ -17,16 +17,13 @@ export struct FloatingTabBar {
 
   @Builder
   private tabItem(index: number, icon: Resource, title: string) {
-    Column({ space: 3 }) {
+    Column() {
       Image(icon)
         .width(18)
         .height(18)
+        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TEXT_SECONDARY)
         .opacity(this.currentIndex === index ? 1 : 0.68)
         .accessibilityText(title)
-      Text(title)
-        .fontSize(11)
-        .fontWeight(this.currentIndex === index ? FontWeight.Medium : FontWeight.Regular)
-        .fontColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TEXT_SECONDARY)
     }
     .width('100%')
     .height('100%')
@@ -39,17 +36,17 @@ export struct FloatingTabBar {
       TabContent() {
         LibraryPage()
       }
-      .tabBar(this.tabItem(0, $r('app.media.lib_icon_12'), '媒体库'))
+      .tabBar(this.tabItem(0, $r('app.media.tab_library'), '媒体库'))
 
       TabContent() {
         ServerPage()
       }
-      .tabBar(this.tabItem(1, $r('app.media.lib_icon_103'), '服务器'))
+      .tabBar(this.tabItem(1, $r('app.media.tab_server'), '服务器'))
 
       TabContent() {
         ProfilePage()
       }
-      .tabBar(this.tabItem(2, $r('app.media.lib_icon_7'), '我的'))
+      .tabBar(this.tabItem(2, $r('app.media.tab_profile'), '我的'))
     }
     .barHeight(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .barMode(BarMode.Fixed)

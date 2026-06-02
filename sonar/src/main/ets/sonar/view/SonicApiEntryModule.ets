@@ -49,7 +49,7 @@ export struct SonicApiEntryModule {
             bgColor: this.isLoggedIn ? UiTokens.COLOR_PRIMARY : '#34C759',
             onPressed: () => {
               if (this.isLoggedIn) {
-                this.appPathStack.pushPathByName('LibraryPage', null);
+                AppStorage.setOrCreate<number>('rootTabIndex', 0);
               } else {
                 this.appPathStack.pushPathByName('LoginPage', null);
               }

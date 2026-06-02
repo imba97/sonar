@@ -1,10 +1,10 @@
 import { PageMap } from './detail/SecondPageBuilder'
-import { HomePage } from './pages/HomePage';
 import { AuthSession } from '../sonar/auth/AuthSession';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PlaybackSession } from '../sonar/playback/PlaybackSession';
 import { MiniPlayerBar } from '../sonar/components/playback/MiniPlayerBar';
 import { common } from '@kit.AbilityKit';
+import { FloatingTabBar } from '../sonar/components/navigation/FloatingTabBar';
 
 const DOMAIN = 0x0000;
 const TAG = 'Sonar.Index';
@@ -13,13 +13,13 @@ const BACK_PRESS_INTERVAL: number = 2000;
 @Entry
 @Component
 struct Index {
-  private scroller: Scroller = new Scroller();
   @Provide('appPathStack') appPathStack: NavPathStack = new NavPathStack();
   @State title: string = 'page_title';
   @State private lastBackPressTime: number = 0;
 
   async aboutToAppear(): Promise<void> {
     await AuthSession.restoreFromStore();
+    AppStorage.setOrCreate<number>('rootTabIndex', 0);
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     PlaybackSession.setContext(context);
     await PlaybackSession.initialize(context);
@@ -51,17 +51,7 @@ struct Index {
     Stack({ alignContent: Alignment.Bottom }) {
       Navigation(this.appPathStack) {
         Column() {
-          Scroll(this.scroller) {
-            Column() {
-              HomePage()
-            }
-            .width('100%')
-            .justifyContent(FlexAlign.Start)
-            .alignItems(HorizontalAlign.Start)
-          }
-          .scrollable(ScrollDirection.Vertical)
-          .scrollBar(BarState.Off)
-          .width('100%')
+          FloatingTabBar()
         }
         .backgroundColor('#F1F3F5')
         .width('100%')

@@ -1,4 +1,7 @@
 export class UiTokens {
+  static readonly TAB_BAR_CONTENT_EXTRA_PADDING: number = 16;
+  static readonly MINI_PLAYER_TAB_EXTRA_OFFSET: number = 8;
+
   static readonly COLOR_PRIMARY: string = '#0A84FF';
   static readonly COLOR_INFO: string = '#007D9C';
   static readonly COLOR_SUCCESS: string = '#1C7C3E';
@@ -21,5 +24,15 @@ export class UiTokens {
   static readonly RADIUS_CARD: number = 14;
   static readonly RADIUS_CHIP: number = 15;
 
+  static readonly FLOATING_TAB_BAR_HEIGHT: number = 58;
+  static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
+  static readonly BOTTOM_PADDING_WITH_TAB_BAR: number =
+    UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN +
+    UiTokens.TAB_BAR_CONTENT_EXTRA_PADDING;
+  static readonly MINI_PLAYER_BASE_MARGIN_BOTTOM: number = 8;
+  static readonly MINI_PLAYER_TAB_OFFSET: number =
+    UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN +
+    UiTokens.MINI_PLAYER_TAB_EXTRA_OFFSET;
   static readonly MINI_PLAYER_BOTTOM_PADDING: number = 92;
+  static readonly MINI_PLAYER_WITH_TAB_BOTTOM_PADDING: number = 168;
 }

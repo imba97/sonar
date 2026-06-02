@@ -4,6 +4,7 @@ import { UiTokens } from '../../ui/tokens/UiTokens';
 @Component
 export struct MiniPlayerBar {
   @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('rootTabActive') rootTabActive: boolean = false;
   @StorageLink('nowPlayingTitle') nowPlayingTitle: string = '';
   @StorageLink('nowPlayingArtist') nowPlayingArtist: string = '';
   @StorageLink('isPlaying') isPlaying: boolean = false;
@@ -43,6 +44,10 @@ export struct MiniPlayerBar {
     const seconds: number = totalSeconds % 60;
     const secondText: string = seconds < 10 ? `0${seconds}` : String(seconds);
     return `${minutes}:${secondText}`;
+  }
+
+  private calculateBottomMargin(): number {
+    return this.rootTabActive ? UiTokens.MINI_PLAYER_TAB_OFFSET : UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM;
   }
 
   @Builder
@@ -199,7 +204,7 @@ export struct MiniPlayerBar {
       .backgroundBlurStyle(BlurStyle.Thin)
       .border({ width: 1, color: '#33FFFFFF' })
       .borderRadius(18)
-      .margin({ left: 10, right: 10, bottom: 8 })
+      .margin({ left: 10, right: 10, bottom: this.calculateBottomMargin() })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
       } else {
         Column() {

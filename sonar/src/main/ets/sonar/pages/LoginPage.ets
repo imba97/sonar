@@ -98,7 +98,8 @@ export struct LoginPage {
               isEnabled: !this.vm.isLoading,
               onPressed: () => {
                 this.vm.submit(() => {
-                  this.appPathStack.replacePathByName('LibraryPage', null);
+                  AppStorage.setOrCreate<number>('rootTabIndex', 0);
+                  this.appPathStack.clear();
                 });
               }
             })

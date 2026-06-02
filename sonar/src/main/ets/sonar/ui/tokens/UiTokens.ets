@@ -21,5 +21,11 @@ export class UiTokens {
   static readonly RADIUS_CARD: number = 14;
   static readonly RADIUS_CHIP: number = 15;
 
+  static readonly FLOATING_TAB_BAR_HEIGHT: number = 58;
+  static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
+  static readonly FLOATING_TAB_BAR_CONTENT_PADDING: number = 84;
+  static readonly MINI_PLAYER_BASE_MARGIN_BOTTOM: number = 8;
+  static readonly MINI_PLAYER_TAB_OFFSET: number = 76;
   static readonly MINI_PLAYER_BOTTOM_PADDING: number = 92;
+  static readonly MINI_PLAYER_WITH_TAB_BOTTOM_PADDING: number = 168;
 }

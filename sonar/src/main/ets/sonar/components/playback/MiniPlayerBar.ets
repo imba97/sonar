@@ -6,49 +6,13 @@ import { UiTokens } from '../../ui/tokens/UiTokens';
 export struct MiniPlayerBar {
   @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
+  @StorageLink('bottomDockSwapped') bottomDockSwapped: boolean = false;
   @StorageLink('nowPlayingTitle') nowPlayingTitle: string = '';
   @StorageLink('nowPlayingArtist') nowPlayingArtist: string = '';
   @StorageLink('nowPlayingCoverArt') nowPlayingCoverArt: string = '';
   @StorageLink('isPlaying') isPlaying: boolean = false;
   @StorageLink('playbackMode') playbackMode: string = 'listLoop';
-  @StorageLink('playbackProgressMs') playbackProgressMs: number = 0;
-  @StorageLink('playbackDurationMs') playbackDurationMs: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
-  @State private draggingValueMs: number = 0;
-  @State private dragging: boolean = false;
-  @State private expanded: boolean = false;
-
-  private effectiveDurationMs(): number {
-    if (this.playbackDurationMs > 0) {
-      return this.playbackDurationMs;
-    }
-    if (this.dragging && this.draggingValueMs > 0) {
-      return this.draggingValueMs;
-    }
-    return 0;
-  }
-
-  private clampProgress(value: number): number {
-    const durationMs: number = this.effectiveDurationMs();
-    if (durationMs <= 0) {
-      return 0;
-    }
-    if (value < 0) {
-      return 0;
-    }
-    if (value > durationMs) {
-      return durationMs;
-    }
-    return value;
-  }
-
-  private formatTime(ms: number): string {
-    const totalSeconds: number = Math.floor(ms / 1000);
-    const minutes: number = Math.floor(totalSeconds / 60);
-    const seconds: number = totalSeconds % 60;
-    const secondText: string = seconds < 10 ? `0${seconds}` : String(seconds);
-    return `${minutes}:${secondText}`;
-  }
 
   private collapsedBottomMargin(): number {
     return (this.rootTabActive ? UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN :
@@ -56,96 +20,52 @@ export struct MiniPlayerBar {
   }
 
   private expandedBottomMargin(): number {
-    return (this.rootTabActive ? UiTokens.MINI_PLAYER_TAB_OFFSET :
+    return (this.rootTabActive ? UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN :
       UiTokens.MINI_PLAYER_BASE_MARGIN_BOTTOM) + this.bottomInset;
   }
 
+  private toggleDockSwapped(nextValue: boolean): void {
+    if (this.bottomDockSwapped === nextValue) {
+      return;
+    }
+    animateTo({
+      duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION,
+      curve: Curve.EaseInOut
+    }, () => {
+      this.bottomDockSwapped = nextValue;
+    });
+  }
+
+  private modeIcon(): Resource {
+    if (this.playbackMode === 'singleLoop') {
+      return $r('app.media.cb_mode_loop');
+    }
+    if (this.playbackMode === 'random') {
+      return $r('app.media.cb_mode_shuffle');
+    }
+    return $r('app.media.cb_mode_list');
+  }
+
   @Builder
-  private iconButton(icon: Resource, onTap: () => void) {
-    Button() {
+  private actionIcon(icon: Resource, iconSize: number, onTap: () => void) {
+    Column() {
       Image(icon)
-        .width(24)
-        .height(24)
+        .width(iconSize)
+        .height(iconSize)
         .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
     }
-    .width(40)
-    .height(40)
-    .borderRadius(20)
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-      colorMode: ThemeColorMode.SYSTEM,
-      adaptiveColor: AdaptiveColor.DEFAULT,
-      scale: 1.0
-    })
-    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
-    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
     .onClick(() => {
       onTap();
     })
   }
 
   @Builder
-  private playPauseButton() {
-    Button() {
-      Image(this.isPlaying ? $r('app.media.cb_pause') : $r('app.media.cb_play'))
-        .width(30)
-        .height(30)
-        .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-    }
-    .width(44)
-    .height(44)
-    .borderRadius(22)
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-      colorMode: ThemeColorMode.SYSTEM,
-      adaptiveColor: AdaptiveColor.DEFAULT,
-      scale: 1.0
-    })
-    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
-    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
-    .onClick(() => {
-      this.isPlaying = !this.isPlaying;
-      void PlaybackSession.togglePlayPause();
-    })
-  }
-
-  @Builder
-  private modeButton() {
-    Button() {
-      if (this.playbackMode === 'singleLoop') {
-        Image($r('app.media.cb_mode_loop'))
-          .width(24)
-          .height(24)
-          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-      } else if (this.playbackMode === 'random') {
-        Image($r('app.media.cb_mode_shuffle'))
-          .width(24)
-          .height(24)
-          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-      } else {
-        Image($r('app.media.cb_mode_list'))
-          .width(24)
-          .height(24)
-          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-      }
-    }
-    .width(40)
-    .height(40)
-    .borderRadius(20)
-    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-      colorMode: ThemeColorMode.SYSTEM,
-      adaptiveColor: AdaptiveColor.DEFAULT,
-      scale: 1.0
-    })
-    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
-    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
-    .onClick(() => {
-      const nextMode: string = PlaybackSession.togglePlaybackMode();
-      this.playbackMode = nextMode;
-    })
-  }
-
-  @Builder
-  private collapsedButton() {
-    Column() {
+  private coverDisc(size: number, clickable: boolean = false) {
+    if (clickable) {
       Stack({ alignContent: Alignment.Center }) {
         if (this.nowPlayingCoverArt.length > 0) {
           Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
@@ -154,6 +74,13 @@ export struct MiniPlayerBar {
             .objectFit(ImageFit.Cover)
             .alt($r('app.media.cb_play'))
             .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
+            .rotate({ x: 0, y: 0, z: 1, angle: this.isPlaying ? 360 : 0 })
+            .animation({
+              duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
+              curve: Curve.Linear,
+              iterations: this.isPlaying ? -1 : 1,
+              playMode: PlayMode.Normal
+            })
         } else {
           Image($r('app.media.cb_play'))
             .width(24)
@@ -161,9 +88,9 @@ export struct MiniPlayerBar {
             .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
         }
       }
-      .width(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-      .borderRadius(UiTokens.FLOATING_TAB_BAR_HEIGHT / 2)
+      .width(size)
+      .height(size)
+      .borderRadius(size / 2)
       .clip(true)
       .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
       .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
@@ -173,126 +100,35 @@ export struct MiniPlayerBar {
       })
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .onClick(() => {
-        this.expanded = true;
+        this.toggleDockSwapped(true);
       })
-    }
-    .width('100%')
-    .alignItems(HorizontalAlign.End)
-    .padding({ right: 16 })
-    .margin({ bottom: this.collapsedBottomMargin() })
-    .hitTestBehavior(HitTestMode.None)
-    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
-  }
-
-  build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      if (this.showMiniPlayer && this.expanded) {
-        Column()
-          .width('100%')
-          .height('100%')
-          .backgroundColor(UiTokens.COLOR_OVERLAY_SCRIM)
-          .onClick(() => {
-            this.expanded = false;
-          })
-      }
-
-      if (this.showMiniPlayer) {
-        if (this.expanded) {
-          this.expandedBar()
-        } else {
-          this.collapsedButton()
-        }
-      }
-    }
-    .width('100%')
-    .height('100%')
-    .hitTestBehavior(this.expanded ? HitTestMode.Default : HitTestMode.None)
-  }
-
-  @Builder
-  private expandedBar() {
-    Column() {
-      Column() {
-        Row() {
-          Column() {
-            Text(this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未在播放')
-              .fontSize(14)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-            Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
-              .fontSize(12)
-              .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-              .maxLines(1)
-              .textOverflow({ overflow: TextOverflow.Ellipsis })
-              .margin({ top: 2 })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Start)
-
-          Row({ space: 8 }) {
-            this.iconButton($r('app.media.cb_prev'), () => {
-                void PlaybackSession.playPrevious();
-              })
-            this.playPauseButton()
-            this.iconButton($r('app.media.cb_next'), () => {
-                void PlaybackSession.playNext(true);
-              })
-            this.modeButton()
-          }
-          .alignItems(VerticalAlign.Center)
-        }
-        .width('100%')
-        .padding({ left: 12, right: 12, top: 10, bottom: 6 })
-
-        Row() {
-          Text(this.formatTime(this.clampProgress(this.dragging ? this.draggingValueMs : this.playbackProgressMs)))
-            .fontSize(11)
-            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-            .width(40)
-          Slider({
-            min: 0,
-            max: this.effectiveDurationMs() > 0 ? this.effectiveDurationMs() : 1,
-            value: this.effectiveDurationMs() > 0 ?
-              this.clampProgress(this.dragging ? this.draggingValueMs : this.playbackProgressMs) : 0
-          })
-            .layoutWeight(1)
-            .enabled(this.effectiveDurationMs() > 0)
-            .blockColor(UiTokens.COLOR_PRIMARY)
-            .trackColor(UiTokens.COLOR_PRIMARY_SOFT_BG)
-            .selectedColor(UiTokens.COLOR_PRIMARY)
-            .onChange((value: number, mode: SliderChangeMode) => {
-              const nextValue: number = this.clampProgress(Math.floor(value));
-              if (this.effectiveDurationMs() <= 0) {
-                return;
-              }
-              if (mode === SliderChangeMode.Begin) {
-                this.dragging = true;
-                this.draggingValueMs = nextValue;
-                return;
-              }
-              if (mode === SliderChangeMode.Moving) {
-                this.draggingValueMs = nextValue;
-                return;
-              }
-              if (mode === SliderChangeMode.End || mode === SliderChangeMode.Click) {
-                this.dragging = false;
-                this.draggingValueMs = nextValue;
-                void PlaybackSession.seekTo(nextValue);
-              }
+    } else {
+      Stack({ alignContent: Alignment.Center }) {
+        if (this.nowPlayingCoverArt.length > 0) {
+          Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
+            .width('100%')
+            .height('100%')
+            .objectFit(ImageFit.Cover)
+            .alt($r('app.media.cb_play'))
+            .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
+            .rotate({ x: 0, y: 0, z: 1, angle: this.isPlaying ? 360 : 0 })
+            .animation({
+              duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
+              curve: Curve.Linear,
+              iterations: this.isPlaying ? -1 : 1,
+              playMode: PlayMode.Normal
             })
-          Text(this.formatTime(this.effectiveDurationMs()))
-            .fontSize(11)
-            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-            .width(40)
-            .textAlign(TextAlign.End)
+        } else {
+          Image($r('app.media.cb_play'))
+            .width(24)
+            .height(24)
+            .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
         }
-        .width('100%')
-        .alignItems(VerticalAlign.Center)
-        .padding({ left: 12, right: 12, bottom: 10 })
       }
-      .width('100%')
+      .width(size)
+      .height(size)
+      .borderRadius(size / 2)
+      .clip(true)
       .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
       .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
         colorMode: ThemeColorMode.SYSTEM,
@@ -300,11 +136,106 @@ export struct MiniPlayerBar {
         scale: 1.0
       })
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
-      .borderRadius(18)
-      .margin({ left: 16, right: 16, bottom: this.expandedBottomMargin() })
+    }
+  }
+
+  @Builder
+  private collapsedButton() {
+    Column() {
+      this.coverDisc(UiTokens.DOCK_BALL_SIZE, true)
+    }
+    .width('100%')
+    .alignItems(HorizontalAlign.Start)
+    .padding({ left: UiTokens.DOCK_SIDE_MARGIN })
+    .margin({ bottom: this.collapsedBottomMargin() })
+    .hitTestBehavior(HitTestMode.Transparent)
+    .animation({ duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION, curve: Curve.EaseInOut })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Bottom }) {
+      if (this.showMiniPlayer) {
+        if (this.bottomDockSwapped) {
+          this.expandedBar()
+        } else {
+          this.collapsedButton()
+        }
+      }
+    }
+    .width('100%')
+    .hitTestBehavior(HitTestMode.Transparent)
+    .animation({ duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION, curve: Curve.EaseInOut })
+  }
+
+  @Builder
+  private expandedBar() {
+    Column() {
+      Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
+        this.coverDisc(UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE)
+
+        Column({ space: 2 }) {
+          Text(this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未在播放')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
+            .fontSize(12)
+            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        .justifyContent(FlexAlign.Center)
+
+        Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
+          this.actionIcon(this.isPlaying ? $r('app.media.cb_pause') : $r('app.media.cb_play'), 24, () => {
+            this.isPlaying = !this.isPlaying;
+            void PlaybackSession.togglePlayPause();
+          })
+          this.actionIcon($r('app.media.cb_next'), 24, () => {
+            void PlaybackSession.playNext(true);
+          })
+          this.actionIcon(this.modeIcon(), 22, () => {
+            const nextMode: string = PlaybackSession.togglePlaybackMode();
+            this.playbackMode = nextMode;
+          })
+        }
+        .alignItems(VerticalAlign.Center)
+      }
+      .width('100%')
+      .height(UiTokens.MINI_PLAYER_CAPSULE_HEIGHT)
+      .constraintSize({ maxWidth: UiTokens.MINI_PLAYER_CAPSULE_MAX_WIDTH })
+      .padding({
+        left: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING,
+        right: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING
+      })
+      .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+        colorMode: ThemeColorMode.SYSTEM,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
+      .borderRadius(UiTokens.MINI_PLAYER_CAPSULE_HEIGHT / 2)
+      .margin({
+        left: UiTokens.DOCK_SIDE_MARGIN,
+        right: UiTokens.DOCK_SIDE_MARGIN + UiTokens.DOCK_BALL_SIZE + UiTokens.DOCK_COMPONENT_GAP,
+        bottom: this.expandedBottomMargin()
+      })
+      .opacity(this.bottomDockSwapped ? 1 : 0)
+      .animation({
+        duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION,
+        curve: Curve.EaseInOut
+      })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.BOTTOM])
     }
     .width('100%')
-    .hitTestBehavior(HitTestMode.None)
+    .alignItems(HorizontalAlign.Start)
+    .padding({ left: UiTokens.DOCK_SIDE_MARGIN })
+    .hitTestBehavior(HitTestMode.Transparent)
   }
 }

@@ -24,6 +24,8 @@ const FLOATING_TAB_BAR_TEXT_WIDTH_LARGE: number = 268;
 @Component
 export struct FloatingTabBar {
   @StorageLink('rootTabIndex') currentIndex: number = 0;
+  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('bottomDockSwapped') bottomDockSwapped: boolean = false;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   private hdsTabsController: HdsTabsController = new HdsTabsController();
   @State private immersiveMaterialLevel: hdsMaterial.MaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
@@ -43,6 +45,18 @@ export struct FloatingTabBar {
 
   private onTabIndexChange(index: number): void {
     AppStorage.setOrCreate<number>('rootTabIndex', index);
+  }
+
+  private toggleDockSwapped(nextValue: boolean): void {
+    if (this.bottomDockSwapped === nextValue) {
+      return;
+    }
+    animateTo({
+      duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION,
+      curve: Curve.EaseInOut
+    }, () => {
+      this.bottomDockSwapped = nextValue;
+    });
   }
 
   private resolveImmersiveMaterialLevel(): void {
@@ -70,6 +84,11 @@ export struct FloatingTabBar {
 
   private tabColorByIndex(index: number): ResourceColor {
     return this.isTabSelected(index) ? this.activeTabColor() : this.inactiveTabColor();
+  }
+
+  private currentTabIcon(): Resource {
+    const safeIndex: number = this.currentIndex >= 0 && this.currentIndex < ROOT_TAB_ITEMS.length ? this.currentIndex : 0;
+    return ROOT_TAB_ITEMS[safeIndex].icon;
   }
 
   private buildHdsTabBarStyle(item: RootTabItem): BottomTabBarStyle {
@@ -159,49 +178,112 @@ export struct FloatingTabBar {
   }
 
   @Builder
-  private buildHdsTabs() {
-    HdsTabs({ controller: this.hdsTabsController, index: this.currentIndex }) {
-      TabContent() {
-        LibraryPage()
+  private buildDockTabBar() {
+    Column() {
+      Row({ space: UiTokens.TAB_BAR_ICON_GAP - 10 }) {
+        ForEach(ROOT_TAB_ITEMS, (item: RootTabItem) => {
+          this.fallbackTabButton(item.pageIndex, item.icon, item.a11yLabel)
+        }, (item: RootTabItem) => `${item.pageIndex}`)
       }
-      .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[0]))
-
-      TabContent() {
-        ServerPage()
-      }
-      .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[1]))
-
-      TabContent() {
-        ProfilePage()
-      }
-      .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[2]))
+      .width(UiTokens.FLOATING_TAB_BAR_COMPACT_WIDTH)
+      .padding({ left: 14, right: 14, top: 4, bottom: 4 })
+      .borderRadius(UiTokens.FLOATING_TAB_BAR_HEIGHT / 2)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK, {
+        colorMode: ThemeColorMode.SYSTEM,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
+      .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
     }
-    .barOverlap(true)
-    .barPosition(BarPosition.End)
-    .barMode(BarMode.Fixed)
-    .vertical(false)
-    .scrollable(false)
-    .animationDuration(240)
-    .barHeight(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-    .barFloatingStyle({
-      barWidth: {
-        smallWidth: FLOATING_TAB_BAR_TEXT_WIDTH_SMALL,
-        mediumWidth: FLOATING_TAB_BAR_TEXT_WIDTH_MEDIUM,
-        largeWidth: FLOATING_TAB_BAR_TEXT_WIDTH_LARGE
-      },
-      barBottomMargin: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset,
-      barSideMargin: 0,
-      thermoCtrl: true,
-      lightColor: UiTokens.COLOR_GLASS_BAR_BORDER,
-      gradientMask: {
-        maskColor: UiTokens.COLOR_OVERLAY_SCRIM,
-        maskHeight: UiTokens.FLOATING_TAB_BAR_HEIGHT + 16
-      },
-      systemMaterialEffect: this.buildTabBarMaterialEffect()
+    .width('100%')
+    .alignItems(HorizontalAlign.End)
+    .padding({ right: UiTokens.DOCK_SIDE_MARGIN })
+    .margin({ bottom: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset })
+    .animation({ duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION, curve: Curve.EaseInOut })
+  }
+
+  @Builder
+  private buildCompactCurrentTabBall() {
+    Column() {
+      Image(this.currentTabIcon())
+        .width(22)
+        .height(22)
+        .fillColor(this.activeTabColor())
+    }
+    .width(UiTokens.DOCK_BALL_SIZE)
+    .height(UiTokens.DOCK_BALL_SIZE)
+    .borderRadius(UiTokens.DOCK_BALL_SIZE / 2)
+    .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK, {
+      colorMode: ThemeColorMode.SYSTEM,
+      adaptiveColor: AdaptiveColor.DEFAULT,
+      scale: 1.0
     })
-    .onChange((index: number) => {
-      this.onTabIndexChange(index);
+    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
+    .onClick(() => {
+      this.toggleDockSwapped(false);
     })
+    .margin({ bottom: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset, right: UiTokens.DOCK_SIDE_MARGIN })
+    .animation({ duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION, curve: Curve.EaseInOut })
+  }
+
+  @Builder
+  private buildHdsTabs() {
+    Stack({ alignContent: Alignment.BottomEnd }) {
+      HdsTabs({ controller: this.hdsTabsController, index: this.currentIndex }) {
+        TabContent() {
+          LibraryPage()
+        }
+        .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[0]))
+
+        TabContent() {
+          ServerPage()
+        }
+        .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[1]))
+
+        TabContent() {
+          ProfilePage()
+        }
+        .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[2]))
+      }
+      .barOverlap(true)
+      .barPosition(BarPosition.End)
+      .barMode(BarMode.Fixed)
+      .vertical(false)
+      .scrollable(false)
+      .animationDuration(240)
+      .barHeight(this.showMiniPlayer ? 0 : UiTokens.FLOATING_TAB_BAR_HEIGHT)
+      .barFloatingStyle({
+        barWidth: {
+          smallWidth: FLOATING_TAB_BAR_TEXT_WIDTH_SMALL,
+          mediumWidth: FLOATING_TAB_BAR_TEXT_WIDTH_MEDIUM,
+          largeWidth: FLOATING_TAB_BAR_TEXT_WIDTH_LARGE
+        },
+        barBottomMargin: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset,
+        barSideMargin: 0,
+        thermoCtrl: true,
+        lightColor: UiTokens.COLOR_GLASS_BAR_BORDER,
+        gradientMask: {
+          maskColor: UiTokens.COLOR_OVERLAY_SCRIM,
+          maskHeight: UiTokens.FLOATING_TAB_BAR_HEIGHT + 16
+        },
+        systemMaterialEffect: this.buildTabBarMaterialEffect()
+      })
+      .onChange((index: number) => {
+        this.onTabIndexChange(index);
+      })
+      .width('100%')
+      .height('100%')
+
+      if (this.showMiniPlayer) {
+        if (this.bottomDockSwapped) {
+          this.buildCompactCurrentTabBall()
+        } else {
+          this.buildDockTabBar()
+        }
+      }
+    }
     .width('100%')
     .height('100%')
   }
@@ -233,7 +315,15 @@ export struct FloatingTabBar {
       .width('100%')
       .height('100%')
 
-      this.buildFallbackGlassBar()
+      if (this.showMiniPlayer) {
+        if (this.bottomDockSwapped) {
+          this.buildCompactCurrentTabBall()
+        } else {
+          this.buildDockTabBar()
+        }
+      } else {
+        this.buildFallbackGlassBar()
+      }
     }
     .width('100%')
     .height('100%')

@@ -36,6 +36,7 @@ export class PlaybackSession {
       PlaybackSession.setContext(context);
     }
     AppStorage.setOrCreate<boolean>('showMiniPlayer', false);
+    AppStorage.setOrCreate<boolean>('bottomDockSwapped', false);
     AppStorage.setOrCreate<string>('nowPlayingSongId', '');
     AppStorage.setOrCreate<string>('nowPlayingTitle', '');
     AppStorage.setOrCreate<string>('nowPlayingArtist', '');
@@ -306,9 +307,13 @@ export class PlaybackSession {
   }
 
   private static syncAppStorageBaseState(isPlaying: boolean): void {
+    const showMiniPlayer: boolean = PlaybackSession.currentIndex >= 0;
     AppStorage.setOrCreate<boolean>('isPlaying', isPlaying);
     AppStorage.setOrCreate<string>('playbackMode', PlaybackSession.currentMode);
-    AppStorage.setOrCreate<boolean>('showMiniPlayer', PlaybackSession.currentIndex >= 0);
+    AppStorage.setOrCreate<boolean>('showMiniPlayer', showMiniPlayer);
+    if (!showMiniPlayer) {
+      AppStorage.setOrCreate<boolean>('bottomDockSwapped', false);
+    }
   }
 
   private static syncNowPlayingMeta(song: Song | null): void {

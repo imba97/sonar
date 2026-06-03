@@ -22,6 +22,7 @@ struct Index {
   async aboutToAppear(): Promise<void> {
     await AuthSession.restoreFromStore();
     AppStorage.setOrCreate<number>('rootTabIndex', 0);
+    AppStorage.setOrCreate<boolean>('bottomDockSwapped', false);
     if (!AuthStore.getInstance().isLoggedIn()) {
       this.appPathStack.replacePathByName('LoginPage', null);
     }
@@ -31,6 +32,12 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    const showMiniPlayer: boolean = AppStorage.get<boolean>('showMiniPlayer') ?? false;
+    const dockSwapped: boolean = AppStorage.get<boolean>('bottomDockSwapped') ?? false;
+    if (showMiniPlayer && dockSwapped) {
+      AppStorage.setOrCreate<boolean>('bottomDockSwapped', false);
+      return true;
+    }
     if (this.appPathStack.size() > 0) {
       hilog.info(DOMAIN, TAG, 'onBackPress: pop destination, stack size=%{public}d', this.appPathStack.size());
       this.appPathStack.pop();

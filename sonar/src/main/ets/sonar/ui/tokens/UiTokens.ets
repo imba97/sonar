@@ -45,17 +45,28 @@ export class UiTokens {
   static readonly TAB_BAR_ICON_SIZE: number = 26;
   static readonly TAB_BAR_ICON_GAP: number = 24;
   static readonly FLOATING_TAB_BAR_HEIGHT: number = 56;
-  static readonly FLOATING_TAB_BAR_COMPACT_WIDTH: number = 168;
+  static readonly FLOATING_TAB_BAR_COMPACT_WIDTH: number = 236;
   static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
+  static readonly DOCK_SIDE_MARGIN: number = 16;
+  static readonly DOCK_COMPONENT_GAP: number = 12;
+  static readonly DOCK_BALL_SIZE: number = UiTokens.FLOATING_TAB_BAR_HEIGHT;
+  static readonly DOCK_SWITCH_ANIMATION_DURATION: number = 240;
+  static readonly DOCK_COVER_ROTATION_DURATION: number = 9000;
+  static readonly MINI_PLAYER_CAPSULE_HEIGHT: number = 56;
+  static readonly MINI_PLAYER_CAPSULE_COVER_SIZE: number = 42;
+  static readonly MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING: number = 10;
+  static readonly MINI_PLAYER_CAPSULE_CONTENT_GAP: number = 10;
+  static readonly MINI_PLAYER_CAPSULE_MAX_WIDTH: number = 270;
+  static readonly MINI_PLAYER_ACTION_TOUCH_SIZE: number = 34;
+  static readonly MINI_PLAYER_ACTION_ICON_GAP: number = 6;
   static readonly BOTTOM_PADDING_WITH_TAB_BAR: number =
     UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN +
     UiTokens.TAB_BAR_CONTENT_EXTRA_PADDING;
   static readonly MINI_PLAYER_BASE_MARGIN_BOTTOM: number = 8;
   static readonly MINI_PLAYER_TAB_OFFSET: number =
-    UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN +
-    UiTokens.MINI_PLAYER_TAB_EXTRA_OFFSET;
+    UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + UiTokens.DOCK_COMPONENT_GAP;
   static readonly MINI_PLAYER_BOTTOM_PADDING: number = 92;
-  static readonly MINI_PLAYER_WITH_TAB_BOTTOM_PADDING: number = 166;
+  static readonly MINI_PLAYER_WITH_TAB_BOTTOM_PADDING: number = 96;
 
   static readonly LIBRARY_SEARCH_TOP_MARGIN: number = 10;
   static readonly LIBRARY_SEARCH_HEIGHT: number = 48;

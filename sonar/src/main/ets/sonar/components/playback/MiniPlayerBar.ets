@@ -70,7 +70,14 @@ export struct MiniPlayerBar {
     }
     .width(40)
     .height(40)
-    .backgroundColor(Color.Transparent)
+    .borderRadius(20)
+    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+      colorMode: ThemeColorMode.SYSTEM,
+      adaptiveColor: AdaptiveColor.DEFAULT,
+      scale: 1.0
+    })
+    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
     .onClick(() => {
       onTap();
     })
@@ -86,7 +93,14 @@ export struct MiniPlayerBar {
     }
     .width(44)
     .height(44)
-    .backgroundColor(Color.Transparent)
+    .borderRadius(22)
+    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+      colorMode: ThemeColorMode.SYSTEM,
+      adaptiveColor: AdaptiveColor.DEFAULT,
+      scale: 1.0
+    })
+    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
     .onClick(() => {
       this.isPlaying = !this.isPlaying;
       void PlaybackSession.togglePlayPause();
@@ -115,7 +129,14 @@ export struct MiniPlayerBar {
     }
     .width(40)
     .height(40)
-    .backgroundColor(Color.Transparent)
+    .borderRadius(20)
+    .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+      colorMode: ThemeColorMode.SYSTEM,
+      adaptiveColor: AdaptiveColor.DEFAULT,
+      scale: 1.0
+    })
+    .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+    .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
     .onClick(() => {
       const nextMode: string = PlaybackSession.togglePlaybackMode();
       this.playbackMode = nextMode;

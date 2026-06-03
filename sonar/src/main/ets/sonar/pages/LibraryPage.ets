@@ -9,7 +9,6 @@ import { CardContainer } from '../components/layout/CardContainer';
 import { AutoMarqueeText } from '../components/layout/AutoMarqueeText';
 import { PageScaffold } from '../components/layout/PageScaffold';
 import { UiTokens } from '../ui/tokens/UiTokens';
-import deviceInfo from '@ohos.deviceInfo';
 
 @Component
 export struct LibraryPage {
@@ -22,10 +21,6 @@ export struct LibraryPage {
   @State private _isAuthenticated: boolean = false;
   @State private _searchKeyword: string = '';
   @State private _gridColumns: number = 1;
-
-  private supportsHdsTabs(): boolean {
-    return deviceInfo.distributionOSApiVersion >= 60100;
-  }
 
   private resolveVpLength(value: Length): number {
     if (typeof value === 'number') {
@@ -148,55 +143,30 @@ export struct LibraryPage {
   @Builder
   private buildFloatingSearchBox() {
     Row() {
-      if (this.supportsHdsTabs()) {
-        Row() {
-          TextInput({ text: $$this._searchKeyword, placeholder: '搜索媒体库' })
-            .width('100%')
-            .height(UiTokens.LIBRARY_SEARCH_HEIGHT)
-            .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 18, right: 18 })
-            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-            .placeholderColor(UiTokens.COLOR_TEXT_SECONDARY)
-            .enterKeyType(EnterKeyType.Search)
-            .onSubmit((_enterKey: EnterKeyType) => {
-              this.submitSearch();
-            })
-        }
-        .width('100%')
-        .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
-        .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK, {
-          colorMode: ThemeColorMode.SYSTEM,
-          adaptiveColor: AdaptiveColor.DEFAULT,
-          scale: 1.0
-        })
-        .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
-        .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
-      } else {
-        Row() {
-          TextInput({ text: $$this._searchKeyword, placeholder: '搜索媒体库' })
-            .width('100%')
-            .height(UiTokens.LIBRARY_SEARCH_HEIGHT)
-            .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
-            .backgroundColor(Color.Transparent)
-            .padding({ left: 18, right: 18 })
-            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-            .placeholderColor(UiTokens.COLOR_TEXT_SECONDARY)
-            .enterKeyType(EnterKeyType.Search)
-            .onSubmit((_enterKey: EnterKeyType) => {
-              this.submitSearch();
-            })
-        }
-        .width('100%')
-        .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
-        .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK, {
-          colorMode: ThemeColorMode.SYSTEM,
-          adaptiveColor: AdaptiveColor.DEFAULT,
-          scale: 1.0
-        })
-        .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
-        .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
+      Row() {
+        TextInput({ text: $$this._searchKeyword, placeholder: '搜索媒体库' })
+          .width('100%')
+          .height(UiTokens.LIBRARY_SEARCH_HEIGHT)
+          .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
+          .backgroundColor(Color.Transparent)
+          .padding({ left: 18, right: 18 })
+          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          .placeholderColor(UiTokens.COLOR_TEXT_SECONDARY)
+          .enterKeyType(EnterKeyType.Search)
+          .caretColor(UiTokens.COLOR_PRIMARY)
+          .onSubmit((_enterKey: EnterKeyType) => {
+            this.submitSearch();
+          })
       }
+      .width('100%')
+      .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+        colorMode: ThemeColorMode.SYSTEM,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
+      .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
     }
     .width('100%')
     .padding({

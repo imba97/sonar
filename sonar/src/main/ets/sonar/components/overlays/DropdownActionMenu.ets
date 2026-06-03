@@ -41,8 +41,14 @@ export struct DropdownActionMenu {
               .width('100%')
               .height(34)
               .fontSize(13)
+              .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+                colorMode: ThemeColorMode.SYSTEM,
+                adaptiveColor: AdaptiveColor.DEFAULT,
+                scale: 1.0
+              })
               .backgroundColor(item.backgroundColor)
               .fontColor(item.fontColor)
+              .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
               .borderRadius(10)
               .onClick(() => {
                 if (this.selectAction !== undefined) {

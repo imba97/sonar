@@ -11,7 +11,13 @@ export struct SecondaryButton {
       .fontSize(12)
       .fontColor(UiTokens.COLOR_PRIMARY)
       .fontWeight(FontWeight.Medium)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+        colorMode: ThemeColorMode.SYSTEM,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
       .backgroundColor(UiTokens.COLOR_PRIMARY_SOFT_BG)
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .borderRadius(UiTokens.RADIUS_CHIP)
       .padding({ left: 12, right: 12 })
       .onClick(() => {

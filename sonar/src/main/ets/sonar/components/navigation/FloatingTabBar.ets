@@ -2,7 +2,8 @@ import { LibraryPage } from '../../pages/LibraryPage';
 import { ServerPage } from '../../pages/ServerPage';
 import { ProfilePage } from '../../pages/ProfilePage';
 import { UiTokens } from '../../ui/tokens/UiTokens';
-import { HdsTabs, HdsTabsController, hdsMaterial } from '@kit.UIDesignKit';
+import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
+import { HdsTabs, HdsTabsController, SystemMaterialParams, hdsMaterial } from '@kit.UIDesignKit';
 import deviceInfo from '@ohos.deviceInfo';
 
 interface RootTabItem {
@@ -16,15 +17,20 @@ const ROOT_TAB_ITEMS: RootTabItem[] = [
   { pageIndex: 1, icon: $r('app.media.tab_server'), a11yLabel: '服务器' },
   { pageIndex: 2, icon: $r('app.media.tab_profile'), a11yLabel: '我的' },
 ];
+const FLOATING_TAB_BAR_TEXT_WIDTH_SMALL: number = 228;
+const FLOATING_TAB_BAR_TEXT_WIDTH_MEDIUM: number = 248;
+const FLOATING_TAB_BAR_TEXT_WIDTH_LARGE: number = 268;
 
 @Component
 export struct FloatingTabBar {
   @StorageLink('rootTabIndex') currentIndex: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   private hdsTabsController: HdsTabsController = new HdsTabsController();
+  @State private immersiveMaterialLevel: hdsMaterial.MaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
 
   aboutToAppear(): void {
     AppStorage.setOrCreate<boolean>('rootTabActive', true);
+    this.resolveImmersiveMaterialLevel();
   }
 
   aboutToDisappear(): void {
@@ -39,18 +45,52 @@ export struct FloatingTabBar {
     AppStorage.setOrCreate<number>('rootTabIndex', index);
   }
 
+  private resolveImmersiveMaterialLevel(): void {
+    // style.mdc: 关键容器优先 ADAPTIVE，设备不支持 IMMERSIVE 时降级到 SMOOTH。
+    this.immersiveMaterialLevel = ImmersiveMaterialHelper.resolveMaterialLevel();
+  }
+
+  private buildTabBarMaterialEffect(): SystemMaterialParams {
+    return ImmersiveMaterialHelper.buildAdaptiveEffect(this.immersiveMaterialLevel);
+  }
+
+  private activeTabColor(): ResourceColor {
+    // 选中态固定主色（品牌蓝）。
+    return UiTokens.COLOR_PRIMARY;
+  }
+
+  private inactiveTabColor(): ResourceColor {
+    // 非激活态使用黑/白动态主文本色（浅色主题黑、深色主题白）。
+    return UiTokens.COLOR_TEXT_PRIMARY;
+  }
+
+  private isTabSelected(index: number): boolean {
+    return this.currentIndex === index;
+  }
+
+  private tabColorByIndex(index: number): ResourceColor {
+    return this.isTabSelected(index) ? this.activeTabColor() : this.inactiveTabColor();
+  }
+
   @Builder
   private buildIconTabBar(index: number, icon: Resource, label: string) {
     Column() {
       Image(icon)
-        .width(UiTokens.TAB_BAR_ICON_SIZE)
-        .height(UiTokens.TAB_BAR_ICON_SIZE)
-        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TAB_ICON_INACTIVE)
-        .opacity(this.currentIndex === index ? 1 : 0.85)
+        .width(22)
+        .height(22)
+        .fillColor(this.tabColorByIndex(index))
+        .opacity(1)
         .accessibilityText(label)
+
+      Text(label)
+        .fontSize(10)
+        .fontWeight(this.isTabSelected(index) ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.tabColorByIndex(index))
+        .margin({ top: 2 })
+        .opacity(1)
     }
-    .width(UiTokens.TAB_BAR_ICON_SIZE)
-    .height(UiTokens.TAB_BAR_ICON_SIZE)
+    .width('100%')
+    .height('100%')
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
   }
@@ -59,14 +99,21 @@ export struct FloatingTabBar {
   private fallbackTabButton(index: number, icon: Resource, label: string) {
     Column() {
       Image(icon)
-        .width(UiTokens.TAB_BAR_ICON_SIZE)
-        .height(UiTokens.TAB_BAR_ICON_SIZE)
-        .fillColor(this.currentIndex === index ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TAB_ICON_INACTIVE)
-        .opacity(this.currentIndex === index ? 1 : 0.85)
+        .width(22)
+        .height(22)
+        .fillColor(this.tabColorByIndex(index))
+        .opacity(1)
         .accessibilityText(label)
+
+      Text(label)
+        .fontSize(10)
+        .fontWeight(this.isTabSelected(index) ? FontWeight.Medium : FontWeight.Regular)
+        .fontColor(this.tabColorByIndex(index))
+        .margin({ top: 2 })
+        .opacity(1)
     }
-    .width(UiTokens.TAB_BAR_ICON_SIZE)
-    .height(UiTokens.TAB_BAR_ICON_SIZE)
+    .width(58)
+    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
@@ -77,12 +124,12 @@ export struct FloatingTabBar {
   @Builder
   private buildFallbackGlassBar() {
     Column() {
-      Row({ space: UiTokens.TAB_BAR_ICON_GAP }) {
+      Row({ space: UiTokens.TAB_BAR_ICON_GAP + 10 }) {
         ForEach(ROOT_TAB_ITEMS, (item: RootTabItem) => {
           this.fallbackTabButton(item.pageIndex, item.icon, item.a11yLabel)
         }, (item: RootTabItem) => `${item.pageIndex}`)
       }
-      .padding({ left: 10, right: 10, top: 8, bottom: 8 })
+      .padding({ left: 16, right: 16, top: 6, bottom: 6 })
       .borderRadius(UiTokens.FLOATING_TAB_BAR_HEIGHT / 2)
       .backgroundBlurStyle(BlurStyle.COMPONENT_ULTRA_THICK, {
         colorMode: ThemeColorMode.SYSTEM,
@@ -117,26 +164,26 @@ export struct FloatingTabBar {
     }
     .barOverlap(true)
     .barPosition(BarPosition.End)
+    .barMode(BarMode.Fixed)
     .vertical(false)
     .scrollable(false)
-    .animationDuration(0)
+    .animationDuration(240)
+    .barHeight(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .barFloatingStyle({
       barWidth: {
-        smallWidth: UiTokens.FLOATING_TAB_BAR_COMPACT_WIDTH,
-        mediumWidth: UiTokens.FLOATING_TAB_BAR_COMPACT_WIDTH + 16,
-        largeWidth: UiTokens.FLOATING_TAB_BAR_COMPACT_WIDTH + 32
+        smallWidth: FLOATING_TAB_BAR_TEXT_WIDTH_SMALL,
+        mediumWidth: FLOATING_TAB_BAR_TEXT_WIDTH_MEDIUM,
+        largeWidth: FLOATING_TAB_BAR_TEXT_WIDTH_LARGE
       },
       barBottomMargin: UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset,
       barSideMargin: 0,
+      thermoCtrl: true,
       lightColor: UiTokens.COLOR_GLASS_BAR_BORDER,
       gradientMask: {
         maskColor: UiTokens.COLOR_OVERLAY_SCRIM,
         maskHeight: UiTokens.FLOATING_TAB_BAR_HEIGHT + 16
       },
-      systemMaterialEffect: {
-        materialType: hdsMaterial.MaterialType.ADAPTIVE,
-        materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-      }
+      systemMaterialEffect: this.buildTabBarMaterialEffect()
     })
     .onChange((index: number) => {
       this.onTabIndexChange(index);

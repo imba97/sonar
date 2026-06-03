@@ -1,5 +1,3 @@
-import measure from '@ohos.measure';
-
 @Component
 export struct AutoMarqueeText {
   @Prop text: string = '';
@@ -40,7 +38,7 @@ export struct AutoMarqueeText {
       return;
     }
     try {
-      const textWidthPx: number = measure.measureText({
+      const textWidthPx: number = this.getUIContext().getMeasureUtils().measureText({
         textContent: this.text,
         fontSize: `${this.fontSize}vp`,
         fontWeight: this.fontWeight

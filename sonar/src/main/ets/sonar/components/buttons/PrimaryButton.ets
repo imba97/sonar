@@ -15,7 +15,13 @@ export struct PrimaryButton {
       .fontColor(UiTokens.COLOR_TEXT_ON_BRAND)
       .fontWeight(FontWeight.Medium)
       .borderRadius(UiTokens.RADIUS_BUTTON)
+      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
+        colorMode: ThemeColorMode.SYSTEM,
+        adaptiveColor: AdaptiveColor.DEFAULT,
+        scale: 1.0
+      })
       .backgroundColor(this.isEnabled && !this.loading ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_PRIMARY_DISABLED_BG)
+      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .enabled(this.isEnabled && !this.loading)
       .onClick(() => {
         if (this.isEnabled && !this.loading) {

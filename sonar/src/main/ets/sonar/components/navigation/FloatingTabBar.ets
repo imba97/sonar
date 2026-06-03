@@ -72,6 +72,20 @@ export struct FloatingTabBar {
     return this.isTabSelected(index) ? this.activeTabColor() : this.inactiveTabColor();
   }
 
+  private buildHdsTabBarStyle(item: RootTabItem): BottomTabBarStyle {
+    // 对 HDS 分支使用系统 BottomTabBarStyle：
+    // 激活态固定品牌蓝；非激活态使用系统 contrary 颜色，让系统基于沉浸背景做黑/白对比。
+    return new BottomTabBarStyle(item.icon, item.a11yLabel)
+      .labelStyle({
+        selectedColor: UiTokens.COLOR_PRIMARY,
+        unselectedColor: $r('sys.color.ohos_id_color_primary_contrary')
+      })
+      .iconStyle({
+        selectedColor: UiTokens.COLOR_PRIMARY,
+        unselectedColor: $r('sys.color.ohos_id_color_primary_contrary')
+      });
+  }
+
   @Builder
   private buildIconTabBar(index: number, icon: Resource, label: string) {
     Column() {
@@ -150,17 +164,17 @@ export struct FloatingTabBar {
       TabContent() {
         LibraryPage()
       }
-      .tabBar(this.buildIconTabBar(0, ROOT_TAB_ITEMS[0].icon, ROOT_TAB_ITEMS[0].a11yLabel))
+      .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[0]))
 
       TabContent() {
         ServerPage()
       }
-      .tabBar(this.buildIconTabBar(1, ROOT_TAB_ITEMS[1].icon, ROOT_TAB_ITEMS[1].a11yLabel))
+      .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[1]))
 
       TabContent() {
         ProfilePage()
       }
-      .tabBar(this.buildIconTabBar(2, ROOT_TAB_ITEMS[2].icon, ROOT_TAB_ITEMS[2].a11yLabel))
+      .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[2]))
     }
     .barOverlap(true)
     .barPosition(BarPosition.End)

@@ -3,7 +3,6 @@ import { AuthSession } from '../auth/AuthSession';
 import { AuthStore } from '../auth/AuthStore';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PlaybackSession } from '../playback/PlaybackSession';
-import { MiniPlayerBar } from '../components/playback/MiniPlayerBar';
 import { common } from '@kit.AbilityKit';
 import { FloatingTabBar } from '../components/navigation/FloatingTabBar';
 import { UiTokens } from '../ui/tokens/UiTokens';
@@ -58,24 +57,18 @@ struct Index {
   }
 
   build() {
-    Stack({ alignContent: Alignment.Bottom }) {
-      Navigation(this.appPathStack) {
-        Column() {
-          FloatingTabBar()
-        }
-        .backgroundColor(Color.Transparent)
-        .width('100%')
-        .height('100%')
+    Navigation(this.appPathStack) {
+      Column() {
+        FloatingTabBar()
       }
-      .navDestination(PageMap)
-      .hideTitleBar(true)
-      .mode(NavigationMode.Stack)
-      .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+      .backgroundColor(Color.Transparent)
       .width('100%')
       .height('100%')
-
-      MiniPlayerBar()
     }
+    .navDestination(PageMap)
+    .hideTitleBar(true)
+    .mode(NavigationMode.Stack)
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .width('100%')
     .height('100%')
     .linearGradient({

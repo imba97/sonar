@@ -51,7 +51,16 @@ export class UiTokens {
   static readonly DOCK_COMPONENT_GAP: number = 12;
   static readonly DOCK_BALL_SIZE: number = UiTokens.FLOATING_TAB_BAR_HEIGHT;
   static readonly DOCK_SWITCH_ANIMATION_DURATION: number = 240;
+  static readonly DOCK_SWITCH_JELLY_DURATION_STAGE1: number = 110;
+  static readonly DOCK_SWITCH_JELLY_DURATION_STAGE2: number = 130;
   static readonly DOCK_COVER_ROTATION_DURATION: number = 9000;
+  static readonly DOCK_JELLY_SCALE_X: number = 1.08;
+  static readonly DOCK_JELLY_SCALE_Y: number = 0.94;
+  static readonly DOCK_MINI_EXPANDED_TRANSLATE_X: number = 8;
+  static readonly DOCK_TAB_COMPACT_TRANSLATE_X: number = -8;
+  static readonly DOCK_TAB_COMPACT_WIDTH: number = 56;
+  static readonly MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH: number = 56;
+  static readonly MINI_PLAYER_MINI_BAR_EXPANDED_WIDTH: number = 268;
   static readonly MINI_PLAYER_CAPSULE_HEIGHT: number = 56;
   static readonly MINI_PLAYER_CAPSULE_COVER_SIZE: number = 42;
   static readonly MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING: number = 10;

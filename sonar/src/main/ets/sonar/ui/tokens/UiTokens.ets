@@ -63,6 +63,10 @@ export class UiTokens {
   static readonly MINI_PLAYER_MINI_BAR_EXPANDED_WIDTH: number = 268;
   static readonly MINI_PLAYER_CAPSULE_HEIGHT: number = 56;
   static readonly MINI_PLAYER_CAPSULE_COVER_SIZE: number = 42;
+  static readonly MINI_BAR_BALL_COVER_INSET: number = 6;
+  static readonly MINI_PLAYER_CAPSULE_COVER_INSET: number = 3;
+  static readonly MINI_BAR_WIDTH_COLLAPSE_THRESHOLD: number = 64;
+  static readonly MINI_BAR_WIDTH_EXPAND_THRESHOLD: number = 120;
   static readonly MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING: number = 10;
   static readonly MINI_PLAYER_CAPSULE_CONTENT_GAP: number = 10;
   static readonly MINI_PLAYER_CAPSULE_MAX_WIDTH: number = 270;

@@ -2,8 +2,8 @@ import { LibraryPage } from '../../pages/LibraryPage';
 import { ServerPage } from '../../pages/ServerPage';
 import { ProfilePage } from '../../pages/ProfilePage';
 import { PlaybackSession } from '../../playback/PlaybackSession';
-import { SubsonicClient } from '../../api/SubsonicClient';
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { MiniBarCoverDisc } from './MiniBarCoverDisc';
 import { HdsTabs, HdsTabsController, SystemMaterialParams, hdsMaterial } from '@kit.UIDesignKit';
 import deviceInfo from '@ohos.deviceInfo';
 
@@ -35,19 +35,25 @@ export struct FloatingTabBar {
   @StorageLink('nowPlayingTitle') nowPlayingTitle: string = '';
   @StorageLink('nowPlayingArtist') nowPlayingArtist: string = '';
   @StorageLink('nowPlayingCoverArt') nowPlayingCoverArt: string = '';
-  @StorageLink('isPlaying') isPlaying: boolean = false;
+  @StorageLink('isPlaying') @Watch('onIsPlayingChange') isPlaying: boolean = false;
   @StorageLink('playbackMode') playbackMode: string = 'listLoop';
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
 
   private hdsTabsController: HdsTabsController = new HdsTabsController();
   @State private containerWidth: number = 360;
-  @State private miniBarWidthVp: number = UiTokens.MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH;
+  @State private miniBarCollapsed: boolean = true;
+  @State private coverRotateDeg: number = 0;
   @State private customMaterialType: hdsMaterial.MaterialType = hdsMaterial.MaterialType.ADAPTIVE;
   @State private customMaterialLevel: hdsMaterial.MaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
 
   aboutToAppear(): void {
     AppStorage.setOrCreate<boolean>('rootTabActive', true);
     this.initMaterialEffect();
+    this.syncCoverRotation();
+  }
+
+  private onIsPlayingChange(): void {
+    this.syncCoverRotation();
   }
 
   aboutToDisappear(): void {
@@ -91,7 +97,35 @@ export struct FloatingTabBar {
   }
 
   private isMiniBarCollapsed(): boolean {
-    return this.miniBarWidthVp <= UiTokens.MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH + 4;
+    return this.miniBarCollapsed;
+  }
+
+  private coverOuterSize(): number {
+    return this.isMiniBarCollapsed() ? UiTokens.FLOATING_TAB_BAR_HEIGHT : UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE;
+  }
+
+  private coverInset(): number {
+    return this.isMiniBarCollapsed() ? UiTokens.MINI_BAR_BALL_COVER_INSET : UiTokens.MINI_PLAYER_CAPSULE_COVER_INSET;
+  }
+
+  private syncCoverRotation(): void {
+    if (!this.isPlaying) {
+      this.coverRotateDeg = 0;
+      return;
+    }
+    const uiContext = this.getUIContext();
+    if (uiContext === undefined) {
+      return;
+    }
+    this.coverRotateDeg = 0;
+    uiContext.animateTo({
+      duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
+      curve: Curve.Linear,
+      iterations: -1,
+      playMode: PlayMode.Normal
+    }, () => {
+      this.coverRotateDeg = 360;
+    });
   }
 
   private updateMiniBarWidth(width: Length): void {
@@ -104,8 +138,15 @@ export struct FloatingTabBar {
         widthVp = width.endsWith('px') ? this.getUIContext().px2vp(parsed) : parsed;
       }
     }
-    if (widthVp > 0 && Math.abs(widthVp - this.miniBarWidthVp) > 0.5) {
-      this.miniBarWidthVp = widthVp;
+    if (widthVp <= 0) {
+      return;
+    }
+    if (widthVp <= UiTokens.MINI_BAR_WIDTH_COLLAPSE_THRESHOLD) {
+      this.miniBarCollapsed = true;
+      return;
+    }
+    if (widthVp >= UiTokens.MINI_BAR_WIDTH_EXPAND_THRESHOLD) {
+      this.miniBarCollapsed = false;
     }
   }
 
@@ -119,52 +160,6 @@ export struct FloatingTabBar {
 
   private toggleMode(): void {
     this.playbackMode = PlaybackSession.togglePlaybackMode();
-  }
-
-  @Builder
-  private defaultMusicIcon(iconSize: number) {
-    Image($r('app.media.dock_music_note'))
-      .width(iconSize)
-      .height(iconSize)
-      .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-      .objectFit(ImageFit.Contain)
-  }
-
-  @Builder
-  private coverDisc(size: number) {
-    Stack({ alignContent: Alignment.Center }) {
-      if (this.hasActiveTrack() && this.nowPlayingCoverArt.length > 0) {
-        Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
-          .width('100%')
-          .height('100%')
-          .objectFit(ImageFit.Cover)
-          .alt($r('app.media.dock_music_note'))
-          .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-          .align(Alignment.Center)
-          .rotate({
-            x: 0,
-            y: 0,
-            z: 1,
-            angle: this.isPlaying ? 360 : 0,
-            centerX: '50%',
-            centerY: '50%'
-          })
-          .animation({
-            duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
-            curve: Curve.Linear,
-            iterations: this.isPlaying ? -1 : 1,
-            playMode: PlayMode.Normal
-          })
-      } else if (this.hasActiveTrack()) {
-        this.defaultMusicIcon(20)
-      } else {
-        this.defaultMusicIcon(22)
-      }
-    }
-    .width(size)
-    .height(size)
-    .borderRadius(size / 2)
-    .clip(true)
   }
 
   @Builder
@@ -238,46 +233,45 @@ export struct FloatingTabBar {
   }
 
   @Builder
-  private miniBarCollapsedBall() {
-    Stack({ alignContent: Alignment.Center }) {
-      this.coverDisc(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-    }
-    .width(UiTokens.MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH)
-    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-  }
-
-  @Builder
-  private miniBarExpandedCapsule() {
+  private miniBarBuilder() {
     Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
-      this.coverDisc(UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE)
+      MiniBarCoverDisc({
+        outerSize: this.coverOuterSize(),
+        coverInset: this.coverInset(),
+        rotateDeg: this.coverRotateDeg
+      })
 
-      Column({ space: 2 }) {
-        Text(this.hasActiveTrack() ?
-          (this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未知曲目') : '当前未播放音乐')
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-        if (this.hasActiveTrack()) {
-          Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
-            .fontSize(12)
-            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+      if (!this.isMiniBarCollapsed()) {
+        Column({ space: 2 }) {
+          Text(this.hasActiveTrack() ?
+            (this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未知曲目') : '当前未播放音乐')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (this.hasActiveTrack()) {
+            Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
+              .fontSize(12)
+              .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
         }
-      }
-      .layoutWeight(1)
-      .alignItems(HorizontalAlign.Start)
-      .justifyContent(FlexAlign.Center)
+        .layoutWeight(1)
+        .alignItems(HorizontalAlign.Start)
+        .justifyContent(FlexAlign.Center)
+        .transition(TransitionEffect.IDENTITY)
 
-      if (this.hasActiveTrack()) {
-        Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
-          this.playPauseButton(22)
-          this.actionIcon($r('app.media.cb_next'), 22, () => {
-            this.nextTrack();
-          })
-          this.playbackModeButton(20)
+        if (this.hasActiveTrack()) {
+          Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
+            this.playPauseButton(22)
+            this.actionIcon($r('app.media.cb_next'), 22, () => {
+              this.nextTrack();
+            })
+            this.playbackModeButton(20)
+          }
+          .transition(TransitionEffect.IDENTITY)
         }
       }
     }
@@ -285,23 +279,12 @@ export struct FloatingTabBar {
     .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .constraintSize({ maxWidth: UiTokens.MINI_PLAYER_CAPSULE_MAX_WIDTH })
     .padding({
-      left: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING,
-      right: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING
+      left: this.isMiniBarCollapsed() ? 0 : UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING,
+      right: this.isMiniBarCollapsed() ? 0 : UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING
     })
     .alignItems(VerticalAlign.Center)
-  }
-
-  @Builder
-  private miniBarBuilder() {
-    Stack({ alignContent: Alignment.Center }) {
-      if (this.isMiniBarCollapsed()) {
-        this.miniBarCollapsedBall()
-      } else {
-        this.miniBarExpandedCapsule()
-      }
-    }
-    .width('100%')
-    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+    .justifyContent(this.isMiniBarCollapsed() ? FlexAlign.Center : FlexAlign.Start)
+    .transition(TransitionEffect.IDENTITY)
     .onAreaChange((_oldValue, newValue) => {
       this.updateMiniBarWidth(newValue.width);
     })
@@ -342,6 +325,7 @@ export struct FloatingTabBar {
     .barMode(BarMode.Fixed)
     .vertical(false)
     .scrollable(false)
+    .animationDuration(0)
     .barHeight(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .barFloatingStyle({
       barWidth: {

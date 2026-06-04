@@ -46,6 +46,13 @@ export class UiTokens {
   static readonly TAB_BAR_ICON_GAP: number = 24;
   static readonly FLOATING_TAB_BAR_HEIGHT: number = 56;
   static readonly FLOATING_TAB_BAR_COMPACT_WIDTH: number = 236;
+  static readonly FLOATING_TAB_BAR_WIDTH_SMALL: number = 228;
+  static readonly FLOATING_TAB_BAR_WIDTH_MEDIUM: number = 248;
+  static readonly FLOATING_TAB_BAR_WIDTH_LARGE: number = 268;
+  /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds-tabs-bar-floating.mdc「展开底部胶囊宽度」 */
+  static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL: number = 262;
+  static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM: number = 278;
+  static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE: number = 294;
   static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
   static readonly DOCK_SIDE_MARGIN: number = 16;
   static readonly DOCK_COMPONENT_GAP: number = 12;
@@ -60,7 +67,7 @@ export class UiTokens {
   static readonly DOCK_TAB_COMPACT_TRANSLATE_X: number = -8;
   static readonly DOCK_TAB_COMPACT_WIDTH: number = 56;
   static readonly MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH: number = 56;
-  static readonly MINI_PLAYER_MINI_BAR_EXPANDED_WIDTH: number = 268;
+  static readonly MINI_PLAYER_MINI_BAR_EXPANDED_WIDTH: number = UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL;
   static readonly MINI_PLAYER_CAPSULE_HEIGHT: number = 56;
   static readonly MINI_PLAYER_CAPSULE_COVER_SIZE: number = 42;
   static readonly MINI_BAR_BALL_COVER_INSET: number = 6;
@@ -69,7 +76,7 @@ export class UiTokens {
   static readonly MINI_BAR_WIDTH_EXPAND_THRESHOLD: number = 120;
   static readonly MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING: number = 10;
   static readonly MINI_PLAYER_CAPSULE_CONTENT_GAP: number = 10;
-  static readonly MINI_PLAYER_CAPSULE_MAX_WIDTH: number = 270;
+  static readonly MINI_PLAYER_CAPSULE_MAX_WIDTH: number = UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL;
   static readonly MINI_PLAYER_ACTION_TOUCH_SIZE: number = 34;
   static readonly MINI_PLAYER_ACTION_ICON_GAP: number = 6;
   static readonly BOTTOM_PADDING_WITH_TAB_BAR: number =

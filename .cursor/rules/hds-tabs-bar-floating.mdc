@@ -1,5 +1,5 @@
 ---
-description: HarmonyOS HDS 底部页签悬浮样式与迷你栏规范
+description: HDS 悬浮页签/迷你栏；含「展开底部胶囊宽度」唯一改法（UiTokens 三档）
 alwaysApply: true
 ---
 
@@ -48,15 +48,95 @@ alwaysApply: true
 - 无曲目时的默认图标使用 `dock_music_note`（音符），勿用应用 Logo / `lib_icon_12` 等地球/品牌图冒充音乐占位。
 - 修改播放 UI 前先确认：是否会在底部出现**两个圆角条或两个圆形控件**；若是，则属于回归，必须删掉 overlay 方案。
 
-## miniBar 折叠球形居中（强制）
+## 展开底部胶囊宽度（最佳实践 · 强制）
 
-HDS 折叠后迷你栏宽度约 `56vp`（与 `FLOATING_TAB_BAR_HEIGHT` 一致）。**禁止**在折叠态仍使用「左内边距 + 横向 `Row` + 42vp 封面」的展开布局，否则系统裁切圆球时只会露出 Row 左侧，封面/音符会**整体偏右**。
+当用户说 **「设置展开的底部胶囊宽度」**、**「底栏展开再宽/窄一点」**、**「导航和音乐展开宽度」** 时，**只按本节操作**，勿改 `miniBarBuilder` 内 Row 的 `width`/`maxWidth`/`constraintSize`，勿在 `FloatingTabBar` 写死新 magic number，勿用 `onAreaChange` 推断宽度。
 
-- 用 `onAreaChange` 测量 miniBar 实际宽度，宽度 `≤ 60vp` 时走**折叠布局**：固定 `56×56` 的 `Stack(Alignment.Center)` + 封面尺寸 `FLOATING_TAB_BAR_HEIGHT`，**无** `padding-left`。
-- 宽度变大后再切换为展开 `Row`（文案 + 控制按钮 + 横向 `padding`）。
-- 折叠与展开共用**同一棵** `Row` + 单一 `MiniBarCoverDisc` 实例；勿 `if/else` 切换两套 Builder（切 Tab 会重建封面并闪屏、旋转中断）。
-- 封面旋转角度维护在 `FloatingTabBar` 的 `@State`（`animateTo` + `iterations: -1`），通过 `@Prop rotateDeg` 传给封面组件；折叠/展开态封面**统一**为 `FLOATING_TAB_BAR_HEIGHT` 外径 + `MINI_BAR_BALL_COVER_INSET` 内边距，展开时不要缩小为 `MINI_PLAYER_CAPSULE_COVER_SIZE`。
-- miniBar 宽度用滞后阈值（如 ≤64 折叠、≥120 展开）避免 `onAreaChange` 抖动。
+### 语义
+
+- **底部胶囊** = `HdsTabs` 悬浮底栏展开后的整体视觉宽度（左侧页签胶囊 + 右侧 mini 播放区由 HDS 同一套 `barWidth` 分档驱动）。
+- **折叠态**圆球宽度由系统 mini 槽控制（约 56vp），**不在此调节**。
+
+### 唯一修改点（三档同增同减）
+
+文件：`sonar/src/main/ets/sonar/ui/tokens/UiTokens.ets`
+
+| Token | 断点 | 用途 |
+| --- | --- | --- |
+| `FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL` | 屏宽 &lt; 600vp | 小屏展开总宽 |
+| `FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM` | 600vp ≤ 宽 &lt; 840vp | 中屏展开总宽 |
+| `FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE` | 宽 ≥ 840vp | 大屏展开总宽 |
+
+**当前产品值：262 / 278 / 294 vp**（微调时三档建议同步 ±8～12vp，避免只改一档导致断点落差过大）。
+
+### 自动生效链路（勿重复配置）
+
+1. `FloatingTabBar.resolveFloatingBarWidth()` → `barFloatingStyle.barWidth` 填入上述三常量。
+2. `MINI_PLAYER_MINI_BAR_EXPANDED_WIDTH`、`MINI_PLAYER_CAPSULE_MAX_WIDTH` 已引用 `EXPANDED_WIDTH_SMALL`，会随 token 联动。
+3. `miniBarBuilder` 内 Row 保持 `width('100%')` + `.clip(true)`，**宽度随 HDS 槽位伸缩**，不在 Builder 里再钉展开宽。
+
+### 禁止做法（宽度相关）
+
+- 禁止为展开宽单独改 `FLOATING_TAB_BAR_WIDTH_*`（228/248/268，非展开胶囊用）。
+- 禁止在 `miniBarBuilder` 上 `constraintSize({ maxWidth: … })` 或 `Row.width(262)` 与 `barWidth` 双轨。
+- 禁止 `@State miniBarCollapsed` 切换 `barWidth` 或两套展开/折叠 `barWidth`。
+- 禁止恢复 `MiniPlayerBar` 叠加层单独设宽。
+
+### 验收
+
+- 展开后：页签区与右侧播放条视觉协调、**不盖住左侧页签圆球**；曲名与三枚操作按钮可读。
+- 折叠后：仅见右侧 56vp 圆盘/音符。
+- 改 token 后真机编译，三档断点各扫一眼即可。
+
+---
+
+## miniBar 官方模型（强制，勿自建折叠状态机）
+
+参考：[设置页签栏的悬浮样式](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ui-design-hds-tabs-bar-floating)、[华为开发者社区实践](https://developer.huawei.com/consumer/cn/blog/topic/03215488109625113)。
+
+- **折叠/展开由 HDS 控制 mini 槽位宽度**，不是应用在 `miniBarBuilder` 里用 `onAreaChange` + `@State miniBarCollapsed` + `if/else` 切两套 UI。
+- **`miniBarBuilder` 只保留一个 `Row`**：`width('100%')` + 封面 + 文案（`layoutWeight(1)` + `flexShrink(1)`）+ 操作区；窄槽 `.clip(true)` 只露左侧圆盘。
+- **禁止**：`if (collapsed)` 两套 Builder；禁止 `Visibility.None` 藏无曲目文案列；禁止 `Stack` 测宽钉死 Row 为 56/298。
+- 展开总宽 **只改** `UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_*`（见上节）。
+- 封面外径与页签栏等高 `FLOATING_TAB_BAR_HEIGHT`（56）；`@Watch` 只装饰变量。
+
+## 底部展开宽度：问题根因（已验证的正确模型）
+
+HDS 底部为 **页签栏 + miniBar 两段**，宽度由两套机制分别作用，混用会表现为「左右不一样长」：
+
+1. **`barWidth` 只约束页签胶囊**，不约束 miniBar 占位宽度。
+2. **早期 miniBar 用 `MINI_PLAYER_CAPSULE_MAX_WIDTH`（320）且 `width('100%')`**：播放区按父级剩余空间拉满，往往比页签 `barWidth`（约 272）更宽。
+3. **误把「等宽」理解成把两套 token 一起加大**（300/316/332 + `maxWidth` 联动）：在播放条已嫌长时继续加大，大屏可到 332，比 320 更长。
+4. **只改 `maxWidth` 不改 `width`**：`maxWidth` 是上限，`width('100%')` 仍随容器变宽，视觉宽度不受控。
+5. **内层 Row 在折叠态钉死 56 且 `onAreaChange` 打在 Row 上**：实测恒 56 → `miniBarCollapsed` 恒 true → 无曲目展开无文案。
+6. **内层 Row `width('100%')` + 文案 `layoutWeight(1)`**（「有文字就超长」）：`layoutWeight` 在宽父级下占满**整条底栏**，向左盖住页签。
+7. **内层 Row 固定 `resolveDockExpandedWidthVp()`（298）大于 HDS 实际 mini 槽位（仍 56）**：未等槽位变宽就把 298vp 画进窄格，`Alignment.End` 仍向左溢出，**盖住左侧页签/圆球**；`maxWidth` 与 `onAreaChange` 打在 Row 上测不到槽位变宽。
+8. **`miniBarCollapsed=false` 立刻把 `barWidth` 拉到展开**：页签与 mini 同时抢布局，mini 槽位未就绪时已按 298 绘制。
+
+**正解（官方单 Row + token 控宽）：**
+
+1. `miniBarBuilder` 仅一个 `Row`：`width('100%')` + `.clip(true)`；文案 `layoutWeight(1)` + `flexShrink(1)`。
+2. 折叠/展开由 HDS 改变 mini 槽宽，勿 `if (collapsed)` 切 Builder。
+3. 展开总宽 **只改** `UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_*` → `resolveFloatingBarWidth()` → `barWidth`。
+
+## 曾犯错误（禁止重复）
+
+| 现象 | 错误做法 | 正确做法 |
+| --- | --- | --- |
+| 导航短、播放长 | `barWidth` 272，`maxWidth` 320，且与页签不等 | 共用 `FLOATING_TAB_BAR_EXPANDED_WIDTH_*`，mini `100%` + `maxWidth` 分档 |
+| 修复后播放更长 | 分档提到 300/316/332 | 「过长」后勿再加；微调三档 **+8～+12vp 同加** |
+| 只改 maxWidth | Row 仍 `width('100%')` | 仅 `maxWidth` 为展开分档，**勿** `minWidth=maxWidth=layoutWidth` |
+| 无曲目展开无字 / 只剩封面 | `if` 两套 Builder 或 `onAreaChange` 误判 `miniBarCollapsed` | **单 Row** + `.clip(true)`；文案列勿 `Visibility.None` |
+| 有文字盖住页签 | Row 定宽 298 而 HDS 槽位仍 56 | Row `width('100%')` 随槽位伸缩，勿应用侧钉死展开宽 |
+| 盖住左侧圆球 | `Stack` + `inferMiniBarSlotWidthVp` 把整栏当槽位 | 勿自建槽位推断；交给 HDS + `displayPriority` |
+
+当前推荐分档（可按产品微调）：**262 / 278 / 294** vp。
+
+## ArkTS 类型（`barFloatingStyle`）
+
+- `barFloatingStyle` 参数须使用 `@kit.UIDesignKit` 导出类型：`HdsTabsFloatingStyle`、`HdsBarWidthRangeOptions`、`HdsTabsBackgroundStyle`、`HdsTabsMiniBar` 等。
+- **禁止**自定义 interface 充当 `barFloatingStyle` 返回值（`arkts-no-structural-typing` / `arkts-no-untyped-obj-literals`）。
+- 可封装 `buildBarFloatingStyle(): HdsTabsFloatingStyle`，内部各字段仍用上述官方类型标注。
 
 **正确结构（根页）**
 
@@ -107,6 +187,8 @@ HdsTabs({ controller: this.controller }) {
 ## 验收检查项
 - 悬浮栏出现后，内容区域是否连续且无遮挡关键交互。
 - 迷你栏折叠/展开切换是否平滑，且不影响页签可点击性。
+- **无曲目**：折叠见音符；展开见「当前未播放音乐」，无播放控制按钮。
+- **有曲目**：展开见标题/歌手与播放控制；播放中封面旋转，切 Tab 不闪断。
 - 深色/浅色模式下蒙层与材质对比度是否可读。
 - 小屏与大屏（含折叠态）下宽度分档是否符合预期。
 

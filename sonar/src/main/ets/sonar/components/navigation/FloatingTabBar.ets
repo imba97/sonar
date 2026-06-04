@@ -101,11 +101,11 @@ export struct FloatingTabBar {
   }
 
   private coverOuterSize(): number {
-    return this.isMiniBarCollapsed() ? UiTokens.FLOATING_TAB_BAR_HEIGHT : UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE;
+    return UiTokens.FLOATING_TAB_BAR_HEIGHT;
   }
 
   private coverInset(): number {
-    return this.isMiniBarCollapsed() ? UiTokens.MINI_BAR_BALL_COVER_INSET : UiTokens.MINI_PLAYER_CAPSULE_COVER_INSET;
+    return UiTokens.MINI_BAR_BALL_COVER_INSET;
   }
 
   private syncCoverRotation(): void {
@@ -278,10 +278,6 @@ export struct FloatingTabBar {
     .width('100%')
     .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
     .constraintSize({ maxWidth: UiTokens.MINI_PLAYER_CAPSULE_MAX_WIDTH })
-    .padding({
-      left: this.isMiniBarCollapsed() ? 0 : UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING,
-      right: this.isMiniBarCollapsed() ? 0 : UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING
-    })
     .alignItems(VerticalAlign.Center)
     .justifyContent(this.isMiniBarCollapsed() ? FlexAlign.Center : FlexAlign.Start)
     .transition(TransitionEffect.IDENTITY)

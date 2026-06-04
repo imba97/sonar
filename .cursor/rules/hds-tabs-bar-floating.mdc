@@ -55,7 +55,7 @@ HDS 折叠后迷你栏宽度约 `56vp`（与 `FLOATING_TAB_BAR_HEIGHT` 一致）
 - 用 `onAreaChange` 测量 miniBar 实际宽度，宽度 `≤ 60vp` 时走**折叠布局**：固定 `56×56` 的 `Stack(Alignment.Center)` + 封面尺寸 `FLOATING_TAB_BAR_HEIGHT`，**无** `padding-left`。
 - 宽度变大后再切换为展开 `Row`（文案 + 控制按钮 + 横向 `padding`）。
 - 折叠与展开共用**同一棵** `Row` + 单一 `MiniBarCoverDisc` 实例；勿 `if/else` 切换两套 Builder（切 Tab 会重建封面并闪屏、旋转中断）。
-- 封面旋转角度维护在 `FloatingTabBar` 的 `@State`（`animateTo` + `iterations: -1`），通过 `@Prop rotateDeg` 传给封面组件；折叠态封面须留 `MINI_BAR_BALL_COVER_INSET` 内边距，勿 100% 铺满球体。
+- 封面旋转角度维护在 `FloatingTabBar` 的 `@State`（`animateTo` + `iterations: -1`），通过 `@Prop rotateDeg` 传给封面组件；折叠/展开态封面**统一**为 `FLOATING_TAB_BAR_HEIGHT` 外径 + `MINI_BAR_BALL_COVER_INSET` 内边距，展开时不要缩小为 `MINI_PLAYER_CAPSULE_COVER_SIZE`。
 - miniBar 宽度用滞后阈值（如 ≤64 折叠、≥120 展开）避免 `onAreaChange` 抖动。
 
 **正确结构（根页）**

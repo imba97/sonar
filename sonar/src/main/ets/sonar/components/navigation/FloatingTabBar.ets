@@ -41,6 +41,7 @@ export struct FloatingTabBar {
 
   private hdsTabsController: HdsTabsController = new HdsTabsController();
   @State private containerWidth: number = 360;
+  @State private miniBarWidthVp: number = UiTokens.MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH;
   @State private customMaterialType: hdsMaterial.MaterialType = hdsMaterial.MaterialType.ADAPTIVE;
   @State private customMaterialLevel: hdsMaterial.MaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
 
@@ -85,14 +86,27 @@ export struct FloatingTabBar {
     return HDS_SIDE_MARGIN_SMALL;
   }
 
-  private modeIcon(): Resource {
-    if (this.playbackMode === 'singleLoop') {
-      return $r('app.media.cb_mode_loop');
+  private hasActiveTrack(): boolean {
+    return this.showMiniPlayer;
+  }
+
+  private isMiniBarCollapsed(): boolean {
+    return this.miniBarWidthVp <= UiTokens.MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH + 4;
+  }
+
+  private updateMiniBarWidth(width: Length): void {
+    let widthVp: number = 0;
+    if (typeof width === 'number') {
+      widthVp = width;
+    } else if (typeof width === 'string') {
+      const parsed: number = Number.parseFloat(width);
+      if (Number.isFinite(parsed)) {
+        widthVp = width.endsWith('px') ? this.getUIContext().px2vp(parsed) : parsed;
+      }
     }
-    if (this.playbackMode === 'random') {
-      return $r('app.media.cb_mode_shuffle');
+    if (widthVp > 0 && Math.abs(widthVp - this.miniBarWidthVp) > 0.5) {
+      this.miniBarWidthVp = widthVp;
     }
-    return $r('app.media.cb_mode_list');
   }
 
   private togglePlayback(): void {
@@ -108,27 +122,43 @@ export struct FloatingTabBar {
   }
 
   @Builder
+  private defaultMusicIcon(iconSize: number) {
+    Image($r('app.media.dock_music_note'))
+      .width(iconSize)
+      .height(iconSize)
+      .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      .objectFit(ImageFit.Contain)
+  }
+
+  @Builder
   private coverDisc(size: number) {
     Stack({ alignContent: Alignment.Center }) {
-      if (this.nowPlayingCoverArt.length > 0) {
+      if (this.hasActiveTrack() && this.nowPlayingCoverArt.length > 0) {
         Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
           .width('100%')
           .height('100%')
           .objectFit(ImageFit.Cover)
-          .alt($r('app.media.cb_play'))
+          .alt($r('app.media.dock_music_note'))
           .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-          .rotate({ x: 0, y: 0, z: 1, angle: this.isPlaying ? 360 : 0 })
+          .align(Alignment.Center)
+          .rotate({
+            x: 0,
+            y: 0,
+            z: 1,
+            angle: this.isPlaying ? 360 : 0,
+            centerX: '50%',
+            centerY: '50%'
+          })
           .animation({
             duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
             curve: Curve.Linear,
             iterations: this.isPlaying ? -1 : 1,
             playMode: PlayMode.Normal
           })
+      } else if (this.hasActiveTrack()) {
+        this.defaultMusicIcon(20)
       } else {
-        Image($r('app.media.cb_play'))
-          .width(22)
-          .height(22)
-          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+        this.defaultMusicIcon(22)
       }
     }
     .width(size)
@@ -155,52 +185,126 @@ export struct FloatingTabBar {
   }
 
   @Builder
-  private miniBarBuilder() {
-    if (!this.showMiniPlayer) {
-      Row()
-        .width(0.1)
-        .height(0.1)
-    } else {
-      Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
-        this.coverDisc(UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE)
+  private playPauseButton(iconSize: number) {
+    Column() {
+      if (this.isPlaying) {
+        Image($r('app.media.cb_pause'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      } else {
+        Image($r('app.media.cb_play'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      }
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      this.togglePlayback();
+    })
+  }
 
-        Column({ space: 2 }) {
-          Text(this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未在播放')
-            .fontSize(14)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+  @Builder
+  private playbackModeButton(iconSize: number) {
+    Column() {
+      if (this.playbackMode === 'singleLoop') {
+        Image($r('app.media.cb_mode_loop'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      } else if (this.playbackMode === 'random') {
+        Image($r('app.media.cb_mode_shuffle'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      } else {
+        Image($r('app.media.cb_mode_list'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      }
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      this.toggleMode();
+    })
+  }
+
+  @Builder
+  private miniBarCollapsedBall() {
+    Stack({ alignContent: Alignment.Center }) {
+      this.coverDisc(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+    }
+    .width(UiTokens.MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH)
+    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+  }
+
+  @Builder
+  private miniBarExpandedCapsule() {
+    Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
+      this.coverDisc(UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE)
+
+      Column({ space: 2 }) {
+        Text(this.hasActiveTrack() ?
+          (this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未知曲目') : '当前未播放音乐')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        if (this.hasActiveTrack()) {
           Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
             .fontSize(12)
             .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-        .justifyContent(FlexAlign.Center)
+      }
+      .layoutWeight(1)
+      .alignItems(HorizontalAlign.Start)
+      .justifyContent(FlexAlign.Center)
 
+      if (this.hasActiveTrack()) {
         Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
-          this.actionIcon(this.isPlaying ? $r('app.media.cb_pause') : $r('app.media.cb_play'), 22, () => {
-            this.togglePlayback();
-          })
+          this.playPauseButton(22)
           this.actionIcon($r('app.media.cb_next'), 22, () => {
             this.nextTrack();
           })
-          this.actionIcon(this.modeIcon(), 20, () => {
-            this.toggleMode();
-          })
+          this.playbackModeButton(20)
         }
       }
-      .width('100%')
-      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-      .constraintSize({ maxWidth: UiTokens.MINI_PLAYER_CAPSULE_MAX_WIDTH })
-      .padding({
-        left: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING,
-        right: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING
-      })
     }
+    .width('100%')
+    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+    .constraintSize({ maxWidth: UiTokens.MINI_PLAYER_CAPSULE_MAX_WIDTH })
+    .padding({
+      left: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING,
+      right: UiTokens.MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING
+    })
+    .alignItems(VerticalAlign.Center)
+  }
+
+  @Builder
+  private miniBarBuilder() {
+    Stack({ alignContent: Alignment.Center }) {
+      if (this.isMiniBarCollapsed()) {
+        this.miniBarCollapsedBall()
+      } else {
+        this.miniBarExpandedCapsule()
+      }
+    }
+    .width('100%')
+    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+    .onAreaChange((_oldValue, newValue) => {
+      this.updateMiniBarWidth(newValue.width);
+    })
   }
 
   private buildHdsTabBarStyle(item: RootTabItem): BottomTabBarStyle {

@@ -5,7 +5,7 @@ import { UiTokens } from '../ui/tokens/UiTokens';
 
 @Component
 export struct ServerPage {
-  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('rootTabActive') rootTabActive: boolean = false;
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('loggedInServer') loggedInServer: string = '';
   @StorageLink('loggedInEndpoint') loggedInEndpoint: string = 'remote';
@@ -28,7 +28,7 @@ export struct ServerPage {
     PageScaffold({
       pageBackground: UiTokens.COLOR_PAGE_BG,
       topPadding: 10,
-      bottomPadding: this.showMiniPlayer ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
+      bottomPadding: this.rootTabActive ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
         UiTokens.BOTTOM_PADDING_WITH_TAB_BAR
     }) {
       Column({ space: 12 }) {

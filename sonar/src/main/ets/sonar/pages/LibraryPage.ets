@@ -14,7 +14,7 @@ import { UiTokens } from '../ui/tokens/UiTokens';
 export struct LibraryPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
-  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('rootTabActive') rootTabActive: boolean = false;
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State vm: LibraryViewModel = new LibraryViewModel();
@@ -61,7 +61,7 @@ export struct LibraryPage {
   }
 
   private listEndOffset(): number {
-    if (this.showMiniPlayer) {
+    if (this.rootTabActive) {
       return UiTokens.MINI_PLAYER_TAB_OFFSET + UiTokens.FLOATING_TAB_BAR_HEIGHT + this.bottomInset +
         UiTokens.LIBRARY_LIST_EDGE_GAP;
     }

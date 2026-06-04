@@ -38,6 +38,42 @@ alwaysApply: true
 - 迷你栏内容应聚焦高频轻操作，不承载复杂表单或重交互。
 - 迷你栏按钮数量建议精简，避免与页签主导航语义冲突。
 
+## 播放状态 UI 唯一入口（强制，避免重复底栏）
+
+根 Tab 页（`FloatingTabBar` + `HdsTabs.barFloatingStyle.miniBar`）已承载**右侧**播放状态迷你栏时，**禁止**再叠加独立播放条或左侧悬浮球：
+
+- **禁止**在 `Index.ets`（或同级根页面）用 `Stack` 叠加 `MiniPlayerBar`、自定义 `Row` 胶囊条、左侧 `coverDisc` 悬浮球等第二套播放 UI。
+- **禁止**「HDS miniBar + `MiniPlayerBar`」双轨并存；用户只保留 **tab 栏右侧 miniBar** 一处。
+- 播放态文案、封面、播放/下一首/循环等控件，**只写在** `FloatingTabBar.miniBarBuilder()`（或等价单一 Builder），勿拆到页级 overlay。
+- 无曲目时的默认图标使用 `dock_music_note`（音符），勿用应用 Logo / `lib_icon_12` 等地球/品牌图冒充音乐占位。
+- 修改播放 UI 前先确认：是否会在底部出现**两个圆角条或两个圆形控件**；若是，则属于回归，必须删掉 overlay 方案。
+
+## miniBar 折叠球形居中（强制）
+
+HDS 折叠后迷你栏宽度约 `56vp`（与 `FLOATING_TAB_BAR_HEIGHT` 一致）。**禁止**在折叠态仍使用「左内边距 + 横向 `Row` + 42vp 封面」的展开布局，否则系统裁切圆球时只会露出 Row 左侧，封面/音符会**整体偏右**。
+
+- 用 `onAreaChange` 测量 miniBar 实际宽度，宽度 `≤ 60vp` 时走**折叠布局**：固定 `56×56` 的 `Stack(Alignment.Center)` + 封面尺寸 `FLOATING_TAB_BAR_HEIGHT`，**无** `padding-left`。
+- 宽度变大后再切换为展开 `Row`（文案 + 控制按钮 + 横向 `padding`）。
+- 折叠与展开须拆成两个 `@Builder`，勿在同一 `Row` 上仅靠 `clip` 凑合。
+
+**正确结构（根页）**
+
+```typescript
+Navigation(...) {
+  FloatingTabBar() // 内含 HdsTabs + miniBarBuilder
+}
+// 不要：Stack { Navigation(...); MiniPlayerBar(); }
+```
+
+**错误结构（曾导致重复底栏）**
+
+```typescript
+Stack({ alignContent: Alignment.Bottom }) {
+  Navigation(...) { FloatingTabBar() }
+  MiniPlayerBar() // ❌ 与 miniBar 重复
+}
+```
+
 ## 推荐材质策略
 - 默认使用系统自适应：
   - `materialType: hdsMaterial.MaterialType.ADAPTIVE`

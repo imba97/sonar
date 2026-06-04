@@ -36,14 +36,8 @@ export struct MiniPlayerBar {
     });
   }
 
-  private modeIcon(): Resource {
-    if (this.playbackMode === 'singleLoop') {
-      return $r('app.media.cb_mode_loop');
-    }
-    if (this.playbackMode === 'random') {
-      return $r('app.media.cb_mode_shuffle');
-    }
-    return $r('app.media.cb_mode_list');
+  private hasActiveTrack(): boolean {
+    return this.showMiniPlayer;
   }
 
   @Builder
@@ -64,28 +58,97 @@ export struct MiniPlayerBar {
   }
 
   @Builder
+  private playPauseButton(iconSize: number) {
+    Column() {
+      if (this.isPlaying) {
+        Image($r('app.media.cb_pause'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      } else {
+        Image($r('app.media.cb_play'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      }
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      void PlaybackSession.togglePlayPause();
+    })
+  }
+
+  @Builder
+  private playbackModeButton(iconSize: number) {
+    Column() {
+      if (this.playbackMode === 'singleLoop') {
+        Image($r('app.media.cb_mode_loop'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      } else if (this.playbackMode === 'random') {
+        Image($r('app.media.cb_mode_shuffle'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      } else {
+        Image($r('app.media.cb_mode_list'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      }
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      this.playbackMode = PlaybackSession.togglePlaybackMode();
+    })
+  }
+
+  @Builder
+  private defaultMusicIcon(iconSize: number) {
+    Image($r('app.media.dock_music_note'))
+      .width(iconSize)
+      .height(iconSize)
+      .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      .objectFit(ImageFit.Contain)
+  }
+
+  @Builder
   private coverDisc(size: number, clickable: boolean = false) {
     if (clickable) {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.nowPlayingCoverArt.length > 0) {
+        if (this.hasActiveTrack() && this.nowPlayingCoverArt.length > 0) {
           Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Cover)
-            .alt($r('app.media.cb_play'))
+            .alt($r('app.media.dock_music_note'))
             .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-            .rotate({ x: 0, y: 0, z: 1, angle: this.isPlaying ? 360 : 0 })
+            .align(Alignment.Center)
+            .rotate({
+              x: 0,
+              y: 0,
+              z: 1,
+              angle: this.isPlaying ? 360 : 0,
+              centerX: '50%',
+              centerY: '50%'
+            })
             .animation({
               duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
               curve: Curve.Linear,
               iterations: this.isPlaying ? -1 : 1,
               playMode: PlayMode.Normal
             })
+        } else if (this.hasActiveTrack()) {
+          this.defaultMusicIcon(24)
         } else {
-          Image($r('app.media.cb_play'))
-            .width(24)
-            .height(24)
-            .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+          this.defaultMusicIcon(26)
         }
       }
       .width(size)
@@ -104,25 +167,32 @@ export struct MiniPlayerBar {
       })
     } else {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.nowPlayingCoverArt.length > 0) {
+        if (this.hasActiveTrack() && this.nowPlayingCoverArt.length > 0) {
           Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
             .width('100%')
             .height('100%')
             .objectFit(ImageFit.Cover)
-            .alt($r('app.media.cb_play'))
+            .alt($r('app.media.dock_music_note'))
             .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-            .rotate({ x: 0, y: 0, z: 1, angle: this.isPlaying ? 360 : 0 })
+            .align(Alignment.Center)
+            .rotate({
+              x: 0,
+              y: 0,
+              z: 1,
+              angle: this.isPlaying ? 360 : 0,
+              centerX: '50%',
+              centerY: '50%'
+            })
             .animation({
               duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
               curve: Curve.Linear,
               iterations: this.isPlaying ? -1 : 1,
               playMode: PlayMode.Normal
             })
+        } else if (this.hasActiveTrack()) {
+          this.defaultMusicIcon(22)
         } else {
-          Image($r('app.media.cb_play'))
-            .width(24)
-            .height(24)
-            .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+          this.defaultMusicIcon(24)
         }
       }
       .width(size)
@@ -144,8 +214,10 @@ export struct MiniPlayerBar {
     Column() {
       this.coverDisc(UiTokens.DOCK_BALL_SIZE, true)
     }
-    .width('100%')
-    .alignItems(HorizontalAlign.Start)
+    .width(UiTokens.DOCK_BALL_SIZE)
+    .height(UiTokens.DOCK_BALL_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
     .padding({ left: UiTokens.DOCK_SIDE_MARGIN })
     .margin({ bottom: this.collapsedBottomMargin() })
     .hitTestBehavior(HitTestMode.Transparent)
@@ -155,7 +227,7 @@ export struct MiniPlayerBar {
 
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
-      if (this.showMiniPlayer) {
+      if (this.rootTabActive) {
         if (this.bottomDockSwapped) {
           this.expandedBar()
         } else {
@@ -175,34 +247,31 @@ export struct MiniPlayerBar {
         this.coverDisc(UiTokens.MINI_PLAYER_CAPSULE_COVER_SIZE)
 
         Column({ space: 2 }) {
-          Text(this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未在播放')
+          Text(this.hasActiveTrack() ?
+            (this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未知曲目') : '当前未播放音乐')
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
             .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
-          Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
-            .fontSize(12)
-            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          if (this.hasActiveTrack()) {
+            Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
+              .fontSize(12)
+              .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
         }
         .layoutWeight(1)
         .alignItems(HorizontalAlign.Start)
         .justifyContent(FlexAlign.Center)
 
         Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
-          this.actionIcon(this.isPlaying ? $r('app.media.cb_pause') : $r('app.media.cb_play'), 24, () => {
-            this.isPlaying = !this.isPlaying;
-            void PlaybackSession.togglePlayPause();
-          })
+          this.playPauseButton(24)
           this.actionIcon($r('app.media.cb_next'), 24, () => {
             void PlaybackSession.playNext(true);
           })
-          this.actionIcon(this.modeIcon(), 22, () => {
-            const nextMode: string = PlaybackSession.togglePlaybackMode();
-            this.playbackMode = nextMode;
-          })
+          this.playbackModeButton(22)
         }
         .alignItems(VerticalAlign.Center)
       }

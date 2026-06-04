@@ -488,26 +488,17 @@ export struct FloatingTabBar {
     .clip(true)
   }
 
+  /** HDS 悬浮页签须用 BottomTabBarStyle；CustomBuilder 会不可见但仍可点击 */
   private buildHdsTabBarStyle(item: RootTabItem): BottomTabBarStyle {
-
     return new BottomTabBarStyle(item.icon, item.a11yLabel)
-
       .labelStyle({
-
         selectedColor: UiTokens.COLOR_PRIMARY,
-
         unselectedColor: $r('sys.color.ohos_id_color_primary_contrary')
-
       })
-
       .iconStyle({
-
         selectedColor: UiTokens.COLOR_PRIMARY,
-
         unselectedColor: $r('sys.color.ohos_id_color_primary_contrary')
-
       });
-
   }
 
   @Builder

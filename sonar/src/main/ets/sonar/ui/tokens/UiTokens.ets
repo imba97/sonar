@@ -42,7 +42,10 @@ export class UiTokens {
   static readonly RADIUS_CARD: number = 14;
   static readonly RADIUS_CHIP: number = 15;
 
+  /** 展开态页签图标（与改前一致，勿动） */
   static readonly TAB_BAR_ICON_SIZE: number = 26;
+  /** 收起/紧凑态页签胶囊内图标，仅 CustomBuilder 紧凑分支使用 */
+  static readonly FLOATING_TAB_BAR_COMPACT_ICON_SIZE: number = 30;
   static readonly TAB_BAR_ICON_GAP: number = 24;
   static readonly FLOATING_TAB_BAR_HEIGHT: number = 56;
   static readonly FLOATING_TAB_BAR_COMPACT_WIDTH: number = 236;

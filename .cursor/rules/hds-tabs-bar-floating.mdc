@@ -88,6 +88,12 @@ alwaysApply: true
 - 折叠后：仅见右侧 56vp 圆盘/音符。
 - 改 token 后真机编译，三档断点各扫一眼即可。
 
+### 缩小态页签图标（紧凑胶囊）
+
+- **`TabBarIconStyle` 无 `size` 字段**；**禁止**对 `HdsTabs` 的 `.tabBar()` 使用 CustomBuilder 替代 `BottomTabBarStyle`（会不可见但仍可点击）。
+- 页签须 `new BottomTabBarStyle(icon, label).labelStyle(...).iconStyle(...)`，图标尺寸由系统/HDS 在紧凑态下绘制。
+- 若需更大紧凑态图标，只能等官方 API 或换更大矢量资源（会影响展开态，需产品接受）。
+
 ---
 
 ## miniBar 官方模型（强制，勿自建折叠状态机）

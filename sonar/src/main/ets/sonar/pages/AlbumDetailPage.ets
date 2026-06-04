@@ -9,13 +9,14 @@ import { PageScaffold } from '../components/layout/PageScaffold';
 import { DropdownActionItem, DropdownActionMenu } from '../components/overlays/DropdownActionMenu';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
-import { PlaybackSession } from '../playback/PlaybackSession';
+import { PlaybackController } from '../playback/PlaybackController';
+import { PlaybackSnapshot } from '../playback/PlaybackSnapshot';
 
 @Component
 export struct AlbumDetailPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
   @State vm: AlbumDetailViewModel = new AlbumDetailViewModel();
-  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
   @State private albumId: string = '';
   @State private menuVisible: boolean = false;
   @State private menuSongTitle: string = '';
@@ -60,7 +61,7 @@ export struct AlbumDetailPage {
   private onMenuSelect(actionId: string): void {
     if (actionId === 'play-next') {
       if (this.menuSong !== null) {
-        void PlaybackSession.enqueueNext(this.menuSong);
+        void PlaybackController.enqueueNext(this.menuSong);
       }
       this.showToast(`已加入下一首：${this.menuSongTitle}`);
     } else if (actionId === 'download') {
@@ -72,7 +73,8 @@ export struct AlbumDetailPage {
   }
 
   private playSong(index: number, song: Song): void {
-    void PlaybackSession.playFromList(this.vm.songs, index);
+    const albumCover: string = this.vm.album?.coverArt ?? '';
+    void PlaybackController.playQueue(this.vm.songs, index, albumCover);
     this.showToast(`开始播放：${song.title}`);
   }
 
@@ -95,7 +97,7 @@ export struct AlbumDetailPage {
       PageScaffold({
         pageBackground: UiTokens.COLOR_PAGE_BG,
         topPadding: 10,
-        bottomPadding: this.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 12
+        bottomPadding: this.playback.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 12
       }) {
         Column() {
           Row() {

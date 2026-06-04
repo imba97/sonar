@@ -7,104 +7,103 @@ const NOTIFICATION_ID: number = 1001;
 const SLOT_TYPE: notificationManager.SlotType = notificationManager.SlotType.SOCIAL_COMMUNICATION;
 const ABILITY_NAME: string = 'SonarAbility';
 
-export class BackgroundPlaybackService {
+export class BackgroundPlayback {
   private static context: common.UIAbilityContext | null = null;
   private static started: boolean = false;
   private static slotInitialized: boolean = false;
   private static agent: Object | null = null;
 
   static setContext(context: common.UIAbilityContext): void {
-    BackgroundPlaybackService.context = context;
+    BackgroundPlayback.context = context;
   }
 
   static async start(songTitle: string, songArtist: string, isPlaying: boolean): Promise<void> {
-    if (BackgroundPlaybackService.context === null) {
-      Logger.warn('BackgroundPlaybackService', 'start skipped: missing UIAbilityContext');
+    if (BackgroundPlayback.context === null) {
+      Logger.warn('BackgroundPlayback', 'start skipped: missing context');
       return;
     }
-    await BackgroundPlaybackService.ensureNotificationSlot();
-    await BackgroundPlaybackService.ensureBackgroundTask();
-    await BackgroundPlaybackService.publishNotification(songTitle, songArtist, isPlaying);
+    await BackgroundPlayback.ensureNotificationSlot();
+    await BackgroundPlayback.ensureBackgroundTask();
+    await BackgroundPlayback.publishNotification(songTitle, songArtist, isPlaying);
   }
 
   static async update(songTitle: string, songArtist: string, isPlaying: boolean): Promise<void> {
-    if (!BackgroundPlaybackService.started || BackgroundPlaybackService.context === null) {
+    if (!BackgroundPlayback.started || BackgroundPlayback.context === null) {
       return;
     }
-    await BackgroundPlaybackService.publishNotification(songTitle, songArtist, isPlaying);
+    await BackgroundPlayback.publishNotification(songTitle, songArtist, isPlaying);
   }
 
   static async stop(): Promise<void> {
-    if (BackgroundPlaybackService.context === null) {
+    if (BackgroundPlayback.context === null) {
       return;
     }
-    if (BackgroundPlaybackService.started) {
+    if (BackgroundPlayback.started) {
       try {
-        await backgroundTaskManager.stopBackgroundRunning(BackgroundPlaybackService.context);
+        await backgroundTaskManager.stopBackgroundRunning(BackgroundPlayback.context);
       } catch (err) {
-        Logger.warn('BackgroundPlaybackService', `stopBackgroundRunning failed: ${(err as Error).message}`);
+        Logger.warn('BackgroundPlayback', `stopBackgroundRunning failed: ${(err as Error).message}`);
       }
-      BackgroundPlaybackService.started = false;
+      BackgroundPlayback.started = false;
     }
     try {
       await notificationManager.cancel(NOTIFICATION_ID);
     } catch (err) {
-      Logger.warn('BackgroundPlaybackService', `cancel notification failed: ${(err as Error).message}`);
+      Logger.warn('BackgroundPlayback', `cancel notification failed: ${(err as Error).message}`);
     }
   }
 
   static async release(): Promise<void> {
-    await BackgroundPlaybackService.stop();
-    BackgroundPlaybackService.agent = null;
+    await BackgroundPlayback.stop();
+    BackgroundPlayback.agent = null;
   }
 
   private static async ensureBackgroundTask(): Promise<void> {
-    if (BackgroundPlaybackService.context === null || BackgroundPlaybackService.started) {
+    if (BackgroundPlayback.context === null || BackgroundPlayback.started) {
       return;
     }
     try {
-      const agent = await BackgroundPlaybackService.ensureWantAgent();
+      const agent = await BackgroundPlayback.ensureWantAgent();
       if (agent === null) {
-        Logger.warn('BackgroundPlaybackService', 'startBackgroundRunning skipped: wantAgent unavailable');
+        Logger.warn('BackgroundPlayback', 'startBackgroundRunning skipped: wantAgent unavailable');
         return;
       }
       await backgroundTaskManager.startBackgroundRunning(
-        BackgroundPlaybackService.context,
+        BackgroundPlayback.context,
         backgroundTaskManager.BackgroundMode.AUDIO_PLAYBACK,
         agent
       );
-      BackgroundPlaybackService.started = true;
+      BackgroundPlayback.started = true;
     } catch (err) {
       const message: string = (err as Error).message;
       if (message.indexOf('9800005') >= 0) {
-        BackgroundPlaybackService.started = true;
+        BackgroundPlayback.started = true;
         return;
       }
-      Logger.error('BackgroundPlaybackService', `startBackgroundRunning failed: ${message}`);
+      Logger.error('BackgroundPlayback', `startBackgroundRunning failed: ${message}`);
     }
   }
 
   private static async ensureNotificationSlot(): Promise<void> {
-    if (BackgroundPlaybackService.slotInitialized) {
+    if (BackgroundPlayback.slotInitialized) {
       return;
     }
     try {
       await notificationManager.addSlot(SLOT_TYPE);
-      BackgroundPlaybackService.slotInitialized = true;
+      BackgroundPlayback.slotInitialized = true;
     } catch (err) {
-      Logger.warn('BackgroundPlaybackService', `addSlot failed: ${(err as Error).message}`);
+      Logger.warn('BackgroundPlayback', `addSlot failed: ${(err as Error).message}`);
     }
   }
 
   private static async ensureWantAgent(): Promise<Object | null> {
-    if (BackgroundPlaybackService.agent !== null) {
-      return BackgroundPlaybackService.agent;
+    if (BackgroundPlayback.agent !== null) {
+      return BackgroundPlayback.agent;
     }
-    if (BackgroundPlaybackService.context === null) {
-      Logger.warn('BackgroundPlaybackService', 'ensureWantAgent skipped: missing UIAbilityContext');
+    if (BackgroundPlayback.context === null) {
       return null;
     }
-    const bundleName: string = BackgroundPlaybackService.context.abilityInfo.bundleName;
+    const bundleName: string = BackgroundPlayback.context.abilityInfo.bundleName;
     const info: wantAgent.WantAgentInfo = {
       wants: [{
         bundleName,
@@ -115,12 +114,12 @@ export class BackgroundPlaybackService {
       actionFlags: [wantAgent.WantAgentFlags.UPDATE_PRESENT_FLAG]
     };
     try {
-      BackgroundPlaybackService.agent = await wantAgent.getWantAgent(info);
+      BackgroundPlayback.agent = await wantAgent.getWantAgent(info);
     } catch (err) {
-      Logger.warn('BackgroundPlaybackService', `getWantAgent failed: ${(err as Error).message}`);
+      Logger.warn('BackgroundPlayback', `getWantAgent failed: ${(err as Error).message}`);
       return null;
     }
-    return BackgroundPlaybackService.agent;
+    return BackgroundPlayback.agent;
   }
 
   private static async publishNotification(songTitle: string, songArtist: string, isPlaying: boolean): Promise<void> {
@@ -144,7 +143,7 @@ export class BackgroundPlaybackService {
     try {
       await notificationManager.publish(request);
     } catch (err) {
-      Logger.warn('BackgroundPlaybackService', `publish notification failed: ${(err as Error).message}`);
+      Logger.warn('BackgroundPlayback', `publish notification failed: ${(err as Error).message}`);
     }
   }
 }

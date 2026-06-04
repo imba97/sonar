@@ -3,6 +3,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PrimaryButton } from '../../sonar/components/buttons/PrimaryButton';
 import { CardContainer } from '../../sonar/components/layout/CardContainer';
 import { PageScaffold } from '../../sonar/components/layout/PageScaffold';
+import { PlaybackSnapshot } from '../../sonar/playback/PlaybackSnapshot';
 import { UiTokens } from '../../sonar/ui/tokens/UiTokens';
 
 const DOMAIN = 0x0000;
@@ -11,7 +12,7 @@ const TAG = 'Sonar.HomePage';
 @Component
 export struct HomePage {
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
-  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
   @Consume('appPathStack') appPathStack: NavPathStack;
   build() {
     if (!this.isLoggedIn) {
@@ -19,7 +20,7 @@ export struct HomePage {
       PageScaffold({
         pageBackground: $r('app.color.page_bg_color'),
         topPadding: 16,
-        bottomPadding: this.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 20
+        bottomPadding: this.playback.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 20
       }) {
         Column() {
           Column() {
@@ -67,7 +68,7 @@ export struct HomePage {
       PageScaffold({
         pageBackground: $r('app.color.page_bg_color'),
         topPadding: 16,
-        bottomPadding: this.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 20
+        bottomPadding: this.playback.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 20
       }) {
         Column() {
           SonicApiEntryModule()

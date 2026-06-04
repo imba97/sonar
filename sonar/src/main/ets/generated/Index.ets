@@ -1,7 +1,7 @@
 import { PageMap } from './detail/SecondPageBuilder'
 import { AuthSession } from '../sonar/auth/AuthSession';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { PlaybackSession } from '../sonar/playback/PlaybackSession';
+import { PlaybackController } from '../sonar/playback/PlaybackController';
 import { common } from '@kit.AbilityKit';
 import { FloatingTabBar } from '../sonar/components/navigation/FloatingTabBar';
 import { UiTokens } from '../sonar/ui/tokens/UiTokens';
@@ -21,8 +21,7 @@ struct Index {
     await AuthSession.restoreFromStore();
     AppStorage.setOrCreate<number>('rootTabIndex', 0);
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    PlaybackSession.setContext(context);
-    await PlaybackSession.initialize(context);
+    await PlaybackController.initialize(context);
   }
 
   onBackPress(): boolean {

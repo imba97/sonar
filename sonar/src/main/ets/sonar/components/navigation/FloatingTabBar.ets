@@ -1,7 +1,8 @@
 import { LibraryPage } from '../../pages/LibraryPage';
 import { ServerPage } from '../../pages/ServerPage';
 import { ProfilePage } from '../../pages/ProfilePage';
-import { PlaybackSession } from '../../playback/PlaybackSession';
+import { PlaybackController } from '../../playback/PlaybackController';
+import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { MiniBarCoverDisc } from './MiniBarCoverDisc';
 import {
@@ -49,25 +50,13 @@ export struct FloatingTabBar {
 
   @StorageLink('rootTabIndex') rootTabIndex: number = 0;
 
-  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
-
-  @StorageLink('nowPlayingTitle') nowPlayingTitle: string = '';
-
-  @StorageLink('nowPlayingArtist') nowPlayingArtist: string = '';
-
-  @StorageLink('nowPlayingCoverArt') nowPlayingCoverArt: string = '';
-
-  @StorageLink('isPlaying') @Watch('onIsPlayingChange') isPlaying: boolean = false;
-
-  @StorageLink('playbackMode') playbackMode: string = 'listLoop';
+  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
 
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
 
   private hdsTabsController: HdsTabsController = new HdsTabsController();
 
   @State private containerWidth: number = 360;
-
-  @State private coverRotateDeg: number = 0;
 
   @State private customMaterialType: hdsMaterial.MaterialType = hdsMaterial.MaterialType.ADAPTIVE;
 
@@ -78,14 +67,6 @@ export struct FloatingTabBar {
     AppStorage.setOrCreate<boolean>('rootTabActive', true);
 
     this.initMaterialEffect();
-
-    this.syncCoverRotation();
-
-  }
-
-  private onIsPlayingChange(): void {
-
-    this.syncCoverRotation();
 
   }
 
@@ -229,7 +210,7 @@ export struct FloatingTabBar {
 
   private hasActiveTrack(): boolean {
 
-    return this.showMiniPlayer;
+    return this.playback.showMiniPlayer;
 
   }
 
@@ -245,59 +226,21 @@ export struct FloatingTabBar {
 
   }
 
-  private syncCoverRotation(): void {
-
-    if (!this.isPlaying) {
-
-      this.coverRotateDeg = 0;
-
-      return;
-
-    }
-
-    const uiContext = this.getUIContext();
-
-    if (uiContext === undefined) {
-
-      return;
-
-    }
-
-    this.coverRotateDeg = 0;
-
-    uiContext.animateTo({
-
-      duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
-
-      curve: Curve.Linear,
-
-      iterations: -1,
-
-      playMode: PlayMode.Normal
-
-    }, () => {
-
-      this.coverRotateDeg = 360;
-
-    });
-
-  }
-
   private togglePlayback(): void {
 
-    void PlaybackSession.togglePlayPause();
+    void PlaybackController.toggle();
 
   }
 
   private nextTrack(): void {
 
-    void PlaybackSession.playNext(true);
+    void PlaybackController.playNext(true);
 
   }
 
   private toggleMode(): void {
 
-    this.playbackMode = PlaybackSession.togglePlaybackMode();
+    PlaybackController.togglePlaybackMode();
 
   }
 
@@ -339,7 +282,7 @@ export struct FloatingTabBar {
 
     Column() {
 
-      if (this.isPlaying) {
+      if (this.playback.isPlaying()) {
 
         Image($r('app.media.cb_pause'))
 
@@ -385,7 +328,7 @@ export struct FloatingTabBar {
 
     Column() {
 
-      if (this.playbackMode === 'singleLoop') {
+      if (this.playback.mode === 'singleLoop') {
 
         Image($r('app.media.cb_mode_loop'))
 
@@ -395,7 +338,7 @@ export struct FloatingTabBar {
 
           .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
 
-      } else if (this.playbackMode === 'random') {
+      } else if (this.playback.mode === 'random') {
 
         Image($r('app.media.cb_mode_shuffle'))
 
@@ -445,21 +388,22 @@ export struct FloatingTabBar {
     Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
       MiniBarCoverDisc({
         outerSize: this.coverOuterSize(),
-        coverInset: this.coverInset(),
-        rotateDeg: this.coverRotateDeg
+        coverInset: this.coverInset()
       })
         .flexShrink(0)
 
       Column({ space: 2 }) {
         Text(this.hasActiveTrack() ?
-          (this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未知曲目') : '当前未播放音乐')
+          (this.playback.track !== null && this.playback.track.title.length > 0 ?
+            this.playback.track.title : '未知曲目') : '当前未播放音乐')
           .fontSize(14)
           .fontWeight(FontWeight.Medium)
           .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         if (this.hasActiveTrack()) {
-          Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
+          Text(this.playback.track !== null && this.playback.track.artist.length > 0 ?
+            this.playback.track.artist : '未知歌手')
             .fontSize(12)
             .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
             .maxLines(1)

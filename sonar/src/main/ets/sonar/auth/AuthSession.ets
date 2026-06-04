@@ -4,7 +4,7 @@ import { SubsonicClient } from '../api/SubsonicClient';
 import { AuthStore, SavedAuth } from './AuthStore';
 import { Logger } from '../common/Logger';
 import { NetworkStatus } from '../common/NetworkStatus';
-import { PlaybackSession } from '../playback/PlaybackSession';
+import { PlaybackController } from '../playback/PlaybackController';
 
 const LOCAL_PROBE_INTERVAL_MS: number = 300_000;
 const WIFI_TRIGGER_DEBOUNCE_MS: number = 5_000;
@@ -63,7 +63,7 @@ export class AuthSession {
     const creds: SavedAuth | null = AuthStore.getInstance().getCredentials();
     if (creds === null) {
       AuthSession.stopLocalProbeScheduler();
-      await PlaybackSession.release();
+      await PlaybackController.release();
       AuthSession.applyLoggedOut();
       return;
     }
@@ -72,7 +72,7 @@ export class AuthSession {
 
   static async logout(): Promise<void> {
     AuthSession.stopLocalProbeScheduler();
-    await PlaybackSession.release();
+    await PlaybackController.release();
     await AuthStore.getInstance().clear();
     AuthSession.applyLoggedOut();
   }

@@ -1,17 +1,12 @@
-import { PlaybackSession } from '../../playback/PlaybackSession';
-import { SubsonicClient } from '../../api/SubsonicClient';
+import { MiniBarCoverDisc } from '../navigation/MiniBarCoverDisc';
+import { PlaybackController } from '../../playback/PlaybackController';
+import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 @Component
 export struct MiniPlayerBar {
-  @StorageLink('showMiniPlayer') showMiniPlayer: boolean = false;
+  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
-  @StorageLink('bottomDockSwapped') bottomDockSwapped: boolean = false;
-  @StorageLink('nowPlayingTitle') nowPlayingTitle: string = '';
-  @StorageLink('nowPlayingArtist') nowPlayingArtist: string = '';
-  @StorageLink('nowPlayingCoverArt') nowPlayingCoverArt: string = '';
-  @StorageLink('isPlaying') isPlaying: boolean = false;
-  @StorageLink('playbackMode') playbackMode: string = 'listLoop';
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
 
   private collapsedBottomMargin(): number {
@@ -25,19 +20,19 @@ export struct MiniPlayerBar {
   }
 
   private toggleDockSwapped(nextValue: boolean): void {
-    if (this.bottomDockSwapped === nextValue) {
+    if (this.playback.bottomDockSwapped === nextValue) {
       return;
     }
     animateTo({
       duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION,
       curve: Curve.EaseInOut
     }, () => {
-      this.bottomDockSwapped = nextValue;
+      PlaybackController.setBottomDockSwapped(nextValue);
     });
   }
 
   private hasActiveTrack(): boolean {
-    return this.showMiniPlayer;
+    return this.playback.showMiniPlayer;
   }
 
   @Builder
@@ -60,7 +55,7 @@ export struct MiniPlayerBar {
   @Builder
   private playPauseButton(iconSize: number) {
     Column() {
-      if (this.isPlaying) {
+      if (this.playback.isPlaying()) {
         Image($r('app.media.cb_pause'))
           .width(iconSize)
           .height(iconSize)
@@ -77,19 +72,19 @@ export struct MiniPlayerBar {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
-      void PlaybackSession.togglePlayPause();
+      void PlaybackController.toggle();
     })
   }
 
   @Builder
   private playbackModeButton(iconSize: number) {
     Column() {
-      if (this.playbackMode === 'singleLoop') {
+      if (this.playback.mode === 'singleLoop') {
         Image($r('app.media.cb_mode_loop'))
           .width(iconSize)
           .height(iconSize)
           .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-      } else if (this.playbackMode === 'random') {
+      } else if (this.playback.mode === 'random') {
         Image($r('app.media.cb_mode_shuffle'))
           .width(iconSize)
           .height(iconSize)
@@ -106,50 +101,18 @@ export struct MiniPlayerBar {
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
-      this.playbackMode = PlaybackSession.togglePlaybackMode();
+      PlaybackController.togglePlaybackMode();
     })
-  }
-
-  @Builder
-  private defaultMusicIcon(iconSize: number) {
-    Image($r('app.media.dock_music_note'))
-      .width(iconSize)
-      .height(iconSize)
-      .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
-      .objectFit(ImageFit.Contain)
   }
 
   @Builder
   private coverDisc(size: number, clickable: boolean = false) {
     if (clickable) {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.hasActiveTrack() && this.nowPlayingCoverArt.length > 0) {
-          Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .alt($r('app.media.dock_music_note'))
-            .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-            .align(Alignment.Center)
-            .rotate({
-              x: 0,
-              y: 0,
-              z: 1,
-              angle: this.isPlaying ? 360 : 0,
-              centerX: '50%',
-              centerY: '50%'
-            })
-            .animation({
-              duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
-              curve: Curve.Linear,
-              iterations: this.isPlaying ? -1 : 1,
-              playMode: PlayMode.Normal
-            })
-        } else if (this.hasActiveTrack()) {
-          this.defaultMusicIcon(24)
-        } else {
-          this.defaultMusicIcon(26)
-        }
+        MiniBarCoverDisc({
+          outerSize: size,
+          coverInset: 0
+        })
       }
       .width(size)
       .height(size)
@@ -167,33 +130,10 @@ export struct MiniPlayerBar {
       })
     } else {
       Stack({ alignContent: Alignment.Center }) {
-        if (this.hasActiveTrack() && this.nowPlayingCoverArt.length > 0) {
-          Image(SubsonicClient.getInstance().getCoverArtUrl(this.nowPlayingCoverArt, 160))
-            .width('100%')
-            .height('100%')
-            .objectFit(ImageFit.Cover)
-            .alt($r('app.media.dock_music_note'))
-            .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-            .align(Alignment.Center)
-            .rotate({
-              x: 0,
-              y: 0,
-              z: 1,
-              angle: this.isPlaying ? 360 : 0,
-              centerX: '50%',
-              centerY: '50%'
-            })
-            .animation({
-              duration: UiTokens.DOCK_COVER_ROTATION_DURATION,
-              curve: Curve.Linear,
-              iterations: this.isPlaying ? -1 : 1,
-              playMode: PlayMode.Normal
-            })
-        } else if (this.hasActiveTrack()) {
-          this.defaultMusicIcon(22)
-        } else {
-          this.defaultMusicIcon(24)
-        }
+        MiniBarCoverDisc({
+          outerSize: size,
+          coverInset: 0
+        })
       }
       .width(size)
       .height(size)
@@ -228,7 +168,7 @@ export struct MiniPlayerBar {
   build() {
     Stack({ alignContent: Alignment.Bottom }) {
       if (this.rootTabActive) {
-        if (this.bottomDockSwapped) {
+        if (this.playback.bottomDockSwapped) {
           this.expandedBar()
         } else {
           this.collapsedButton()
@@ -248,14 +188,16 @@ export struct MiniPlayerBar {
 
         Column({ space: 2 }) {
           Text(this.hasActiveTrack() ?
-            (this.nowPlayingTitle.length > 0 ? this.nowPlayingTitle : '未知曲目') : '当前未播放音乐')
+            (this.playback.track !== null && this.playback.track.title.length > 0 ?
+              this.playback.track.title : '未知曲目') : '当前未播放音乐')
             .fontSize(14)
             .fontWeight(FontWeight.Medium)
             .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
           if (this.hasActiveTrack()) {
-            Text(this.nowPlayingArtist.length > 0 ? this.nowPlayingArtist : '未知歌手')
+            Text(this.playback.track !== null && this.playback.track.artist.length > 0 ?
+              this.playback.track.artist : '未知歌手')
               .fontSize(12)
               .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
               .maxLines(1)
@@ -269,7 +211,7 @@ export struct MiniPlayerBar {
         Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
           this.playPauseButton(24)
           this.actionIcon($r('app.media.cb_next'), 24, () => {
-            void PlaybackSession.playNext(true);
+            void PlaybackController.playNext(true);
           })
           this.playbackModeButton(22)
         }
@@ -295,7 +237,7 @@ export struct MiniPlayerBar {
         right: UiTokens.DOCK_SIDE_MARGIN + UiTokens.DOCK_BALL_SIZE + UiTokens.DOCK_COMPONENT_GAP,
         bottom: this.expandedBottomMargin()
       })
-      .opacity(this.bottomDockSwapped ? 1 : 0)
+      .opacity(this.playback.bottomDockSwapped ? 1 : 0)
       .animation({
         duration: UiTokens.DOCK_SWITCH_ANIMATION_DURATION,
         curve: Curve.EaseInOut

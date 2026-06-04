@@ -2,7 +2,7 @@ import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want 
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { AuthStore } from '../sonar/auth/AuthStore';
-import { PlaybackSession } from '../sonar/playback/PlaybackSession';
+import { PlaybackController } from '../sonar/playback/PlaybackController';
 
 const DOMAIN = 0x0000;
 
@@ -24,7 +24,7 @@ export default class SonarAbility extends UIAbility {
     }
     AppStorage.setOrCreate<number>('currentColorMode', this.resolveColorMode(this.context.config.colorMode));
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
-    PlaybackSession.setContext(this.context);
+    PlaybackController.setContext(this.context);
 
     // 初始化持久化凭据存储
     AuthStore.getInstance().init(this.context).catch((err: Error) => {
@@ -33,7 +33,7 @@ export default class SonarAbility extends UIAbility {
   }
 
   onDestroy(): void {
-    void PlaybackSession.release();
+    void PlaybackController.release();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
   }
 
@@ -111,7 +111,7 @@ export default class SonarAbility extends UIAbility {
 
   onForeground(): void {
     // Ability has brought to foreground
-    PlaybackSession.setContext(this.context);
+    PlaybackController.setContext(this.context);
     if (this.mainWindow !== undefined) {
       this.applySystemBarStyle(this.mainWindow, this.context.config.colorMode);
     }

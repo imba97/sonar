@@ -2,7 +2,7 @@ import { PageMap } from './PageMapBuilder';
 import { AuthSession } from '../auth/AuthSession';
 import { AuthStore } from '../auth/AuthStore';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { PlaybackSession } from '../playback/PlaybackSession';
+import { PlaybackController } from '../playback/PlaybackController';
 import { common } from '@kit.AbilityKit';
 import { FloatingTabBar } from '../components/navigation/FloatingTabBar';
 import { UiTokens } from '../ui/tokens/UiTokens';
@@ -25,8 +25,7 @@ struct Index {
       this.appPathStack.replacePathByName('LoginPage', null);
     }
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
-    PlaybackSession.setContext(context);
-    await PlaybackSession.initialize(context);
+    await PlaybackController.initialize(context);
   }
 
   onBackPress(): boolean {

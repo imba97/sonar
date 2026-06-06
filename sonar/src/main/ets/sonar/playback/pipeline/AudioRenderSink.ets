@@ -1,10 +1,10 @@
 import { media } from '@kit.MediaKit';
-import { fileUri } from '@kit.CoreFileKit';
-import { Logger } from '../common/Logger';
-export type EnginePhase = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+import { Logger } from '../../common/Logger';
 
-export interface PcmPlaybackEngineListener {
-  onPhaseChanged(phase: EnginePhase): void;
+export type PlaySinkPhase = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
+
+export interface AudioRenderSinkListener {
+  onPhaseChanged(phase: PlaySinkPhase): void;
   onPositionChanged(positionMs: number): void;
   onDurationChanged(durationMs: number): void;
   onCompleted(): void;
@@ -12,22 +12,23 @@ export interface PcmPlaybackEngineListener {
 }
 
 /**
- * 播放引擎：Subsonic 压缩流由 AVPlayer 拉流解码输出；待 AVCodec 入环后可接 AudioRenderer writeData。
+ * 播放输出：当前经 AVPlayer 解码出声；PCM 环就绪后可切 AudioRenderer writeData。
  */
-export class PcmPlaybackEngine {
-  private listener: PcmPlaybackEngineListener | null = null;
+export class AudioRenderSink {
+  private listener: AudioRenderSinkListener | null = null;
   private player: media.AVPlayer | null = null;
-  private phase: EnginePhase = 'idle';
+  private phase: PlaySinkPhase = 'idle';
   private pendingAutoPlay: boolean = false;
+  private pendingSeekMs: number = 0;
+  private migratePending: boolean = false;
   private positionMs: number = 0;
   private durationMs: number = 0;
-  private networkBuffering: boolean = false;
 
-  setListener(listener: PcmPlaybackEngineListener | null): void {
+  setListener(listener: AudioRenderSinkListener | null): void {
     this.listener = listener;
   }
 
-  getPhase(): EnginePhase {
+  getPhase(): PlaySinkPhase {
     return this.phase;
   }
 
@@ -45,12 +46,13 @@ export class PcmPlaybackEngine {
 
   async release(): Promise<void> {
     this.pendingAutoPlay = false;
-    this.networkBuffering = false;
+    this.pendingSeekMs = 0;
+    this.migratePending = false;
     if (this.player !== null) {
       try {
         await this.player.release();
       } catch (err) {
-        Logger.warn('PcmPlaybackEngine', `release player failed: ${(err as Error).message}`);
+        Logger.warn('AudioRenderSink', `release failed: ${(err as Error).message}`);
       }
       this.player = null;
     }
@@ -59,22 +61,38 @@ export class PcmPlaybackEngine {
     this.durationMs = 0;
   }
 
-  async loadStreamUrl(streamUrl: string, autoPlay: boolean): Promise<void> {
+  async openStream(url: string, autoPlay: boolean, startSeekMs: number = 0): Promise<void> {
     const player: media.AVPlayer = await this.ensurePlayer();
     this.pendingAutoPlay = autoPlay;
+    this.pendingSeekMs = startSeekMs;
+    this.migratePending = false;
     this.setPhase('loading');
-    this.positionMs = 0;
     try {
       await player.reset();
     } catch (err) {
-      Logger.warn('PcmPlaybackEngine', `reset failed: ${(err as Error).message}`);
+      Logger.warn('AudioRenderSink', `reset failed: ${(err as Error).message}`);
     }
-    player.url = streamUrl;
+    player.url = url;
   }
 
-  async loadLocalPath(localPath: string, autoPlay: boolean): Promise<void> {
-    const uri: string = fileUri.getUriFromPath(localPath);
-    await this.loadStreamUrl(uri, autoPlay);
+  /** 切网续播：换 URL 后在 prepared 态 seek 至冻结点，禁止 UI 归零 */
+  async migrateStream(url: string, seekMs: number, wasPlaying: boolean): Promise<void> {
+    this.pendingAutoPlay = wasPlaying;
+    this.pendingSeekMs = seekMs;
+    this.migratePending = true;
+    const player: media.AVPlayer = await this.ensurePlayer();
+    try {
+      if (player.state === 'playing') {
+        await player.pause();
+      }
+    } catch (_err) {
+    }
+    try {
+      await player.reset();
+    } catch (err) {
+      Logger.warn('AudioRenderSink', `migrate reset failed: ${(err as Error).message}`);
+    }
+    player.url = url;
   }
 
   async play(): Promise<void> {
@@ -90,19 +108,18 @@ export class PcmPlaybackEngine {
   }
 
   async pause(): Promise<void> {
-    const player: media.AVPlayer = await this.ensurePlayer();
-    if (player.state !== 'playing') {
+    const player: media.AVPlayer | null = this.player;
+    if (player === null || player.state !== 'playing') {
       return;
     }
     try {
       await player.pause();
     } catch (err) {
-      Logger.warn('PcmPlaybackEngine', `pause failed: ${(err as Error).message}`);
+      Logger.warn('AudioRenderSink', `pause failed: ${(err as Error).message}`);
     }
   }
 
   async stop(): Promise<void> {
-    this.networkBuffering = false;
     const player: media.AVPlayer | null = this.player;
     if (player === null) {
       this.setPhase('stopped');
@@ -111,7 +128,7 @@ export class PcmPlaybackEngine {
     try {
       await player.stop();
     } catch (err) {
-      Logger.warn('PcmPlaybackEngine', `stop failed: ${(err as Error).message}`);
+      Logger.warn('AudioRenderSink', `stop failed: ${(err as Error).message}`);
     }
     this.setPhase('stopped');
   }
@@ -126,7 +143,7 @@ export class PcmPlaybackEngine {
       this.positionMs = positionMs;
       this.listener?.onPositionChanged(this.positionMs);
     } catch (err) {
-      Logger.warn('PcmPlaybackEngine', `seek failed: ${(err as Error).message}`);
+      Logger.warn('AudioRenderSink', `seek failed: ${(err as Error).message}`);
     }
   }
 
@@ -149,9 +166,6 @@ export class PcmPlaybackEngine {
           this.listener?.onDurationChanged(duration);
         }
       });
-      created.on('bufferingUpdate', (infoType: media.BufferingInfoType, _value: number) => {
-        this.onBufferingUpdate(infoType);
-      });
       created.on('error', (err: Error) => {
         this.emitError(`player error: ${err.message}`);
       });
@@ -159,21 +173,6 @@ export class PcmPlaybackEngine {
       return created;
     } catch (err) {
       throw new Error(`createAVPlayer failed: ${(err as Error).message}`);
-    }
-  }
-
-  private onBufferingUpdate(infoType: media.BufferingInfoType): void {
-    if (infoType === media.BufferingInfoType.BUFFERING_START) {
-      this.networkBuffering = true;
-      this.setPhase('loading');
-      return;
-    }
-    if (infoType === media.BufferingInfoType.BUFFERING_END) {
-      this.networkBuffering = false;
-      const player: media.AVPlayer | null = this.player;
-      if (player !== null && player.state === 'playing') {
-        this.setPhase('playing');
-      }
     }
   }
 
@@ -191,6 +190,17 @@ export class PcmPlaybackEngine {
       return;
     }
     if (state === 'prepared') {
+      if (this.pendingSeekMs > 0) {
+        const seekTarget: number = this.pendingSeekMs;
+        this.pendingSeekMs = 0;
+        try {
+          await player.seek(seekTarget);
+          this.positionMs = seekTarget;
+          this.listener?.onPositionChanged(seekTarget);
+        } catch (err) {
+          Logger.warn('AudioRenderSink', `prepared seek failed: ${(err as Error).message}`);
+        }
+      }
       if (this.pendingAutoPlay) {
         this.pendingAutoPlay = false;
         try {
@@ -198,28 +208,26 @@ export class PcmPlaybackEngine {
         } catch (err) {
           this.emitError(`auto play failed: ${(err as Error).message}`);
         }
+      } else if (this.migratePending) {
+        this.migratePending = false;
       }
       return;
     }
     if (state === 'playing') {
-      if (!this.networkBuffering) {
-        this.setPhase('playing');
-      }
+      this.setPhase('playing');
       return;
     }
     if (state === 'paused' || state === 'stopped') {
-      this.networkBuffering = false;
       this.setPhase(state === 'paused' ? 'paused' : 'stopped');
       return;
     }
     if (state === 'completed') {
-      this.networkBuffering = false;
       this.setPhase('stopped');
       this.listener?.onCompleted();
     }
   }
 
-  private setPhase(phase: EnginePhase): void {
+  private setPhase(phase: PlaySinkPhase): void {
     if (this.phase === phase) {
       return;
     }
@@ -228,7 +236,7 @@ export class PcmPlaybackEngine {
   }
 
   private emitError(message: string): void {
-    Logger.warn('PcmPlaybackEngine', message);
+    Logger.warn('AudioRenderSink', message);
     this.setPhase('error');
     this.listener?.onError(message);
   }

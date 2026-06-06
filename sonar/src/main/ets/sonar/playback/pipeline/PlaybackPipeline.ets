@@ -11,7 +11,7 @@ class PlaybackPipelineNetworkBridge implements PlaybackPipelineNetworkHandler {
 }
 
 /**
- * 播放管线门面（方案 F 过渡）：将 endpoint 变更转发给 PlaybackSession。
+ * 播放管线门面：endpoint 变更 → PipelineOrchestrator.migrateInPlace。
  */
 export class PlaybackPipeline {
   private static networkHandler: NetworkPathChangedHandler | null = null;

@@ -22,8 +22,10 @@ alwaysApply: true
 - endpoint 切换后 CoverCache 未命中时会自动走 remote 主干重拉。
 
 ## 播放状态同步
-- `loading` 使用 `PLAYBACK_STATE_PREPARE`（或 pause + position 0），避免误报 playing。
-- 播放中进度推送节流约 **1Hz**；切歌/seek/暂停/phase 变化立即推送。
+- 切歌 `loading` 使用 `PLAYBACK_STATE_PREPARE`（position 0）；**rebuffer / 切网 migrate** 时 `phase` 仍为 `playing`、`isBuffering=true`，使用 `PLAYBACK_STATE_PLAY` 且 **冻结** `elapsedTime`。
+- `PlaybackSnapshot.isBuffering` + `isProgressFrozen()`：缓冲中 UI 与 AVSession 均不推进进度。
+- 播放中进度推送节流约 **1Hz**；切歌/seek/暂停/phase/buffering 变化立即推送。
+- 元数据 `setAVMetadata` 仅在切歌、封面或时长变化时更新，禁止随进度 tick 重复写入。
 
 ## 后台
 - `module.json5`：`backgroundModes: ["audioPlayback"]` + `KEEP_BACKGROUND_RUNNING`。

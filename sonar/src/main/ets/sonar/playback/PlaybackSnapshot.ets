@@ -32,6 +32,8 @@ export class PlaybackSnapshot {
   readonly showMiniPlayer: boolean;
   /** 封面 revision，CoverCache 异步加载后递增以触发 UI 刷新 */
   readonly coverRevision: number;
+  /** 弱网 / 切网 rebuffer：phase 仍为 playing，进度冻结 */
+  readonly isBuffering: boolean;
 
   constructor(
     track: NowPlayingTrack | null,
@@ -39,7 +41,8 @@ export class PlaybackSnapshot {
     positionMs: number,
     mode: PlaybackMode,
     showMiniPlayer: boolean,
-    coverRevision: number
+    coverRevision: number,
+    isBuffering: boolean = false
   ) {
     this.track = track;
     this.phase = phase;
@@ -47,10 +50,11 @@ export class PlaybackSnapshot {
     this.mode = mode;
     this.showMiniPlayer = showMiniPlayer;
     this.coverRevision = coverRevision;
+    this.isBuffering = isBuffering;
   }
 
   static idle(mode: PlaybackMode = 'listLoop'): PlaybackSnapshot {
-    return new PlaybackSnapshot(null, 'idle', 0, mode, false, 0);
+    return new PlaybackSnapshot(null, 'idle', 0, mode, false, 0, false);
   }
 
   isPlaying(): boolean {
@@ -59,6 +63,14 @@ export class PlaybackSnapshot {
 
   isLoading(): boolean {
     return this.phase === 'loading';
+  }
+
+  isCoverLoading(): boolean {
+    return this.phase === 'loading' || this.isBuffering;
+  }
+
+  isProgressFrozen(): boolean {
+    return this.phase === 'loading' || this.isBuffering;
   }
 }
 

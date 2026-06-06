@@ -10,6 +10,7 @@ export interface FetchProgress {
 
 export interface FetchWorkerCallbacks {
   onProgress?: (progress: FetchProgress) => void;
+  onChunk?: (chunk: ArrayBuffer) => void;
   onComplete?: () => void;
   onError?: (err: Error) => void;
 }
@@ -18,8 +19,11 @@ export interface FetchWorkerCallbacks {
  * 音频流 Fetch 生产者；仅经 HttpTransport.openStream，禁止自建 http 客户端。
  */
 export class FetchWorker {
-  static run(streamResource: StreamResource, callbacks: FetchWorkerCallbacks): CancelToken {
-    const cancelToken: CancelToken = streamResource.cancelToken;
+  static run(streamResource: StreamResource, callbacks: FetchWorkerCallbacks,
+    fetchCancelToken?: CancelToken): CancelToken {
+    const cancelToken: CancelToken = fetchCancelToken !== undefined
+      ? fetchCancelToken
+      : streamResource.cancelToken;
     let downloadedBytes: number = streamResource.byteOffset;
     let contentLength: number | undefined;
 
@@ -41,6 +45,9 @@ export class FetchWorker {
       },
       onChunk: (chunk: ArrayBuffer): void => {
         downloadedBytes += chunk.byteLength;
+        if (callbacks.onChunk !== undefined) {
+          callbacks.onChunk(chunk);
+        }
         if (callbacks.onProgress !== undefined) {
           callbacks.onProgress({ downloadedBytes, contentLength });
         }

@@ -9,7 +9,7 @@ export interface StreamRequestSpec {
 
 export class StreamResource {
   readonly songId: string;
-  readonly cancelToken: CancelToken;
+  private cancelTokenRef: CancelToken;
   byteOffset: number;
   private endpoint: EndpointType;
   private readonly maxBitRate: number;
@@ -20,7 +20,17 @@ export class StreamResource {
     this.endpoint = endpoint;
     this.byteOffset = byteOffset;
     this.maxBitRate = maxBitRate;
-    this.cancelToken = cancelToken;
+    this.cancelTokenRef = cancelToken;
+  }
+
+  get cancelToken(): CancelToken {
+    return this.cancelTokenRef;
+  }
+
+  /** Fetch 取消后换新 token，同曲目续拉 */
+  renewCancelToken(): CancelToken {
+    this.cancelTokenRef = new CancelToken();
+    return this.cancelTokenRef;
   }
 
   getEndpoint(): EndpointType {

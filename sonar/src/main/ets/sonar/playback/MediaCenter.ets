@@ -162,20 +162,23 @@ export class MediaCenter {
       return;
     }
     const isPlaying: boolean = snapshot.phase === 'playing';
-    const positionMs: number = snapshot.positionMs;
+    const positionMs: number = snapshot.isProgressFrozen()
+      ? snapshot.positionMs
+      : snapshot.positionMs;
     const now: number = Date.now();
     const currentSecond: number = Math.floor(positionMs / 1000);
-    if (!force && isPlaying && currentSecond === this.lastPlaybackSyncSecond) {
+    if (!force && isPlaying && !snapshot.isBuffering && currentSecond === this.lastPlaybackSyncSecond) {
       return;
     }
     if (!force && isPlaying === this.lastPlaybackStateIsPlaying &&
+      !snapshot.isBuffering &&
       now - this.lastPlaybackStateSyncAt < 1000) {
       return;
     }
     let state: avSession.PlaybackState = avSession.PlaybackState.PLAYBACK_STATE_PAUSE;
     if (snapshot.phase === 'playing') {
       state = avSession.PlaybackState.PLAYBACK_STATE_PLAY;
-    } else if (snapshot.phase === 'loading') {
+    } else if (snapshot.phase === 'loading' && !snapshot.isBuffering) {
       state = avSession.PlaybackState.PLAYBACK_STATE_PREPARE;
     }
     try {

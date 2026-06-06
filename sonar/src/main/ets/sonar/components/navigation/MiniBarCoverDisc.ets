@@ -33,7 +33,7 @@ export struct MiniBarCoverDisc {
         coverArtId: this.coverArtId(),
         coverRevision: this.playback.coverRevision,
         trackId: this.trackId(),
-        loading: this.playback.showMiniPlayer && this.playback.isLoading(),
+        loading: this.playback.showMiniPlayer && this.playback.isCoverLoading(),
         spinning: this.playback.isPlaying(),
         showCover: this.playback.showMiniPlayer
       })

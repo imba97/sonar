@@ -6,7 +6,11 @@ import { Logger } from '../common/Logger';
 import { EndpointChangeEvent } from '../network/routing/EndpointTypes';
 import { MediaResourceService } from '../network/media/MediaResourceService';
 import { StreamResource } from '../network/media/StreamResource';
+import { PlaySinkPhase } from './pipeline/AudioRenderSink';
+import { PipelineOrchestrator, PipelineOrchestratorCallbacks } from './pipeline/PipelineOrchestrator';
 import { PlaybackPipeline } from './pipeline/PlaybackPipeline';
+import { CancelToken } from '../network/transport/CancelToken';
+import { PrefetchWorker } from './pipeline/PrefetchWorker';
 import { BackgroundPlayback } from './BackgroundPlayback';
 import { CoverCache } from './CoverCache';
 import { MediaCenter, MediaCenterCommands } from './MediaCenter';
@@ -20,42 +24,16 @@ import {
 } from './PlaybackSnapshot';
 import { PlaybackStore } from './PlaybackStore';
 import { PlaybackSwitch, PlaybackSwitchHost } from './PlaybackSwitch';
-import { EnginePhase, PcmPlaybackEngine, PcmPlaybackEngineListener } from './PcmPlaybackEngine';
-import { PcmRingBuffer } from './PcmRingBuffer';
-import { StreamDecoder } from './StreamDecoder';
 
 const HEARTBEAT_INTERVAL_MS: number = 15_000;
 const MIN_SCROBBLE_TRACK_LENGTH_MS: number = 30_000;
 const MAX_SCROBBLE_PROGRESS_THRESHOLD_MS: number = 240_000;
-const RING_CAPACITY_BYTES: number = 1024 * 1024 * 2;
 
 export interface SystemTransportHandler {
   playNext(manual: boolean): Promise<void>;
   playPrevious(): Promise<void>;
   seekTo(positionMs: number): Promise<void>;
   toggle(): Promise<void>;
-}
-
-class SessionEngineListener implements PcmPlaybackEngineListener {
-  onPhaseChanged(phase: EnginePhase): void {
-    PlaybackSession.getInstance().onEnginePhase(phase);
-  }
-
-  onPositionChanged(_positionMs: number): void {
-    PlaybackSession.getInstance().onEnginePosition();
-  }
-
-  onDurationChanged(durationMs: number): void {
-    PlaybackSession.getInstance().onEngineDuration(durationMs);
-  }
-
-  onCompleted(): void {
-    void PlaybackSession.getInstance().handleTrackCompleted();
-  }
-
-  onError(message: string): void {
-    PlaybackSession.getInstance().handleEngineError(message);
-  }
 }
 
 class SessionMediaCenterCommands implements MediaCenterCommands {
@@ -95,14 +73,56 @@ class SessionMediaCenterCommands implements MediaCenterCommands {
   }
 }
 
+class SessionPipelineCallbacks implements PipelineOrchestratorCallbacks {
+  private readonly session: PlaybackSession;
+
+  constructor(session: PlaybackSession) {
+    this.session = session;
+  }
+
+  onEnterBuffering(frozenPositionMs: number): void {
+    this.session.onPipelineEnterBuffering(frozenPositionMs);
+  }
+
+  onExitBuffering(): void {
+    this.session.onPipelineExitBuffering();
+  }
+
+  onPhaseChanged(phase: PlaySinkPhase): void {
+    this.session.onPipelinePhase(phase);
+  }
+
+  onPositionChanged(positionMs: number): void {
+    this.session.onPipelinePosition(positionMs);
+  }
+
+  onDurationChanged(durationMs: number): void {
+    this.session.onPipelineDuration(durationMs);
+  }
+
+  onCompleted(): void {
+    void this.session.handleTrackCompleted();
+  }
+
+  onError(message: string): void {
+    this.session.handlePipelineError(message);
+  }
+
+  getAuthoritativePositionMs(): number {
+    return this.session.getAuthoritativePositionMs();
+  }
+
+  getCurrentPhase(): string {
+    return this.session.snapshot.phase;
+  }
+}
+
 export class PlaybackSession implements PlaybackSwitchHost {
   private static instance: PlaybackSession | null = null;
 
   private initialized: boolean = false;
   private context: common.UIAbilityContext | null = null;
-  private readonly engine: PcmPlaybackEngine = new PcmPlaybackEngine();
-  private readonly decoder: StreamDecoder = new StreamDecoder();
-  private readonly ring: PcmRingBuffer = new PcmRingBuffer(RING_CAPACITY_BYTES);
+  private readonly orchestrator: PipelineOrchestrator = new PipelineOrchestrator();
   private readonly mediaCenter: MediaCenter = new MediaCenter();
   private queue: Song[] = [];
   private currentIndex: number = -1;
@@ -114,14 +134,17 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private handlingCompletion: boolean = false;
   private systemCommandInFlight: boolean = false;
   private albumCoverFallbackId: string = '';
-  private snapshot: PlaybackSnapshot = PlaybackSnapshot.idle();
+  snapshot: PlaybackSnapshot = PlaybackSnapshot.idle();
   private previewTrack: NowPlayingTrack | null = null;
   private transportHandler: SystemTransportHandler | null = null;
   private lastMediaCenterPositionAt: number = 0;
   private activeStreamResource: StreamResource | null = null;
-  private networkMigrating: boolean = false;
+  private isBuffering: boolean = false;
+  private frozenPositionMs: number = 0;
+  private pipelinePhase: PlaybackPhase = 'idle';
+  private prefetchCancelToken: CancelToken | null = null;
 
-  private readonly engineListener: PcmPlaybackEngineListener = new SessionEngineListener();
+  private readonly pipelineCallbacks: PipelineOrchestratorCallbacks = new SessionPipelineCallbacks(this);
 
   static getInstance(): PlaybackSession {
     if (PlaybackSession.instance === null) {
@@ -146,15 +169,15 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.context = context;
     CoverCache.setContext(context);
     BackgroundPlayback.setContext(context);
-    this.decoder.setContext(context);
     this.mediaCenter.setContext(context);
     this.mediaCenter.setCommands(new SessionMediaCenterCommands(this));
+    this.orchestrator.setContext(context);
+    this.orchestrator.setCallbacks(this.pipelineCallbacks);
     if (this.initialized) {
       return;
     }
     PlaybackStore.init(PlaybackSnapshot.idle());
-    this.engine.setListener(this.engineListener);
-    await this.engine.initialize();
+    await this.orchestrator.initialize();
     PlaybackPipeline.setNetworkPathChangedHandler((event: EndpointChangeEvent) => {
       return this.handleNetworkPathChanged(event);
     });
@@ -169,10 +192,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.stopHeartbeat();
     this.systemCommandInFlight = false;
     await this.submitCurrentTrackCompletion('release');
-    await this.engine.stop();
-    await this.engine.release();
-    this.ring.clear();
-    this.decoder.reset();
+    await this.orchestrator.release();
     await BackgroundPlayback.release();
     await this.mediaCenter.release();
     await CoverCache.releaseAll();
@@ -181,6 +201,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.queue = [];
     this.currentIndex = -1;
     this.previewTrack = null;
+    this.isBuffering = false;
     this.initialized = false;
     this.snapshot = PlaybackSnapshot.idle();
     PlaybackStore.publish(this.snapshot);
@@ -245,20 +266,20 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async toggle(): Promise<void> {
-    const phase: EnginePhase = this.engine.getPhase();
+    const phase: PlaySinkPhase = this.orchestrator.getPhase();
     if (phase === 'playing') {
-      await this.engine.pause();
+      await this.orchestrator.pause();
       return;
     }
     if (this.getCurrentSong() === null && this.queue.length > 0) {
       await PlaybackSwitch.commitSwitch(this, true);
       return;
     }
-    await this.engine.play();
+    await this.orchestrator.play();
     const song: Song | null = this.getCurrentSong();
     if (song !== null) {
       try {
-        await SubsonicClient.getInstance().reportNowPlaying(song.id, this.engine.getPositionMs());
+        await SubsonicClient.getInstance().reportNowPlaying(song.id, this.orchestrator.getPositionMs());
       } catch (err) {
         Logger.warn('PlaybackSession', `resume nowPlaying failed: ${this.classifyScrobbleError(err as Error)}`);
       }
@@ -275,6 +296,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
     this.currentIndex = nextIndex;
     await PlaybackSwitch.commitSwitch(this, true);
+    this.schedulePrefetchNext();
   }
 
   async playPrevious(): Promise<void> {
@@ -287,6 +309,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
     this.currentIndex = prevIndex;
     await PlaybackSwitch.commitSwitch(this, true);
+    this.schedulePrefetchNext();
   }
 
   async seekTo(positionMs: number): Promise<void> {
@@ -296,7 +319,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     let maxDurationMs: number = track.durationMs;
     if (maxDurationMs <= 0) {
-      maxDurationMs = this.engine.getDurationMs();
+      maxDurationMs = this.orchestrator.getDurationMs();
     }
     let safe: number = positionMs;
     if (safe < 0) {
@@ -305,8 +328,9 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (maxDurationMs > 0 && safe > maxDurationMs) {
       safe = maxDurationMs;
     }
-    await this.engine.seek(safe);
-    this.publishSnapshot(this.snapshot.phase, true);
+    await this.orchestrator.seek(safe);
+    this.frozenPositionMs = safe;
+    this.publishSnapshot(this.pipelinePhase, true);
   }
 
   buildPreviewTrackFromAlbum(album: Album): NowPlayingTrack {
@@ -326,6 +350,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.albumCoverFallbackId = albumCoverArtId;
     }
     this.previewTrack = track;
+    this.isBuffering = false;
     this.coverRevision += 1;
     this.publishSnapshot('loading', true);
     if (track.coverArtId.length > 0) {
@@ -338,18 +363,14 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   restoreSnapshotFromEngine(): void {
-    const enginePhase: EnginePhase = this.engine.getPhase();
-    let playbackPhase: PlaybackPhase = 'idle';
-    if (enginePhase === 'loading') {
-      playbackPhase = 'loading';
-    } else if (enginePhase === 'playing') {
-      playbackPhase = 'playing';
-    } else if (enginePhase === 'paused') {
-      playbackPhase = 'paused';
-    } else if (enginePhase === 'error') {
-      playbackPhase = 'error';
-    }
-    this.publishSnapshot(playbackPhase, true);
+    this.restoreSnapshotFromPipeline();
+  }
+
+  restoreSnapshotFromPipeline(): void {
+    const sinkPhase: PlaySinkPhase = this.orchestrator.getPhase();
+    this.pipelinePhase = PlaybackSession.mapSinkPhase(sinkPhase);
+    this.isBuffering = this.orchestrator.isBuffering();
+    this.publishSnapshot(this.pipelinePhase, true);
   }
 
   async submitCurrentTrackCompletionOnSwitch(): Promise<void> {
@@ -357,10 +378,9 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async stopEngineAndClearBuffers(): Promise<void> {
-    await this.engine.stop();
-    this.ring.clear();
-    this.decoder.reset();
+    await this.orchestrator.cancel();
     this.releaseActiveStream();
+    this.isBuffering = false;
   }
 
   private releaseActiveStream(): void {
@@ -373,24 +393,30 @@ export class PlaybackSession implements PlaybackSwitchHost {
   async loadCurrentSongStream(reportStart: boolean): Promise<void> {
     const song: Song | null = this.getCurrentSong();
     if (song === null) {
-      await this.engine.stop();
+      await this.orchestrator.cancel();
       this.releaseCover();
       this.currentIndex = -1;
       this.clearPreview();
+      this.isBuffering = false;
+      this.pipelinePhase = 'idle';
       this.publishSnapshot('idle', true);
       await BackgroundPlayback.stop();
+      PlaybackPipeline.onTrackStopped();
       return;
     }
     this.clearPreview();
+    this.isBuffering = false;
+    this.frozenPositionMs = 0;
     const track: NowPlayingTrack = buildNowPlayingTrack(song, this.albumCoverFallbackId);
+    this.pipelinePhase = 'loading';
     this.publishSnapshot('loading', true);
     this.releaseActiveStream();
     this.activeStreamResource = MediaResourceService.openStream(song.id);
-    const streamUrl: string = this.activeStreamResource.resolveRequest().url;
     PlaybackPipeline.onTrackStarted(song.id);
+    const durationMs: number = track.durationMs;
     const coverTask: Promise<image.PixelMap | null> = this.ensureCover(track.coverArtId);
     try {
-      await this.engine.loadStreamUrl(streamUrl, true);
+      await this.orchestrator.startTrack(this.activeStreamResource, durationMs, true);
       if (reportStart) {
         await SubsonicClient.getInstance().reportNowPlaying(song.id, 0);
       }
@@ -400,13 +426,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
       return;
     }
     await coverTask;
-    this.publishSnapshot('loading', true);
+    this.schedulePrefetchNext();
   }
 
   private async handleNetworkPathChanged(event: EndpointChangeEvent): Promise<void> {
-    if (this.networkMigrating) {
-      return;
-    }
     const song: Song | null = this.getCurrentSong();
     if (song === null || this.activeStreamResource === null) {
       return;
@@ -415,69 +438,72 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (phase !== 'playing' && phase !== 'paused' && phase !== 'loading') {
       return;
     }
-    this.networkMigrating = true;
-    const positionMs: number = this.engine.getPositionMs();
-    const wasPlaying: boolean = phase === 'playing';
-    try {
-      Logger.info('PlaybackSession',
-        `migrate stream ${event.from}->${event.to} song=${song.id} pos=${positionMs}`);
-      const streamUrl: string = this.activeStreamResource.resolveRequest().url;
-      await this.engine.loadStreamUrl(streamUrl, wasPlaying);
-      if (positionMs > 0) {
-        await this.engine.seek(positionMs);
-      }
-    } catch (err) {
-      Logger.warn('PlaybackSession', `network migrate failed: ${(err as Error).message}`);
-    } finally {
-      this.networkMigrating = false;
-    }
+    Logger.info('PlaybackSession',
+      `network migrate ${event.from}->${event.to} song=${song.id}`);
+    await this.orchestrator.onNetworkPathChanged(event);
   }
 
-  handleEngineError(message: string): void {
+  getAuthoritativePositionMs(): number {
+    if (this.isBuffering) {
+      return this.frozenPositionMs;
+    }
+    return this.orchestrator.getPositionMs();
+  }
+
+  onPipelineEnterBuffering(frozenPositionMs: number): void {
+    this.isBuffering = true;
+    this.frozenPositionMs = frozenPositionMs;
+    if (this.pipelinePhase === 'playing' || this.pipelinePhase === 'paused') {
+      this.publishSnapshot(this.pipelinePhase, true);
+    } else {
+      this.publishSnapshot('loading', true);
+    }
+    void this.syncMediaCenter(this.snapshot, true);
+  }
+
+  onPipelineExitBuffering(): void {
+    this.isBuffering = false;
+    this.publishSnapshot(this.pipelinePhase, true);
+    void this.syncMediaCenter(this.snapshot, true);
+  }
+
+  handlePipelineError(message: string): void {
     Logger.warn('PlaybackSession', message);
     this.publishSnapshot('error');
   }
 
-  onEnginePhase(phase: EnginePhase): void {
-    let playbackPhase: PlaybackPhase = 'idle';
-    if (phase === 'loading') {
-      playbackPhase = 'loading';
-    } else if (phase === 'playing') {
-      playbackPhase = 'playing';
+  onPipelinePhase(phase: PlaySinkPhase): void {
+    if (this.isBuffering && (this.pipelinePhase === 'playing' || phase === 'loading')) {
+      return;
+    }
+    this.pipelinePhase = PlaybackSession.mapSinkPhase(phase);
+    if (this.pipelinePhase === 'playing') {
       this.startHeartbeat();
-    } else if (phase === 'paused') {
-      playbackPhase = 'paused';
-      this.stopHeartbeat();
-    } else if (phase === 'error') {
-      playbackPhase = 'error';
-      this.stopHeartbeat();
-    } else {
-      playbackPhase = 'idle';
+    } else if (this.pipelinePhase === 'paused' || this.pipelinePhase === 'error' ||
+      this.pipelinePhase === 'idle') {
       this.stopHeartbeat();
     }
-    this.publishSnapshot(playbackPhase, true);
+    this.publishSnapshot(this.pipelinePhase, true);
     void this.syncMediaCenter(this.snapshot, true);
     const track: NowPlayingTrack | null = this.snapshot.track;
     if (track === null) {
       void BackgroundPlayback.stop();
       return;
     }
-    if (playbackPhase === 'playing') {
+    if (this.pipelinePhase === 'playing') {
       void BackgroundPlayback.start(track.title, track.artist, true);
       return;
     }
-    if (playbackPhase === 'paused' || playbackPhase === 'idle' || playbackPhase === 'error') {
+    if (this.pipelinePhase === 'paused' || this.pipelinePhase === 'idle' || this.pipelinePhase === 'error') {
       void BackgroundPlayback.update(track.title, track.artist, false);
     }
   }
 
-  onEnginePosition(): void {
-    if (this.previewTrack !== null) {
+  onPipelinePosition(_positionMs: number): void {
+    if (this.previewTrack !== null || this.isBuffering) {
       return;
     }
-    if (this.snapshot.phase !== 'loading') {
-      this.publishSnapshot(this.snapshot.phase, false);
-    }
+    this.publishSnapshot(this.pipelinePhase, false);
     const now: number = Date.now();
     if (now - this.lastMediaCenterPositionAt < 1000) {
       return;
@@ -486,7 +512,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     void this.mediaCenter.syncPlaybackState(this.snapshot);
   }
 
-  onEngineDuration(durationMs: number): void {
+  onPipelineDuration(durationMs: number): void {
     const track: NowPlayingTrack | null = this.snapshot.track;
     if (track === null) {
       return;
@@ -505,12 +531,29 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.snapshot.positionMs,
       this.currentMode,
       this.currentIndex >= 0,
-      this.coverRevision
+      this.coverRevision,
+      this.isBuffering
     );
     PlaybackStore.publish(this.snapshot);
     if (durationMs > 0) {
       void this.syncMediaCenter(this.snapshot, true);
     }
+  }
+
+  private static mapSinkPhase(phase: PlaySinkPhase): PlaybackPhase {
+    if (phase === 'loading') {
+      return 'loading';
+    }
+    if (phase === 'playing') {
+      return 'playing';
+    }
+    if (phase === 'paused') {
+      return 'paused';
+    }
+    if (phase === 'error') {
+      return 'error';
+    }
+    return 'idle';
   }
 
   private publishSnapshot(phase: PlaybackPhase, forceMedia: boolean = false): void {
@@ -528,18 +571,23 @@ export class PlaybackSession implements PlaybackSwitchHost {
       const song: Song | null = this.getCurrentSong();
       if (song !== null) {
         track = buildNowPlayingTrack(song, this.albumCoverFallbackId);
-        if (this.engine.getDurationMs() > 0) {
+        const durationMs: number = this.orchestrator.getDurationMs();
+        if (durationMs > 0) {
           track = new NowPlayingTrack(
             track.id,
             track.title,
             track.artist,
             track.album,
             track.coverArtId,
-            this.engine.getDurationMs()
+            durationMs
           );
         }
       }
-      positionMs = this.engine.getPositionMs();
+      if (this.isBuffering) {
+        positionMs = this.frozenPositionMs;
+      } else {
+        positionMs = this.orchestrator.getPositionMs();
+      }
     }
 
     this.snapshot = new PlaybackSnapshot(
@@ -548,7 +596,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
       positionMs,
       this.currentMode,
       showMiniPlayer,
-      this.coverRevision
+      this.coverRevision,
+      this.isBuffering
     );
     PlaybackStore.publish(this.snapshot);
     if (forceMedia) {
@@ -604,11 +653,11 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     this.systemCommandInFlight = true;
     try {
-      if (this.engine.getPhase() !== 'playing') {
+      if (this.orchestrator.getPhase() !== 'playing') {
         if (this.getCurrentSong() === null && this.queue.length > 0) {
           await PlaybackSwitch.commitSwitch(this, true);
         } else {
-          await this.engine.play();
+          await this.orchestrator.play();
         }
       }
     } finally {
@@ -622,8 +671,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     this.systemCommandInFlight = true;
     try {
-      if (this.engine.getPhase() === 'playing') {
-        await this.engine.pause();
+      if (this.orchestrator.getPhase() === 'playing') {
+        await this.orchestrator.pause();
       }
     } finally {
       this.systemCommandInFlight = false;
@@ -656,7 +705,21 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
     this.currentIndex = nextIndex;
     await PlaybackSwitch.commitSwitch(this, true);
+    this.schedulePrefetchNext();
     this.handlingCompletion = false;
+  }
+
+  private schedulePrefetchNext(): void {
+    if (this.prefetchCancelToken !== null) {
+      this.prefetchCancelToken.cancel();
+      this.prefetchCancelToken = null;
+    }
+    if (this.queue.length === 0 || this.currentIndex < 0) {
+      return;
+    }
+    const nextIndex: number = resolveNextIndex(this.queue, this.currentIndex, this.currentMode, false);
+    const nextSong: Song = this.queue[nextIndex];
+    this.prefetchCancelToken = PrefetchWorker.prefetchNextSong(nextSong.id);
   }
 
   private getCurrentSong(): Song | null {
@@ -686,7 +749,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       return;
     }
     try {
-      await SubsonicClient.getInstance().reportNowPlaying(song.id, this.engine.getPositionMs());
+      await SubsonicClient.getInstance().reportNowPlaying(song.id, this.getAuthoritativePositionMs());
     } catch (err) {
       Logger.warn('PlaybackSession', `heartbeat failed: ${this.classifyScrobbleError(err as Error)}`);
     }
@@ -709,8 +772,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (song === null) {
       return;
     }
-    const durationMs: number = song.duration > 0 ? song.duration * 1000 : this.engine.getDurationMs();
-    let playedMs: number = this.engine.getPositionMs();
+    const durationMs: number = song.duration > 0 ? song.duration * 1000 : this.orchestrator.getDurationMs();
+    let playedMs: number = this.getAuthoritativePositionMs();
     if (playedMs < 0) {
       playedMs = 0;
     }

@@ -77,3 +77,9 @@ const options: audio.AudioRendererOptions = { streamInfo, rendererInfo };
 
 ## 参考文档
 - https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/using-audiorenderer-for-playback
+
+## Sonar 方案 F 管线（playback/pipeline/）
+- **FetchWorker**：`HttpTransport.openStream` + `CompressedRingBuffer` + `StreamCacheFile`；禁止 `http.createHttp()`。
+- **PlayWorker + AudioRenderSink**：Governor ≥10s 水位后出声；`writeData` 读 `PcmRingBuffer`（当前过渡经 AVPlayer 解码，F2 可切纯 AudioRenderer）。
+- **BufferGovernor**：10s 起播 / 3s 低水位 rebuffer；与切网 `migrateInPlace` 共用 `isBuffering` UX。
+- **禁止**在 `writeData` 内 HTTP/解码；Fetch 与 Play 分 Worker，CancelToken 统一 cancel。

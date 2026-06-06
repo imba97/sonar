@@ -3,7 +3,6 @@ import { image } from '@kit.ImageKit';
 import { Album, Song, SubsonicApiError } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { Logger } from '../common/Logger';
-import { MusicDebug } from './MusicDebug';
 import { EndpointChangeEvent } from '../network/routing/EndpointTypes';
 import { MediaResourceService } from '../network/media/MediaResourceService';
 import { StreamResource } from '../network/media/StreamResource';
@@ -447,8 +446,6 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (phase !== 'playing' && phase !== 'paused' && phase !== 'loading') {
       return;
     }
-    MusicDebug.log('session.network',
-      `${event.from}->${event.to} song=${song.id} phase=${phase} pos=${this.snapshot.positionMs}`);
     await this.orchestrator.onNetworkPathChanged(event);
   }
 

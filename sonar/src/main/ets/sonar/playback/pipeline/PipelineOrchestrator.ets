@@ -2,7 +2,6 @@ import { common } from '@kit.AbilityKit';
 import { AuthStore, EndpointType } from '../../auth/AuthStore';
 import { AuthContext } from '../../network/auth/AuthContext';
 import { Logger } from '../../common/Logger';
-import { MusicDebug } from '../MusicDebug';
 import { HttpTransport } from '../../network/transport/HttpTransport';
 import { StreamResource } from '../../network/media/StreamResource';
 import { EndpointChangeEvent } from '../../network/routing/EndpointTypes';
@@ -104,9 +103,6 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     this.frozenPositionMs = frozenPositionMs;
     this.wasPlayingBeforeBuffer = wasPlaying;
     this.replayRetryCount = 0;
-    const songId: string = this.activeStreamResource.songId;
-    MusicDebug.log('migrate.start',
-      `song=${songId} pos=${frozenPositionMs} wasPlaying=${wasPlaying} sink=${this.audioSink.getPhase()}`);
     this.enterBuffering(frozenPositionMs);
     await this.audioSink.stop();
     try {
@@ -117,13 +113,9 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     this.activeStreamResource.timeOffsetMs = 0;
     this.activeStreamResource.byteOffset = 0;
     const url: string = this.resolveStreamUrl();
-    MusicDebug.log('migrate.url',
-      `host=${MusicDebug.urlHost(url)} endpoint=${this.activeStreamResource.getEndpoint()} seek=${frozenPositionMs}`);
     await this.replayAt(url, frozenPositionMs, wasPlaying);
     PipelineMetrics.recordMigrate();
     this.migrating = false;
-    MusicDebug.log('migrate.end',
-      `sink=${this.audioSink.getPhase()} buffering=${this.bufferingActive}`);
   }
 
   async onNetworkPathChanged(event: EndpointChangeEvent): Promise<void> {
@@ -212,9 +204,6 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
       this.enterBuffering(seekMs);
     }
     const autoPlayDuringLoad: boolean = seekMs === 0 && shouldResumeAfterLoad && !this.bufferingActive;
-    MusicDebug.log('play.restart',
-      `seek=${seekMs} resumeAfter=${shouldResumeAfterLoad} loadPlay=${autoPlayDuringLoad} ` +
-      `sink=${this.audioSink.getPhase()} src=${MusicDebug.urlHost(url)}`);
     try {
       await this.audioSink.openUrl(url, seekMs, autoPlayDuringLoad);
     } catch (err) {
@@ -251,8 +240,6 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     }
     const shouldResume: boolean = this.wasPlayingBeforeBuffer;
     const targetMs: number = this.frozenPositionMs;
-    MusicDebug.log('buffer.exit',
-      `shouldResume=${shouldResume} sink=${this.audioSink.getPhase()} pos=${targetMs}`);
     this.bufferingActive = false;
     this.wasPlayingBeforeBuffer = false;
     this.replayRetryCount = 0;
@@ -264,7 +251,6 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     if (targetMs > 0) {
       const currentMs: number = this.audioSink.getPositionMs();
       if (Math.abs(currentMs - targetMs) > 1500) {
-        MusicDebug.log('buffer.seekCorrect', `cur=${currentMs} target=${targetMs}`);
         await this.audioSink.seek(targetMs);
       }
     }
@@ -332,7 +318,6 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     }
     const reportPos: number =
       this.bufferingActive && this.frozenPositionMs > 0 ? this.frozenPositionMs : positionMs;
-    MusicDebug.log('replay.ready', `pos=${reportPos} sink=${this.audioSink.getPositionMs()}`);
     if (this.bufferingActive) {
       this.exitBuffering();
     }
@@ -357,7 +342,6 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   onError(message: string): void {
-    MusicDebug.log('player.error', message);
     Logger.warn('PipelineOrchestrator', message);
     if (this.bufferingActive) {
       this.scheduleReplayRetry();

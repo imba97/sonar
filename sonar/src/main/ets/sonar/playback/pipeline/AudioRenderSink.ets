@@ -1,6 +1,5 @@
 import { media } from '@kit.MediaKit';
 import { Logger } from '../../common/Logger';
-import { MusicDebug } from '../MusicDebug';
 
 export type PlaySinkPhase = 'idle' | 'loading' | 'playing' | 'paused' | 'stopped' | 'error';
 
@@ -115,7 +114,6 @@ export class AudioRenderSink {
       return;
     }
     const canPlay: boolean = state === 'prepared' || state === 'paused' || state === 'completed';
-    MusicDebug.log('sink.play', canPlay ? `ok avState=${state}` : `skip avState=${state} phase=${this.phase}`);
     if (!canPlay) {
       Logger.warn('AudioRenderSink', `play ignored in state=${state}`);
       return;
@@ -334,7 +332,6 @@ export class AudioRenderSink {
     this.pendingAutoPlay = false;
     this.autoPlayAfterSeek = false;
     this.seekHandled = false;
-    MusicDebug.log('sink.seekAfterPlay', `target=${seekTarget}`);
     this.armSeekTimeout();
     try {
       await player.seek(seekTarget);
@@ -359,7 +356,6 @@ export class AudioRenderSink {
     }
     this.positionMs = seekDoneTime;
     this.clearSeekTimeout();
-    MusicDebug.log('sink.seekDone', `pos=${seekDoneTime} autoPlayAfterSeek=${this.autoPlayAfterSeek}`);
     if (this.pendingOpenSeekComplete) {
       this.pendingOpenSeekComplete = false;
       if (player.state === 'playing') {

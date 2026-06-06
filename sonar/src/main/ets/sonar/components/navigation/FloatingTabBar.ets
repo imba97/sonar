@@ -333,7 +333,8 @@ export struct FloatingTabBar {
             this.playback.track.title : '未知曲目') : '当前未播放音乐')
           .fontSize(14)
           .fontWeight(FontWeight.Medium)
-          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          .fontColor(this.hasActiveTrack() ?
+            UiTokens.COLOR_TEXT_PRIMARY : UiTokens.COLOR_TAB_ICON_INACTIVE)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         if (this.hasActiveTrack()) {
@@ -372,11 +373,11 @@ export struct FloatingTabBar {
     return new BottomTabBarStyle(item.icon, item.a11yLabel)
       .labelStyle({
         selectedColor: UiTokens.COLOR_PRIMARY,
-        unselectedColor: $r('sys.color.ohos_id_color_primary_contrary')
+        unselectedColor: UiTokens.COLOR_TAB_ICON_INACTIVE
       })
       .iconStyle({
         selectedColor: UiTokens.COLOR_PRIMARY,
-        unselectedColor: $r('sys.color.ohos_id_color_primary_contrary')
+        unselectedColor: UiTokens.COLOR_TAB_ICON_INACTIVE
       });
   }
 

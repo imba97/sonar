@@ -111,7 +111,7 @@ export struct MiniBarCoverDisc {
     Image($r('app.media.dock_music_note'))
       .width(this.idleIconSize())
       .height(this.idleIconSize())
-      .fillColor(UiTokens.COLOR_TEXT_PRIMARY)
+      .fillColor(UiTokens.COLOR_TAB_ICON_INACTIVE)
       .objectFit(ImageFit.Contain)
   }
 

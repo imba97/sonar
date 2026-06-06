@@ -273,6 +273,24 @@
     "name" : "sonar_tab_icon_inactive",
     "value" : "#CC282A32"
   }, {
+    "name" : "sonar_tab_icon_inactive_on_dark_bg",
+    "value" : "#FFFFFF"
+  }, {
+    "name" : "sonar_tab_icon_inactive_on_light_bg",
+    "value" : "#282A32"
+  }, {
+    "name" : "sonar_bar_fg_primary_on_dark_bg",
+    "value" : "#F2F3F5"
+  }, {
+    "name" : "sonar_bar_fg_primary_on_light_bg",
+    "value" : "#1B1D23"
+  }, {
+    "name" : "sonar_bar_fg_secondary_on_dark_bg",
+    "value" : "#EBEBF5"
+  }, {
+    "name" : "sonar_bar_fg_secondary_on_light_bg",
+    "value" : "#3C3F4A"
+  }, {
     "name" : "sonar_overlay_scrim",
     "value" : "#33000000"
   }, {

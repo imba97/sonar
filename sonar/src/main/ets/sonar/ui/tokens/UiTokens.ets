@@ -27,6 +27,16 @@ export class UiTokens {
   static readonly COLOR_WARNING_SOFT_BG: ResourceColor = $r('app.color.sonar_warning_soft_bg');
   static readonly COLOR_DANGER_SOFT_BG: ResourceColor = $r('app.color.sonar_danger_soft_bg');
   static readonly COLOR_TAB_ICON_INACTIVE: ResourceColor = $r('app.color.sonar_tab_icon_inactive');
+  static readonly COLOR_TAB_ICON_INACTIVE_ON_DARK_BG: ResourceColor =
+    $r('app.color.sonar_tab_icon_inactive_on_dark_bg');
+  static readonly COLOR_TAB_ICON_INACTIVE_ON_LIGHT_BG: ResourceColor =
+    $r('app.color.sonar_tab_icon_inactive_on_light_bg');
+  static readonly COLOR_BAR_FG_PRIMARY_ON_DARK_BG: ResourceColor = $r('app.color.sonar_bar_fg_primary_on_dark_bg');
+  static readonly COLOR_BAR_FG_PRIMARY_ON_LIGHT_BG: ResourceColor = $r('app.color.sonar_bar_fg_primary_on_light_bg');
+  static readonly COLOR_BAR_FG_SECONDARY_ON_DARK_BG: ResourceColor =
+    $r('app.color.sonar_bar_fg_secondary_on_dark_bg');
+  static readonly COLOR_BAR_FG_SECONDARY_ON_LIGHT_BG: ResourceColor =
+    $r('app.color.sonar_bar_fg_secondary_on_light_bg');
   static readonly COLOR_OVERLAY_SCRIM: ResourceColor = $r('app.color.sonar_overlay_scrim');
   static readonly COLOR_DROPDOWN_TITLE: ResourceColor = $r('app.color.sonar_dropdown_title');
   static readonly COLOR_DROPDOWN_PANEL_BG: ResourceColor = $r('app.color.sonar_dropdown_panel_bg');

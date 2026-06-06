@@ -1,0 +1,195 @@
+import { PlaybackService } from '../../playback/PlaybackService';
+import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
+import { BarToneColorAnimator } from '../../ui/color/BarToneColorAnimator';
+import { UiTokens } from '../../ui/tokens/UiTokens';
+import { MiniBarCoverDisc } from './MiniBarCoverDisc';
+
+const BAR_TONE_COLOR_ANIM_MS: number = 280;
+
+/**
+ * git HEAD 同款 miniBar Row；渐变在组件内逐帧插值，不触发父级 HdsTabs 重建。
+ */
+@Reusable
+@Component
+export struct MiniBarRow {
+  @Prop @Watch('onToneTargetChange') targetInactive: string = '#282A32';
+  @Prop @Watch('onToneTargetChange') targetPrimary: string = '#1B1D23';
+  @Prop @Watch('onToneTargetChange') targetSecondary: string = '#3C3F4A';
+  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+
+  @State private displayInactive: string = '#282A32';
+  @State private displayPrimary: string = '#1B1D23';
+  @State private displaySecondary: string = '#3C3F4A';
+  @State private toneAnimReady: boolean = false;
+
+  private colorAnimator: BarToneColorAnimator = new BarToneColorAnimator();
+
+  aboutToAppear(): void {
+    this.applyDisplayColors(false);
+  }
+
+  aboutToDisappear(): void {
+    this.colorAnimator.stop();
+  }
+
+  private onToneTargetChange(): void {
+    this.applyDisplayColors(this.toneAnimReady);
+  }
+
+  private applyDisplayColors(animated: boolean): void {
+    if (!animated) {
+      this.colorAnimator.stop();
+      this.displayInactive = this.targetInactive;
+      this.displayPrimary = this.targetPrimary;
+      this.displaySecondary = this.targetSecondary;
+      this.toneAnimReady = true;
+      return;
+    }
+
+    this.colorAnimator.animateTriple(
+      this.displayInactive,
+      this.targetInactive,
+      this.displayPrimary,
+      this.targetPrimary,
+      this.displaySecondary,
+      this.targetSecondary,
+      BAR_TONE_COLOR_ANIM_MS,
+      (inactive: string, primary: string, secondary: string) => {
+        this.displayInactive = inactive;
+        this.displayPrimary = primary;
+        this.displaySecondary = secondary;
+      }
+    );
+  }
+
+  private hasActiveTrack(): boolean {
+    return this.playback.showMiniPlayer;
+  }
+
+  private coverOuterSize(): number {
+    return UiTokens.FLOATING_TAB_BAR_HEIGHT;
+  }
+
+  private coverInset(): number {
+    return UiTokens.MINI_BAR_BALL_COVER_INSET;
+  }
+
+  @Builder
+  private actionIcon(icon: Resource, iconSize: number, onTap: () => void) {
+    Column() {
+      Image(icon)
+        .width(iconSize)
+        .height(iconSize)
+        .fillColor(this.displayPrimary)
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      onTap();
+    })
+  }
+
+  @Builder
+  private playPauseButton(iconSize: number) {
+    Column() {
+      if (this.playback.isPlaying()) {
+        Image($r('app.media.cb_pause'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(this.displayPrimary)
+      } else {
+        Image($r('app.media.cb_play'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(this.displayPrimary)
+      }
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      void PlaybackService.toggle();
+    })
+  }
+
+  @Builder
+  private playbackModeButton(iconSize: number) {
+    Column() {
+      if (this.playback.mode === 'singleLoop') {
+        Image($r('app.media.cb_mode_loop'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(this.displayPrimary)
+      } else if (this.playback.mode === 'random') {
+        Image($r('app.media.cb_mode_shuffle'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(this.displayPrimary)
+      } else {
+        Image($r('app.media.cb_mode_list'))
+          .width(iconSize)
+          .height(iconSize)
+          .fillColor(this.displayPrimary)
+      }
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .onClick(() => {
+      PlaybackService.togglePlaybackMode();
+    })
+  }
+
+  build() {
+    Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
+      MiniBarCoverDisc({
+        outerSize: this.coverOuterSize(),
+        coverInset: this.coverInset(),
+        idleIconColor: this.displayInactive
+      })
+        .flexShrink(0)
+
+      Column({ space: 2 }) {
+        Text(this.hasActiveTrack() ?
+          (this.playback.track !== null && this.playback.track.title.length > 0 ?
+            this.playback.track.title : '未知曲目') : '当前未播放音乐')
+          .fontSize(14)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.hasActiveTrack() ? this.displayPrimary : this.displayInactive)
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        if (this.hasActiveTrack()) {
+          Text(this.playback.track !== null && this.playback.track.artist.length > 0 ?
+            this.playback.track.artist : '未知歌手')
+            .fontSize(12)
+            .fontColor(this.displaySecondary)
+            .maxLines(1)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+        }
+      }
+      .layoutWeight(1)
+      .flexShrink(1)
+      .alignItems(HorizontalAlign.Start)
+      .justifyContent(FlexAlign.Center)
+
+      Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
+        this.playPauseButton(22)
+        this.actionIcon($r('app.media.cb_next'), 22, () => {
+          void PlaybackService.playNext(true);
+        })
+        this.playbackModeButton(20)
+      }
+      .flexShrink(0)
+      .visibility(this.hasActiveTrack() ? Visibility.Visible : Visibility.None)
+    }
+    .width('100%')
+    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+    .alignItems(VerticalAlign.Center)
+    .justifyContent(FlexAlign.Start)
+    .clip(true)
+  }
+}

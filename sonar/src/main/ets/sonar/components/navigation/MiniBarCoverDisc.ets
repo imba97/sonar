@@ -6,6 +6,7 @@ import { PlaybackCoverDisc } from '../playback/PlaybackCoverDisc';
 export struct MiniBarCoverDisc {
   @Prop outerSize: number = UiTokens.FLOATING_TAB_BAR_HEIGHT;
   @Prop coverInset: number = UiTokens.MINI_BAR_BALL_COVER_INSET;
+  @Prop idleIconColor: string = '#282A32';
   @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
 
   private innerSize(): number {
@@ -35,7 +36,8 @@ export struct MiniBarCoverDisc {
         trackId: this.trackId(),
         loading: this.playback.showMiniPlayer && this.playback.isCoverLoading(),
         spinning: this.playback.isPlaying(),
-        showCover: this.playback.showMiniPlayer
+        showCover: this.playback.showMiniPlayer,
+        idleIconColor: this.idleIconColor
       })
     }
     .width(this.outerSize)

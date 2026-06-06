@@ -18,6 +18,7 @@ export struct PlaybackCoverDisc {
   @Prop @Watch('onSpinInputsChange') loading: boolean = false;
   @Prop @Watch('onSpinInputsChange') spinning: boolean = false;
   @Prop @Watch('onCoverInputsChange') showCover: boolean = false;
+  @Prop idleIconColor: ResourceColor = UiTokens.COLOR_TAB_ICON_INACTIVE_ON_LIGHT_BG;
 
   @State private coverRotateDeg: number = 0;
   @State private coverPixelMap: image.PixelMap | null = null;
@@ -137,7 +138,7 @@ export struct PlaybackCoverDisc {
     Image($r('app.media.dock_music_note'))
       .width(this.idleIconSize())
       .height(this.idleIconSize())
-      .fillColor(UiTokens.COLOR_TAB_ICON_INACTIVE)
+      .fillColor(this.idleIconColor)
       .objectFit(ImageFit.Contain)
   }
 

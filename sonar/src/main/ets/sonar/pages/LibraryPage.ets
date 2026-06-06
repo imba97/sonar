@@ -26,6 +26,8 @@ export struct LibraryPage {
   @State private _gridColumns: number = 1;
   @State private _playAllLoading: boolean = false;
 
+  private listScroller: Scroller = new Scroller();
+
   private resolveVpLength(value: Length): number {
     if (typeof value === 'number') {
       // Area.width/height 在 onAreaChange 中语义单位为 vp，number 直接使用即可。
@@ -202,7 +204,7 @@ export struct LibraryPage {
 
   @Builder
   private buildAlbumsList() {
-    List({ space: UiTokens.LIBRARY_GRID_GAP }) {
+    List({ scroller: this.listScroller, space: UiTokens.LIBRARY_GRID_GAP }) {
       if (this.vm.isLoading && this.vm.albums.length === 0) {
         ListItem() {
           LoadingState({ message: this.vm.isSearchMode ? '正在搜索专辑…' : '正在获取专辑…' })
@@ -318,7 +320,8 @@ export struct LibraryPage {
         pageBackground: UiTokens.COLOR_PAGE_BG,
         topPadding: 0,
         bottomPadding: 0,
-        applySystemInsets: false
+        applySystemInsets: false,
+        barToneTabIndex: 0
       }) {
         Stack({ alignContent: Alignment.Top }) {
           this.buildAlbumsList()

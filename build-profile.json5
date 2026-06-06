@@ -7,11 +7,11 @@
         "material": {
           "certpath": "C:\\Users\\imba97\\.ohos\\config\\default_Sonar_YRHgVtYJNKU8UYBJ4fh2qrHYtnjOB8C0hAFh00tWK6w=.cer",
           "keyAlias": "debugKey",
-          "keyPassword": "0000001A009F8B0F9A7B08EF7E2C0C339A1A682E91C4CE5DED09A84785C29F5E147731F6CFA41226FE4E",
+          "keyPassword": "0000001AB105705E0553B4EA9355C9626681908F0C2E9632545657A00E503F5B989726DDF85AB96DC072",
           "profile": "C:\\Users\\imba97\\.ohos\\config\\default_Sonar_YRHgVtYJNKU8UYBJ4fh2qrHYtnjOB8C0hAFh00tWK6w=.p7b",
           "signAlg": "SHA256withECDSA",
           "storeFile": "C:\\Users\\imba97\\.ohos\\config\\default_Sonar_YRHgVtYJNKU8UYBJ4fh2qrHYtnjOB8C0hAFh00tWK6w=.p12",
-          "storePassword": "0000001A47396B6CD8EFF73C9454049A928B717257A48FAA9B00CF069D4EAB9E2A929CC01A7E79BC329E"
+          "storePassword": "0000001ADA1E4951BAF125D096A913B961D3794FE93AF443C9F79DF0CCEC92B81648D7CBAAFE17DEFC5E"
         }
       }
     ],

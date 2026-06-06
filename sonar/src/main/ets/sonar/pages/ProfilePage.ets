@@ -9,6 +9,7 @@ const LOGOUT_DESTINATION_TAB_INDEX: number = 1;
 @Component
 export struct ProfilePage {
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
+  @StorageLink('rootTabIndex') rootTabIndex: number = 0;
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('loggedInUser') loggedInUser: string = '';
   @StorageLink('loggedInServer') loggedInServer: string = '';
@@ -22,6 +23,7 @@ export struct ProfilePage {
     PageScaffold({
       pageBackground: UiTokens.COLOR_PAGE_BG,
       topPadding: 10,
+      barToneTabIndex: 2,
       bottomPadding: this.rootTabActive ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
         UiTokens.BOTTOM_PADDING_WITH_TAB_BAR
     }) {

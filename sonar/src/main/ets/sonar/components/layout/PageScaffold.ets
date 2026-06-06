@@ -6,6 +6,8 @@ export struct PageScaffold {
   @Prop topPadding: number = 10;
   @Prop bottomPadding: number = 12;
   @Prop applySystemInsets: boolean = true;
+  /** ≥0 时为该 Tab 注册 componentSnapshot 探针 id（bar-tone-probe-N） */
+  @Prop barToneTabIndex: number = -1;
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @BuilderParam content: () => void;
@@ -25,5 +27,6 @@ export struct PageScaffold {
       colors: [[UiTokens.COLOR_BG_GRADIENT_TOP, 0], [UiTokens.COLOR_BG_GRADIENT_BOTTOM, 1]]
     })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .id(this.barToneTabIndex >= 0 ? `bar-tone-probe-${this.barToneTabIndex}` : 'bar-tone-probe-inactive')
   }
 }

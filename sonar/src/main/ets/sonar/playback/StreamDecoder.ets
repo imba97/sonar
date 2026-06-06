@@ -1,7 +1,7 @@
 import { fileIo, WriteOptions } from '@kit.CoreFileKit';
-import { http } from '@kit.NetworkKit';
 import { common } from '@kit.AbilityKit';
 import { Logger } from '../common/Logger';
+import { HttpTransport } from '../network/transport/HttpTransport';
 import { PcmRingBuffer } from './PcmRingBuffer';
 
 const STREAM_DIR: string = 'sonar_stream';
@@ -35,9 +35,6 @@ export class StreamDecoder {
     this.cancelled = false;
   }
 
-  /**
-   * 下载远程流到沙箱；返回本地路径（可用于 fd:// 播放）。
-   */
   async prepare(streamUrl: string, songId: string, _ring: PcmRingBuffer): Promise<string> {
     this.streamUrl = streamUrl;
     if (this.context === null) {
@@ -55,47 +52,28 @@ export class StreamDecoder {
   }
 
   private static async downloadToFile(remoteUrl: string, localPath: string): Promise<void> {
-    const request = http.createHttp();
+    const content: ArrayBuffer = await HttpTransport.requestBuffer(remoteUrl, 'binaryStream');
     try {
-      let response: http.HttpResponse;
-      try {
-        response = await request.request(remoteUrl, {
-          method: http.RequestMethod.GET,
-          expectDataType: http.HttpDataType.ARRAY_BUFFER,
-          connectTimeout: 15000,
-          readTimeout: 120000
-        });
-      } catch (err) {
-        throw new Error(`stream http request failed: ${(err as Error).message}`);
-      }
-      if (response.responseCode !== http.ResponseCode.OK) {
-        throw new Error(`stream http ${response.responseCode}`);
-      }
-      const content: ArrayBuffer = response.result as ArrayBuffer;
-      try {
-        fileIo.unlinkSync(localPath);
-      } catch (_err) {
-      }
-      try {
-        const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
-        try {
-          const writeOptions: WriteOptions = {
-            offset: 0,
-            length: content.byteLength
-          };
-          fileIo.writeSync(file.fd, content, writeOptions);
-        } finally {
-          try {
-            fileIo.closeSync(file);
-          } catch (_err) {
-          }
-        }
-      } catch (err) {
-        throw new Error(`write stream file failed: ${(err as Error).message}`);
-      }
-      Logger.debug('StreamDecoder', `cached stream bytes=${content.byteLength} path=${localPath}`);
-    } finally {
-      request.destroy();
+      fileIo.unlinkSync(localPath);
+    } catch (_err) {
     }
+    try {
+      const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+      try {
+        const writeOptions: WriteOptions = {
+          offset: 0,
+          length: content.byteLength
+        };
+        fileIo.writeSync(file.fd, content, writeOptions);
+      } finally {
+        try {
+          fileIo.closeSync(file);
+        } catch (_err) {
+        }
+      }
+    } catch (err) {
+      throw new Error(`write stream file failed: ${(err as Error).message}`);
+    }
+    Logger.debug('StreamDecoder', `cached stream bytes=${content.byteLength} path=${localPath}`);
   }
 }

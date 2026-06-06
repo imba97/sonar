@@ -3,6 +3,10 @@ import { image } from '@kit.ImageKit';
 import { Album, Song, SubsonicApiError } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { Logger } from '../common/Logger';
+import { EndpointChangeEvent } from '../network/routing/EndpointTypes';
+import { MediaResourceService } from '../network/media/MediaResourceService';
+import { StreamResource } from '../network/media/StreamResource';
+import { PlaybackPipeline } from './pipeline/PlaybackPipeline';
 import { BackgroundPlayback } from './BackgroundPlayback';
 import { CoverCache } from './CoverCache';
 import { MediaCenter, MediaCenterCommands } from './MediaCenter';
@@ -114,6 +118,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private previewTrack: NowPlayingTrack | null = null;
   private transportHandler: SystemTransportHandler | null = null;
   private lastMediaCenterPositionAt: number = 0;
+  private activeStreamResource: StreamResource | null = null;
+  private networkMigrating: boolean = false;
 
   private readonly engineListener: PcmPlaybackEngineListener = new SessionEngineListener();
 
@@ -149,6 +155,9 @@ export class PlaybackSession implements PlaybackSwitchHost {
     PlaybackStore.init(PlaybackSnapshot.idle());
     this.engine.setListener(this.engineListener);
     await this.engine.initialize();
+    PlaybackPipeline.setNetworkPathChangedHandler((event: EndpointChangeEvent) => {
+      return this.handleNetworkPathChanged(event);
+    });
     this.initialized = true;
   }
 
@@ -167,6 +176,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await BackgroundPlayback.release();
     await this.mediaCenter.release();
     await CoverCache.releaseAll();
+    this.releaseActiveStream();
     this.releaseCover();
     this.queue = [];
     this.currentIndex = -1;
@@ -350,6 +360,14 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await this.engine.stop();
     this.ring.clear();
     this.decoder.reset();
+    this.releaseActiveStream();
+  }
+
+  private releaseActiveStream(): void {
+    if (this.activeStreamResource !== null) {
+      this.activeStreamResource.cancelToken.cancel();
+      this.activeStreamResource = null;
+    }
   }
 
   async loadCurrentSongStream(reportStart: boolean): Promise<void> {
@@ -366,7 +384,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.clearPreview();
     const track: NowPlayingTrack = buildNowPlayingTrack(song, this.albumCoverFallbackId);
     this.publishSnapshot('loading', true);
-    const streamUrl: string = SubsonicClient.getInstance().getStreamUrl(song.id);
+    this.releaseActiveStream();
+    this.activeStreamResource = MediaResourceService.openStream(song.id);
+    const streamUrl: string = this.activeStreamResource.resolveRequest().url;
+    PlaybackPipeline.onTrackStarted(song.id);
     const coverTask: Promise<image.PixelMap | null> = this.ensureCover(track.coverArtId);
     try {
       await this.engine.loadStreamUrl(streamUrl, true);
@@ -380,6 +401,36 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     await coverTask;
     this.publishSnapshot('loading', true);
+  }
+
+  private async handleNetworkPathChanged(event: EndpointChangeEvent): Promise<void> {
+    if (this.networkMigrating) {
+      return;
+    }
+    const song: Song | null = this.getCurrentSong();
+    if (song === null || this.activeStreamResource === null) {
+      return;
+    }
+    const phase: PlaybackPhase = this.snapshot.phase;
+    if (phase !== 'playing' && phase !== 'paused' && phase !== 'loading') {
+      return;
+    }
+    this.networkMigrating = true;
+    const positionMs: number = this.engine.getPositionMs();
+    const wasPlaying: boolean = phase === 'playing';
+    try {
+      Logger.info('PlaybackSession',
+        `migrate stream ${event.from}->${event.to} song=${song.id} pos=${positionMs}`);
+      const streamUrl: string = this.activeStreamResource.resolveRequest().url;
+      await this.engine.loadStreamUrl(streamUrl, wasPlaying);
+      if (positionMs > 0) {
+        await this.engine.seek(positionMs);
+      }
+    } catch (err) {
+      Logger.warn('PlaybackSession', `network migrate failed: ${(err as Error).message}`);
+    } finally {
+      this.networkMigrating = false;
+    }
   }
 
   handleEngineError(message: string): void {

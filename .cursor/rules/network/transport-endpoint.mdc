@@ -1,0 +1,25 @@
+# 网络传输与 Endpoint 路由规范
+
+## 路由哲学
+
+- **remote 主干**：默认态，登录必须 ping 通，所有失败最终回落 remote。
+- **local 加速覆盖**：local 探测成功时临时接管；离开 WiFi/探测失败/单次请求 fallback 后交还 remote。
+- 业务层 **禁止** 读取 `activeEndpoint` 或区分内外网。
+
+## 强制规则
+
+- 禁止业务层直接 `http.createHttp()`。
+- REST JSON 必须 `HttpTransport.requestWithFallback`（经 `SubsonicApi`）。
+- 小二进制（封面）必须 `HttpTransport.requestBufferWithFallback`。
+- 音频长流必须 `MediaResourceService.openStream` + `HttpTransport.openStream`（`FetchWorker`）。
+- Endpoint 切换必须经 `EndpointRouter`；长流 migrate 经 `NetworkCoordinator` → `PlaybackPipelineBridge`。
+
+## WiFi 信任缓存
+
+- SSID 缓存 TTL：30 天。
+- 未知 WiFi：local 探测 10s×3，失败保持 remote。
+- 已知 WiFi：3s×5，失败删缓存并保持 remote。
+
+## 参考
+
+- `sonar/src/main/ets/sonar/network/` 目录结构

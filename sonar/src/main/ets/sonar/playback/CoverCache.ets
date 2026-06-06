@@ -1,8 +1,9 @@
 import { common } from '@kit.AbilityKit';
 import { fileIo, WriteOptions } from '@kit.CoreFileKit';
-import { http } from '@kit.NetworkKit';
 import { image } from '@kit.ImageKit';
-import { SubsonicClient } from '../api/SubsonicClient';
+import { EndpointType } from '../auth/AuthStore';
+import { AuthContext } from '../network/auth/AuthContext';
+import { HttpTransport } from '../network/transport/HttpTransport';
 import { Logger } from '../common/Logger';
 
 const COVER_SIZE: number = 320;
@@ -111,12 +112,8 @@ export class CoverCache {
       }
       return pm;
     }
-    const remoteUrl: string = SubsonicClient.getInstance().getCoverArtUrl(coverArtId, COVER_SIZE);
-    if (remoteUrl.length === 0) {
-      return null;
-    }
     try {
-      await CoverCache.downloadToFile(remoteUrl, localPath);
+      await CoverCache.downloadToFile(coverArtId, localPath);
       const pm: image.PixelMap | null = await CoverCache.decodeFile(localPath);
       if (pm !== null) {
         CoverCache.put(coverArtId, pm);
@@ -195,7 +192,7 @@ export class CoverCache {
     }
   }
 
-  private static async downloadToFile(remoteUrl: string, localPath: string): Promise<void> {
+  private static async downloadToFile(coverArtId: string, localPath: string): Promise<void> {
     const dirEnd: number = localPath.lastIndexOf('/');
     if (dirEnd > 0) {
       const dir: string = localPath.substring(0, dirEnd);
@@ -204,23 +201,11 @@ export class CoverCache {
       } catch (_err) {
       }
     }
-    const request = http.createHttp();
-    try {
-      let response: http.HttpResponse;
-      try {
-        response = await request.request(remoteUrl, {
-          method: http.RequestMethod.GET,
-          expectDataType: http.HttpDataType.ARRAY_BUFFER,
-          connectTimeout: 8000,
-          readTimeout: 12000
-        });
-      } catch (err) {
-        throw new Error(`http request failed: ${(err as Error).message}`);
-      }
-      if (response.responseCode !== http.ResponseCode.OK) {
-        throw new Error(`http ${response.responseCode}`);
-      }
-      const content: ArrayBuffer = response.result as ArrayBuffer;
+    const content: ArrayBuffer = await HttpTransport.requestBufferWithFallback({
+      buildUrl: (ep: EndpointType): string =>
+        AuthContext.buildMediaUrl('getCoverArt', ['id', coverArtId, 'size', String(COVER_SIZE)], undefined, ep),
+      profile: 'binarySmall'
+    });
       try {
         fileIo.unlinkSync(localPath);
       } catch (_err) {
@@ -242,9 +227,6 @@ export class CoverCache {
       } catch (err) {
         throw new Error(`write cover file failed: ${(err as Error).message}`);
       }
-    } finally {
-      request.destroy();
-    }
   }
 
   private static async decodeFile(path: string): Promise<image.PixelMap | null> {

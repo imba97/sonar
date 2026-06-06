@@ -18,8 +18,8 @@ alwaysApply: true
 
 ## 封面 mediaImage
 - **禁止**向 `mediaImage` 传入带 Subsonic 鉴权 query 的 HTTP URL（系统进程无法加载）。
-- 使用 `CoverCache` 下载到沙箱 → `PixelMap`（或经验证的本地 `fileUri`）后写入元数据。
-- UI 与媒体中心共用 `CoverCache`，勿在组件内单独 `getCoverArtUrl` 播封面。
+- 使用 `CoverCache` 下载到沙箱 → `PixelMap`（经 `HttpTransport.requestBufferWithFallback`）后写入元数据。
+- endpoint 切换后 CoverCache 未命中时会自动走 remote 主干重拉。
 
 ## 播放状态同步
 - `loading` 使用 `PLAYBACK_STATE_PREPARE`（或 pause + position 0），避免误报 playing。

@@ -1,5 +1,6 @@
 import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
 import { SubsonicClient } from '../main/ets/sonar/api/SubsonicClient';
+import { SubsonicUrlUtil } from '../main/ets/sonar/network/api/SubsonicUrlUtil';
 import { SubsonicApiError } from '../main/ets/sonar/api/SubsonicTypes';
 import { AuthStore, SavedAuth } from '../main/ets/sonar/auth/AuthStore';
 
@@ -25,14 +26,14 @@ export default function localUnitTest() {
       // This API supports only one parameter: clear action function.
     });
     it('normalizeServerUrl_withPath', 0, () => {
-      const url = SubsonicClient.normalizeServerUrl('https://demo.navidrome.local/music/');
+      const url = SubsonicUrlUtil.normalizeServerUrl('https://demo.navidrome.local/music/');
       expect(url).assertEqual('https://demo.navidrome.local/music');
     });
 
     it('normalizeServerUrl_invalid', 0, () => {
       let gotError = false;
       try {
-        SubsonicClient.normalizeServerUrl('demo.navidrome.local');
+        SubsonicUrlUtil.normalizeServerUrl('demo.navidrome.local');
       } catch (err) {
         gotError = err instanceof SubsonicApiError;
       }

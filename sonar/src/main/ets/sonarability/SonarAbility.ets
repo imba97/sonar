@@ -2,6 +2,7 @@ import { AbilityConstant, Configuration, ConfigurationConstant, UIAbility, Want 
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { display, window } from '@kit.ArkUI';
 import { AuthStore } from '../sonar/auth/AuthStore';
+import { EndpointRouter } from '../sonar/network/routing/EndpointRouter';
 import { PlaybackService } from '../sonar/playback/PlaybackService';
 
 const DOMAIN = 0x0000;
@@ -30,6 +31,7 @@ export default class SonarAbility extends UIAbility {
     AuthStore.getInstance().init(this.context).catch((err: Error) => {
       hilog.error(DOMAIN, 'testTag', 'AuthStore init failed: %{public}s', err.message);
     });
+    void EndpointRouter.init(this.context);
   }
 
   onDestroy(): void {

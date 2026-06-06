@@ -1,4 +1,5 @@
 import { connection } from '@kit.NetworkKit';
+import { wifiManager } from '@kit.ConnectivityKit';
 import { Logger } from './Logger';
 
 export type NetworkType = 'wifi' | 'cellular' | 'none' | 'other';
@@ -9,6 +10,31 @@ export type NetworkType = 'wifi' | 'cellular' | 'none' | 'other';
  * 同时为后续缓存 / 听歌自动下载的流量提示预留接口。
  */
 export class NetworkStatus {
+  private static cachedWifiSsid: string = '';
+
+  static setCachedWifiSsid(ssid: string): void {
+    NetworkStatus.cachedWifiSsid = ssid;
+  }
+
+  static refreshCachedWifiSsid(): void {
+    if (!NetworkStatus.isOnWifi()) {
+      NetworkStatus.cachedWifiSsid = '';
+      return;
+    }
+    try {
+      if (!wifiManager.isWifiActive()) {
+        NetworkStatus.cachedWifiSsid = '';
+        return;
+      }
+      wifiManager.getLinkedInfo().then((linkedInfo) => {
+        NetworkStatus.cachedWifiSsid = NetworkStatus.normalizeSsid(linkedInfo.ssid);
+      }).catch((err: Error) => {
+        Logger.warn('NetworkStatus', `refreshCachedWifiSsid failed: ${err.message}`);
+      });
+    } catch (err) {
+      Logger.warn('NetworkStatus', `refreshCachedWifiSsid failed: ${(err as Error).message}`);
+    }
+  }
   private static readCapabilities(): connection.NetCapabilities | null {
     try {
       if (!connection.hasDefaultNetSync()) {
@@ -39,6 +65,24 @@ export class NetworkStatus {
 
   static isOnWifi(): boolean {
     return NetworkStatus.getNetworkType() === 'wifi';
+  }
+
+  static getWifiSsid(): string {
+    if (!NetworkStatus.isOnWifi()) {
+      return '';
+    }
+    if (NetworkStatus.cachedWifiSsid.length > 0) {
+      return NetworkStatus.cachedWifiSsid;
+    }
+    NetworkStatus.refreshCachedWifiSsid();
+    return NetworkStatus.cachedWifiSsid;
+  }
+
+  private static normalizeSsid(raw: string): string {
+    if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+      return raw.substring(1, raw.length - 1);
+    }
+    return raw;
   }
 
   /**

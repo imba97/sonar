@@ -1,0 +1,64 @@
+---
+description: HdsTabs 页签增强样式（模糊/分割线/出血）；悬浮见 hds-tabs-bar-floating
+globs: **/*Tab*.ets
+alwaysApply: false
+---
+
+# HDS 页签（HdsTabs）增强样式规范
+
+## 文档要点总览
+- `HdsTabs` 在 ArkUI `Tabs` 基础上提供：分割线动态显隐、背景模糊、**图标出血**、半屏居中对齐等。
+- **悬浮页签 + miniBar** 为独立专题，见 [`hds-tabs-bar-floating.mdc`](hds-tabs-bar-floating.mdc)（Sonar `FloatingTabBar` 实现）。
+- **沉浸光感**见 [`immersive-light-perception.mdc`](immersive-light-perception.mdc)。
+
+## 适用范围
+- HarmonyOS 6.1.0(23)+ 悬浮与材质；模糊/分割线等见各子能力 API 门槛。
+- 页签栏样式：须 `BottomTabBarStyle` 或 `CustomBuilder`；**禁止**用 CustomBuilder 替代 `BottomTabBarStyle` 做主导航（会导致图标不可见仍可点击）。
+
+## 增强能力清单
+- **Tab Bar Dividers**：滚动/切换时分割线跟手显隐。
+- **Tab Bar Blur**：页签栏背景模糊，与内容区层次分离。
+- **Tab Icon Bleed**：图标出血设计，增强选中态视觉。
+- **半屏居中**：大屏/特定布局下页签栏半屏居中（与 `barWidth` 分档配合）。
+
+## 悬浮样式（摘要，细节见专规）
+
+```typescript
+HdsTabs({ controller: this.controller }) {
+  TabContent() { /* ... */ }.tabBar(new BottomTabBarStyle(icon, label))
+}
+.barOverlap(true)
+.barPosition(BarPosition.End)
+.vertical(false)
+.barFloatingStyle(this.buildBarFloatingStyle())
+```
+
+- `barFloatingStyle` 须用官方类型：`HdsTabsFloatingStyle`、`HdsBarWidthRangeOptions`、`HdsTabsMiniBar` 等，**禁止**自建 interface 充当参数（ArkTS 结构类型检查）。
+- 展开宽度 **只改** `UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_*`，见 `hds-tabs-bar-floating.mdc`。
+
+## 材质（与导航一致）
+
+```typescript
+systemMaterialEffect: {
+  materialType: hdsMaterial.MaterialType.ADAPTIVE,
+  materialLevel: level  // aboutToAppear 探测一次
+}
+```
+
+## 开发落地清单
+- `new BottomTabBarStyle(icon, label).labelStyle(...).iconStyle(...)`；`TabBarIconStyle` 无 `size` 字段，勿臆造 API。
+- 设备 API &lt; 60100 时 Sonar 降级普通 `Tabs`（见 `FloatingTabBar.supportsHdsTabs()`）。
+- miniBar：单 Row + `width('100%')` + `.clip(true)`；折叠/展开由 HDS 控制槽宽，勿自建 `miniBarCollapsed` 状态机。
+
+## 常见误区
+- 重复底栏：`Stack` 叠加 `MiniPlayerBar` 与 miniBar（见 `hds-tabs-bar-floating.mdc` 强制节）。
+- 在 `miniBarBuilder` 钉死展开宽度或与 `barWidth` 双轨配置。
+- 仅配页签材质不配标题栏（或反之），质感割裂。
+
+## 验收建议
+- 切换 Tab 分割线/模糊过渡自然；深浅色可读。
+- 折叠/展开 miniBar 不盖住左侧页签圆球；无曲目/有曲目态符合专规。
+
+## 参考文档
+- https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ui-design-hds-tabs-bar-floating
+- https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ui-design-hds-component-material

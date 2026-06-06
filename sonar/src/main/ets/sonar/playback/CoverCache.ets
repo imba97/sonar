@@ -29,6 +29,7 @@ export class CoverCache {
   private static memoryOrder: string[] = [];
   private static inFlight: Map<string, Promise<image.PixelMap | null>> = new Map<string, Promise<image.PixelMap | null>>();
   private static revision: number = 0;
+  private static pinnedCoverArtId: string = '';
 
   static setContext(context: common.UIAbilityContext): void {
     CoverCache.context = context;
@@ -36,6 +37,19 @@ export class CoverCache {
 
   static getRevision(): number {
     return CoverCache.revision;
+  }
+
+  /** 播放中固定当前封面，避免 LRU 逐出导致 AVSession 重复写入无效 mediaImage */
+  static pin(coverArtId: string): void {
+    if (coverArtId.length === 0) {
+      return;
+    }
+    CoverCache.pinnedCoverArtId = coverArtId;
+    CoverCache.touch(coverArtId);
+  }
+
+  static unpin(): void {
+    CoverCache.pinnedCoverArtId = '';
   }
 
   static getDisplaySource(coverArtId: string): CoverDisplaySource {
@@ -126,13 +140,33 @@ export class CoverCache {
     CoverCache.memoryCache.set(coverArtId, { pixelMap });
     CoverCache.memoryOrder.push(coverArtId);
     while (CoverCache.memoryOrder.length > MAX_MEMORY_CACHE) {
-      const oldest: string = CoverCache.memoryOrder[0];
-      CoverCache.memoryOrder.shift();
-      const entry: CoverCacheEntry | undefined = CoverCache.memoryCache.get(oldest);
-      CoverCache.memoryCache.delete(oldest);
-      if (entry !== undefined) {
-        void entry.pixelMap.release();
+      const evictId: string | null = CoverCache.pickEvictCandidate();
+      if (evictId === null) {
+        break;
       }
+      CoverCache.evict(evictId);
+    }
+  }
+
+  private static pickEvictCandidate(): string | null {
+    for (let i: number = 0; i < CoverCache.memoryOrder.length; i++) {
+      const id: string = CoverCache.memoryOrder[i];
+      if (id !== CoverCache.pinnedCoverArtId) {
+        return id;
+      }
+    }
+    return null;
+  }
+
+  private static evict(coverArtId: string): void {
+    const idx: number = CoverCache.memoryOrder.indexOf(coverArtId);
+    if (idx >= 0) {
+      CoverCache.memoryOrder.splice(idx, 1);
+    }
+    const entry: CoverCacheEntry | undefined = CoverCache.memoryCache.get(coverArtId);
+    CoverCache.memoryCache.delete(coverArtId);
+    if (entry !== undefined) {
+      void entry.pixelMap.release();
     }
   }
 

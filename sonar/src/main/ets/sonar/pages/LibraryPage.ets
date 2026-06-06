@@ -10,6 +10,8 @@ import { AutoMarqueeText } from '../components/layout/AutoMarqueeText';
 import { PageScaffold } from '../components/layout/PageScaffold';
 import { GlassSearchBar } from '../components/forms/GlassSearchBar';
 import { UiTokens } from '../ui/tokens/UiTokens';
+import { ToastUtil } from '../common/ToastUtil';
+import { PlaybackService } from '../playback/PlaybackService';
 
 @Component
 export struct LibraryPage {
@@ -22,6 +24,7 @@ export struct LibraryPage {
   @State private _isAuthenticated: boolean = false;
   @State private _searchKeyword: string = '';
   @State private _gridColumns: number = 1;
+  @State private _playAllLoading: boolean = false;
 
   private resolveVpLength(value: Length): number {
     if (typeof value === 'number') {
@@ -92,30 +95,86 @@ export struct LibraryPage {
     void this.vm.loadNewest();
   }
 
+  private showToast(message: string): void {
+    ToastUtil.show(this, message, 1600);
+  }
+
+  private async playAllAlbum(album: Album): Promise<void> {
+    if (this._playAllLoading) {
+      return;
+    }
+    this._playAllLoading = true;
+    try {
+      await PlaybackService.playAlbumAll(album);
+      const title: string = album.title ?? album.name ?? '专辑';
+      this.showToast(`开始播放：${title}`);
+    } catch (err) {
+      const message: string = (err as Error).message;
+      if (message === 'EMPTY_ALBUM') {
+        this.showToast('暂无曲目');
+      } else {
+        this.showToast(message.length > 0 ? message : '加载专辑失败');
+      }
+    } finally {
+      this._playAllLoading = false;
+    }
+  }
+
+  @Builder
+  private buildAlbumCover(album: Album) {
+    Stack({ alignContent: Alignment.TopEnd }) {
+      if (album.coverArt !== undefined && album.coverArt.length > 0) {
+        Image(this.vm.coverUrl(album.coverArt))
+          .width('100%')
+          .height('100%')
+          .objectFit(ImageFit.Cover)
+          .alt('#E5E5EA')
+      } else {
+        Column() {
+          Text('♪')
+            .fontSize(30)
+            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+      }
+
+      Button({ type: ButtonType.Circle, stateEffect: true }) {
+        Image($r('app.media.ic_more_vert'))
+          .width(20)
+          .height(20)
+          .objectFit(ImageFit.Contain)
+      }
+      .width(32)
+      .height(32)
+      .backgroundColor('#66000000')
+      .margin(6)
+      .hitTestBehavior(HitTestMode.Block)
+      .accessibilityText('更多操作')
+      .responseRegion({ width: 40, height: 40 })
+      .bindMenu([
+        {
+          value: '播放全部',
+          action: (): void => {
+            void this.playAllAlbum(album);
+          }
+        }
+      ])
+    }
+    .width('100%')
+    .height(UiTokens.LIBRARY_CARD_COVER_HEIGHT)
+    .borderRadius(10)
+    .clip(true)
+  }
+
   @Builder
   private buildAlbumCard(album: Album) {
     CardContainer() {
       Column({ space: 10 }) {
-        if (album.coverArt !== undefined && album.coverArt.length > 0) {
-          Image(this.vm.coverUrl(album.coverArt))
-            .width('100%')
-            .height(UiTokens.LIBRARY_CARD_COVER_HEIGHT)
-            .borderRadius(10)
-            .objectFit(ImageFit.Cover)
-            .alt('#E5E5EA')
-        } else {
-          Column() {
-            Text('♪')
-              .fontSize(30)
-              .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
-          }
-          .width('100%')
-          .height(UiTokens.LIBRARY_CARD_COVER_HEIGHT)
-          .borderRadius(10)
-          .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-          .justifyContent(FlexAlign.Center)
-          .alignItems(HorizontalAlign.Center)
-        }
+        this.buildAlbumCover(album)
 
         Column({ space: 4 }) {
           AutoMarqueeText({

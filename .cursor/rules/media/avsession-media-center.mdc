@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## 单源状态
 - 播放 UI、通知、系统媒体中心只消费 `PlaybackSnapshot`（`AppStorage` 键 `playback`）。
-- 由 `PlaybackController` 发布快照；`MediaCenter.apply(snapshot, cover)` 为唯一 AVSession 写入入口。
+- UI 层只调用 **`PlaybackService`**；由 **`PlaybackSession`** 发布快照；`MediaCenter.apply(snapshot, cover)` 为唯一 AVSession 写入入口。
 
 ## 生命周期顺序
 1. `createAVSession(context, tag, 'audio')`

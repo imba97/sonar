@@ -19,12 +19,20 @@ export struct MiniBarCoverDisc {
     return this.playback.track.coverArtId;
   }
 
+  private trackId(): string {
+    if (this.playback.track === null) {
+      return '';
+    }
+    return this.playback.track.id;
+  }
+
   build() {
     Stack({ alignContent: Alignment.Center }) {
       PlaybackCoverDisc({
         discSize: this.innerSize(),
         coverArtId: this.coverArtId(),
         coverRevision: this.playback.coverRevision,
+        trackId: this.trackId(),
         loading: this.playback.showMiniPlayer && this.playback.isLoading(),
         spinning: this.playback.isPlaying(),
         showCover: this.playback.showMiniPlayer

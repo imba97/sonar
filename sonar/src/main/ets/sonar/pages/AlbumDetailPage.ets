@@ -9,7 +9,7 @@ import { PageScaffold } from '../components/layout/PageScaffold';
 import { DropdownActionItem, DropdownActionMenu } from '../components/overlays/DropdownActionMenu';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
-import { PlaybackController } from '../playback/PlaybackController';
+import { PlaybackService } from '../playback/PlaybackService';
 import { PlaybackSnapshot } from '../playback/PlaybackSnapshot';
 
 @Component
@@ -61,7 +61,7 @@ export struct AlbumDetailPage {
   private onMenuSelect(actionId: string): void {
     if (actionId === 'play-next') {
       if (this.menuSong !== null) {
-        void PlaybackController.enqueueNext(this.menuSong);
+        void PlaybackService.enqueueNext(this.menuSong);
       }
       this.showToast(`已加入下一首：${this.menuSongTitle}`);
     } else if (actionId === 'download') {
@@ -74,7 +74,7 @@ export struct AlbumDetailPage {
 
   private playSong(index: number, song: Song): void {
     const albumCover: string = this.vm.album?.coverArt ?? '';
-    void PlaybackController.playQueue(this.vm.songs, index, albumCover);
+    void PlaybackService.playQueue(this.vm.songs, index, albumCover);
     this.showToast(`开始播放：${song.title}`);
   }
 

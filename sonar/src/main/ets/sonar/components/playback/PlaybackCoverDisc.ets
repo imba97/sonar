@@ -11,6 +11,7 @@ export struct PlaybackCoverDisc {
   @Prop discSize: number = 44;
   @Prop @Watch('onCoverInputsChange') coverArtId: string = '';
   @Prop @Watch('onCoverInputsChange') coverRevision: number = 0;
+  @Prop @Watch('onCoverInputsChange') trackId: string = '';
   @Prop @Watch('onSpinInputsChange') loading: boolean = false;
   @Prop @Watch('onSpinInputsChange') spinning: boolean = false;
   @Prop @Watch('onCoverInputsChange') showCover: boolean = false;
@@ -20,10 +21,12 @@ export struct PlaybackCoverDisc {
   @State private boundCoverArtId: string = '';
   private lastSpinning: boolean = false;
   private lastCoverRevision: number = -1;
+  private lastTrackId: string = '';
   private rotationTimerId: number = -1;
 
   aboutToAppear(): void {
     this.lastCoverRevision = this.coverRevision;
+    this.lastTrackId = this.trackId;
     this.syncCoverPixelMap(true);
     this.lastSpinning = this.shouldSpin();
     this.applySpinMotion(this.lastSpinning);
@@ -38,9 +41,20 @@ export struct PlaybackCoverDisc {
     if (revisionChanged) {
       this.lastCoverRevision = this.coverRevision;
     }
+    const trackIdChanged: boolean = this.trackId !== this.lastTrackId;
+    if (trackIdChanged) {
+      this.lastTrackId = this.trackId;
+    }
     const artId: string = this.showCover ? this.coverArtId : '';
     const artIdChanged: boolean = artId !== this.boundCoverArtId;
+    if (trackIdChanged || artIdChanged || revisionChanged) {
+      this.resetCoverRotation();
+    }
     this.syncCoverPixelMap(revisionChanged || artIdChanged);
+  }
+
+  private resetCoverRotation(): void {
+    this.coverRotateDeg = 0;
   }
 
   private onSpinInputsChange(): void {

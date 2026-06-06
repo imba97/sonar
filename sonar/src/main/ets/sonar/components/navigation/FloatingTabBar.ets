@@ -1,7 +1,7 @@
 import { LibraryPage } from '../../pages/LibraryPage';
 import { ServerPage } from '../../pages/ServerPage';
 import { ProfilePage } from '../../pages/ProfilePage';
-import { PlaybackController } from '../../playback/PlaybackController';
+import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
@@ -163,19 +163,19 @@ export struct FloatingTabBar {
 
   private togglePlayback(): void {
 
-    void PlaybackController.toggle();
+    void PlaybackService.toggle();
 
   }
 
   private nextTrack(): void {
 
-    void PlaybackController.playNext(true);
+    void PlaybackService.playNext(true);
 
   }
 
   private toggleMode(): void {
 
-    PlaybackController.togglePlaybackMode();
+    PlaybackService.togglePlaybackMode();
 
   }
 

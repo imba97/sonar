@@ -19,6 +19,8 @@ export class MediaCenter {
   private eventsRegistered: boolean = false;
   private activated: boolean = false;
   private lastAssetId: string = '';
+  private lastMetadataCoverArtId: string = '';
+  private lastMetadataDurationMs: number = 0;
   private lastPlaybackSyncSecond: number = -1;
   private lastPlaybackStateIsPlaying: boolean = false;
   private lastPlaybackStateSyncAt: number = 0;
@@ -39,6 +41,8 @@ export class MediaCenter {
     const track = snapshot.track;
     if (track === null) {
       this.lastAssetId = '';
+      this.lastMetadataCoverArtId = '';
+      this.lastMetadataDurationMs = 0;
       try {
         await session.setAVPlaybackState({
           state: avSession.PlaybackState.PLAYBACK_STATE_PAUSE,
@@ -50,34 +54,28 @@ export class MediaCenter {
       }
       return;
     }
-    if (track.id !== this.lastAssetId) {
+    const assetChanged: boolean = track.id !== this.lastAssetId;
+    if (assetChanged) {
       this.lastAssetId = track.id;
+      this.lastMetadataCoverArtId = '';
+      this.lastMetadataDurationMs = 0;
+    }
+    if (MediaCenter.shouldUpdateMetadata(
+      assetChanged, track, cover, this.lastMetadataCoverArtId, this.lastMetadataDurationMs)) {
       const metadata: avSession.AVMetadata = MediaCenter.buildMetadata(track, cover);
       try {
         await session.setAVMetadata(metadata);
+        if (cover !== null && track.coverArtId.length > 0) {
+          this.lastMetadataCoverArtId = track.coverArtId;
+        }
+        if (track.durationMs > 0) {
+          this.lastMetadataDurationMs = track.durationMs;
+        }
       } catch (err) {
         Logger.warn('MediaCenter', `setAVMetadata failed: ${(err as Error).message}`);
       }
-      await this.pushPlaybackState(snapshot, true);
-      if (!this.activated) {
-        try {
-          await session.activate();
-          this.activated = true;
-        } catch (err) {
-          Logger.warn('MediaCenter', `activate failed: ${(err as Error).message}`);
-        }
-      }
-      return;
     }
-    if (cover !== null) {
-      const metadata: avSession.AVMetadata = MediaCenter.buildMetadata(track, cover);
-      try {
-        await session.setAVMetadata(metadata);
-      } catch (err) {
-        Logger.warn('MediaCenter', `setAVMetadata cover refresh failed: ${(err as Error).message}`);
-      }
-    }
-    await this.pushPlaybackState(snapshot, false);
+    await this.pushPlaybackState(snapshot, assetChanged);
     if (!this.activated) {
       try {
         await session.activate();
@@ -86,6 +84,15 @@ export class MediaCenter {
         Logger.warn('MediaCenter', `activate failed: ${(err as Error).message}`);
       }
     }
+  }
+
+  /** 仅同步播放进度/状态，不触发 setAVMetadata（供进度 tick 节流调用） */
+  async syncPlaybackState(snapshot: PlaybackSnapshot): Promise<void> {
+    const session: avSession.AVSession | null = await this.ensureSession();
+    if (session === null || snapshot.track === null) {
+      return;
+    }
+    await this.pushPlaybackState(snapshot, false);
   }
 
   async release(): Promise<void> {
@@ -101,7 +108,32 @@ export class MediaCenter {
     this.eventsRegistered = false;
     this.activated = false;
     this.lastAssetId = '';
+    this.lastMetadataCoverArtId = '';
+    this.lastMetadataDurationMs = 0;
     this.lastPlaybackSyncSecond = -1;
+  }
+
+  /** 仅在切歌、封面就绪或时长变化时更新元数据，避免进度同步重复 setAVMetadata */
+  private static shouldUpdateMetadata(
+    assetChanged: boolean,
+    track: NowPlayingTrack,
+    cover: image.PixelMap | null,
+    lastCoverArtId: string,
+    lastDurationMs: number
+  ): boolean {
+    if (assetChanged) {
+      return true;
+    }
+    if (cover !== null && track.coverArtId.length > 0 && track.coverArtId !== lastCoverArtId) {
+      return true;
+    }
+    if (track.durationMs > 0 && track.durationMs !== lastDurationMs) {
+      if (lastCoverArtId.length > 0 && cover === null) {
+        return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   private static buildMetadata(track: NowPlayingTrack, cover: image.PixelMap | null): avSession.AVMetadata {

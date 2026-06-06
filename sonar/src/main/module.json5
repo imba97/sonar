@@ -7,8 +7,7 @@
     "deviceTypes": [
       "phone",
       "tablet",
-      "2in1",
-      "car"
+      "2in1"
     ],
     "deliveryWithInstall": true,
     "installationFree": false,
@@ -42,9 +41,7 @@
         "name": "SonarAbility",
         "srcEntry": "./ets/sonarability/SonarAbility.ets",
         "description": "$string:SonarAbility_desc",
-        "icon": "$media:lib_icon_12",
-        "label": "$string:SonarAbility_label",
-        "startWindowIcon": "$media:lib_icon_12",
+        "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
         "backgroundModes": [

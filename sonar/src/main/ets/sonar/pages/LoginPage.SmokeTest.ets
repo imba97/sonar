@@ -12,7 +12,7 @@
  * If this minimal version also renders blank, the problem is upstream
  * (PageMap routing, Navigation stack, or @Consume context).
  *
- * To activate: in `SecondPageBuilder.ets`, swap the LoginPage import and
+ * To activate: in `PageMapBuilder.ets`, swap the LoginPage import and
  * the `LoginPage()` call to point at this file, rebuild, and re-run.
  */
 

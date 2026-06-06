@@ -1,51 +1,24 @@
 {
-  "string" : [ {
-    "name" : "module_desc",
-    "value" : "module description"
-  }, {
-    "name" : "EntryAbility_desc",
-    "value" : "description"
-  }, {
-    "name" : "EntryAbility_label",
-    "value" : "label"
-  }, {
-    "name" : "defaultForm_label",
-    "value" : "form_label"
-  }, {
-    "name" : "defaultForm_desc",
-    "value" : "form_description"
-  }, {
-    "name" : "EntryFormAbility_desc",
-    "value" : "form_description"
-  }, {
-    "name" : "EntryFormAbility_label",
-    "value" : "form_label"
-  }, {
-    "name" : "widget_desc",
-    "value" : "This is a service widget."
-  }, {
-    "name" : "widget_display_name",
-    "value" : "widget"
-  }, {
-    "name" : "widget1_desc",
-    "value" : "This is a service widget."
-  }, {
-    "name" : "widget1_display_name",
-    "value" : "widget1"
-  }, {
-    "name" : "SonarAbility_desc",
-    "value" : "description"
-  }, {
-    "name" : "SonarAbility_label",
-    "value" : "label"
-  }, {
-    "name" : "permission_keep_background_running_reason",
-    "value" : "Allow Sonar to keep audio playback running in the background."
-  }, {
-    "name" : "playback_notification_title",
-    "value" : "Sonar is playing"
-  }, {
-    "name" : "playback_notification_pause_hint",
-    "value" : "Playback paused"
-  } ]
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "Sonar 音乐客户端"
+    },
+    {
+      "name": "SonarAbility_desc",
+      "value": "自托管 Subsonic / Navidrome 音乐播放"
+    },
+    {
+      "name": "permission_keep_background_running_reason",
+      "value": "允许 Sonar 在后台继续播放音乐"
+    },
+    {
+      "name": "playback_notification_title",
+      "value": "Sonar 正在播放"
+    },
+    {
+      "name": "playback_notification_pause_hint",
+      "value": "已暂停播放"
+    }
+  ]
 }

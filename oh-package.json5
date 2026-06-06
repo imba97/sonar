@@ -1,6 +1,6 @@
 {
   "modelVersion": "6.1.1",
-  "description": "Please describe the basic information.",
+  "description": "HarmonyOS music client for self-hosted Subsonic / Navidrome servers.",
   "dependencies": {
   },
   "devDependencies": {

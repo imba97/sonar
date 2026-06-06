@@ -16,7 +16,6 @@ const BACK_PRESS_INTERVAL: number = 2000;
 @Component
 struct Index {
   @Provide('appPathStack') appPathStack: NavPathStack = new NavPathStack();
-  @State title: string = 'page_title';
   @State private lastBackPressTime: number = 0;
 
   async aboutToAppear(): Promise<void> {

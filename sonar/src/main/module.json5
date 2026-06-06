@@ -50,6 +50,11 @@
         "backgroundModes": [
           "audioPlayback"
         ],
+        "supportWindowMode": [
+          "fullscreen",
+          "split",
+          "floating"
+        ],
         "skills": [
           {
             "entities": [

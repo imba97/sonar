@@ -208,7 +208,13 @@
     "value" : "#191919"
   }, {
     "name" : "sonar_primary",
-    "value" : "#0A84FF"
+    "value" : "#7B6BA8"
+  }, {
+    "name" : "sonar_primary_on_light_bg",
+    "value" : "#7B6BA8"
+  }, {
+    "name" : "sonar_primary_on_dark_bg",
+    "value" : "#B8AAD4"
   }, {
     "name" : "sonar_info",
     "value" : "#5AC8FA"
@@ -256,7 +262,7 @@
     "value" : "#14000000"
   }, {
     "name" : "sonar_primary_soft_bg",
-    "value" : "#290A84FF"
+    "value" : "#297B6BA8"
   }, {
     "name" : "sonar_info_soft_bg",
     "value" : "#295AC8FA"
@@ -313,7 +319,7 @@
     "value" : "#34C759"
   }, {
     "name" : "sonar_primary_disabled_bg",
-    "value" : "#8C0A84FF"
+    "value" : "#8C7B6BA8"
   }, {
     "name" : "sonar_error",
     "value" : "#D70015"

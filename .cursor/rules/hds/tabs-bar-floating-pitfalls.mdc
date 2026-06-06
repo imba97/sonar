@@ -34,8 +34,24 @@ HDS 底部为 **页签栏 + miniBar 两段**，宽度由两套机制分别作用
 | 有文字盖住页签 | Row 定宽 298 而 HDS 槽位仍 56 | Row `width('100%')` 随槽位伸缩 |
 | 盖住左侧圆球 | `Stack` + `inferMiniBarSlotWidthVp` | 勿自建槽位推断；交给 HDS + `displayPriority` |
 | 重复底栏 | `Stack` 叠加 `MiniPlayerBar` 与 miniBar | 根页仅 `Navigation { FloatingTabBar() }` |
+| **折叠换色 icon 上移** | 折叠态仍用同一套 `BottomTabBarStyle`，换色更新 `labelStyle` / `unselectedColor` | 见下节「页签 COLLAPSE 换色错位」 |
 
 当前推荐展开分档：**262 / 278 / 294** vp（`UiTokens.ets`）。
+
+## 页签 COLLAPSE 换色错位（已验证）
+
+**现象**：miniBar 展开、页签收成圆球（仅 icon）后，底栏自适应换色时 icon **上移**，下方像留了 **无字的 label 空行**。展开三 Tab 时正常。
+
+**根因（华为官方）**：COLLAPSE 时 label 常 **仍参与布局测量**、视觉隐藏；换色若更新 `labelStyle`，触发布局重算，icon 按 **icon+label 总高** 居中。
+
+**解法**（`HdsTabsShell.ets`）：
+
+1. `onBarStyleChange` → `@State tabBarCompact`，**两套样式整体替换**（勿原地改色）。
+2. **EXPAND**：`labelStyle` + `iconStyle`，`tabInactiveHex` 可 280ms 渐变。
+3. **COLLAPSE**：`labelStyle` 固定透明 + `font.size: 0.1`；换色 **只**写 `tabIconInactiveHex` → `iconStyle`，**不**动 `labelStyle`。
+4. **勿**用 `barHeight('auto')` / `72` 修此问题。
+
+**勿再试**：折叠传空 label、动画中 plain/styled 混切、逐帧 AppStorage 写 `labelStyle`。
 
 ## 禁止做法（宽度 / 状态机）
 

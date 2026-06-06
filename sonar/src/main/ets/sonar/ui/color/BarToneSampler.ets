@@ -1,11 +1,6 @@
 import { BarToneStore } from './BarToneStore';
 import { ColorUtil } from './ColorUtil';
 import { image } from '@kit.ImageKit';
-import { hilog } from '@kit.PerformanceAnalysisKit';
-
-const COLOR_DEBUG_DOMAIN: number = 0x534E;
-const COLOR_DEBUG_TAG: string = 'color-debug';
-const COLOR_DEBUG_PREFIX: string = '[color-debug]';
 
 const SAMPLE_INTERVAL_MS: number = 1000;
 const PROBE_OVERRIDE_KEY: string = 'barToneProbeOverride';
@@ -74,26 +69,9 @@ export class BarToneSampler {
       });
       const hex: string = await ColorUtil.averageBottomBandFromPixelMap(pixelMap, BOTTOM_BAND_HEIGHT_RATIO);
       BarToneStore.reportBottomSample(hex);
-      const toneLabel: string = ColorUtil.isDarkBackground(hex) ? '黑暗' : '明亮';
-      hilog.info(
-        COLOR_DEBUG_DOMAIN,
-        COLOR_DEBUG_TAG,
-        '%{public}s 底部颜色类型: %{public}s hex=%{public}s probe=%{public}s',
-        COLOR_DEBUG_PREFIX,
-        toneLabel,
-        hex,
-        probeId
-      );
     } catch (_err) {
       const tabIndex: number = AppStorage.get<number>('rootTabIndex') ?? 0;
       BarToneStore.resetBaseline(tabIndex, BarToneStore.isDarkMode());
-      hilog.warn(
-        COLOR_DEBUG_DOMAIN,
-        COLOR_DEBUG_TAG,
-        '%{public}s 采样失败 probe=%{public}s，已回退基线',
-        COLOR_DEBUG_PREFIX,
-        probeId
-      );
     } finally {
       if (pixelMap !== undefined) {
         pixelMap.release();

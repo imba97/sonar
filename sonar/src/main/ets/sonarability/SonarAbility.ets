@@ -4,6 +4,7 @@ import { display, window } from '@kit.ArkUI';
 import { AuthStore } from '../sonar/auth/AuthStore';
 import { EndpointRouter } from '../sonar/network/routing/EndpointRouter';
 import { PlaybackService } from '../sonar/playback/PlaybackService';
+import { ScreenProfileStore } from '../sonar/ui/adaptation/ScreenProfileStore';
 
 const DOMAIN = 0x0000;
 
@@ -24,6 +25,7 @@ export default class SonarAbility extends UIAbility {
       hilog.error(DOMAIN, 'testTag', 'Failed to set colorMode. Cause: %{public}s', JSON.stringify(err));
     }
     AppStorage.setOrCreate<number>('currentColorMode', this.resolveColorMode(this.context.config.colorMode));
+    ScreenProfileStore.ensureInitialized();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     PlaybackService.setContext(this.context);
 
@@ -65,6 +67,7 @@ export default class SonarAbility extends UIAbility {
       win.on('avoidAreaChange', () => {
         this.updateAvoidAreaInsets(win);
       });
+      ScreenProfileStore.bindWindow(win);
     } catch (err) {
       hilog.error(DOMAIN, 'testTag', 'setupImmersiveWindow failed: %{public}s', JSON.stringify(err));
     }
@@ -99,6 +102,7 @@ export default class SonarAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {
+    ScreenProfileStore.unbind();
     // Main window is destroyed, release UI related resources
     this.mainWindow = undefined;
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');

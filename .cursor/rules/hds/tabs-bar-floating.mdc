@@ -22,6 +22,19 @@ alwaysApply: true
 | `systemMaterialEffect` | 沉浸光感（见 `hds/immersive-light-perception.mdc`） |
 | `miniBar.miniBarBuilder` | 迷你栏自定义 UI |
 
+## 折叠态显示（官方行为，勿硬改）
+
+HDS 底部栏由 **两段槽位** 组成，折叠时系统收缩宽度，**文案默认不绘制**（非 Sonar bug）：
+
+| 区域 | 展开 | 折叠（COLLAPSE） | 配置入口 |
+| --- | --- | --- | --- |
+| **左侧页签胶囊** | 三 Tab：icon + 文案 | 当前 Tab **圆球，通常仅 icon** | `BottomTabBarStyle(icon, label)` |
+| **右侧 miniBar** | 封面 + 曲名 + 操作 | **圆盘/音符，文案被槽位裁切** | `miniBarBuilder` → `MiniBarRow` |
+
+- 折叠/展开宽度由 **HDS 槽位** 控制；`onBarStyleChange` 感知 `tabBarStyle`。**自适应换色**须在 COLLAPSE/EXPAND 用两套 `BottomTabBarStyle`（见下文「页签自适应换色」），勿在折叠态原地更新 `labelStyle`。
+- 官方建议折叠态保持 icon-only；若强需求折叠态仍显示文字，需自研底栏替代 `miniBar`，或查阅 UIDesign Kit 是否有更新接口（当前无「强制折叠显示 label」开关）。
+- 博客/指南中 **无 miniBar** 的示例：页签栏始终展开，故始终见 icon+文案；**与 Sonar（页签 + miniBar 并存）不可直接对比折叠球**。
+
 ## miniBar 官方模型
 
 - 折叠/展开由 **HDS 控制 mini 槽位宽度**，应用侧勿自建折叠状态机。
@@ -51,6 +64,26 @@ alwaysApply: true
 
 折叠态圆球约 56vp，由系统 mini 槽控制，不在此调节。
 
+## 页签自适应换色（官方 workaround）
+
+HDS 已知行为：COLLAPSE 时 label **可能仍参与测量**但视觉隐藏；若换色更新 `labelStyle`，icon 会按「icon+label」总高重新居中 → **icon 上移 + 下方空白**。
+
+**Sonar 实现（[`HdsTabsShell.ets`](sonar/src/main/ets/sonar/components/navigation/HdsTabsShell.ets)）**：
+
+| 状态 | BottomTabBarStyle | 换色 |
+| --- | --- | --- |
+| EXPAND | 完整 `labelStyle` + `iconStyle`，`tabInactiveHex` / `tabSelectedHex` 可 280ms 渐变 | icon + 文案 |
+| COLLAPSE | 独立样式：`labelStyle` 透明 + `font.size: 0.1` 压缩测量；**仅** `iconStyle` ← `tabIconInactiveHex` / `tabIconSelectedHex` | 只改 icon 色，**不**更新 labelStyle |
+
+- 选中主色：`sonar_primary_on_light_bg`（浅底 `#7B6BA8`）↔ `sonar_primary_on_dark_bg`（深底 `#B8AAD4`），由 `BarToneStore.resolveForegroundColors().tabSelected` 驱动，与未选中 icon 同色随 `barToneUseLightForeground` 翻转。
+
+- `miniBar.onBarStyleChange` → `@State tabBarCompact`，**整体替换**两套样式对象（勿原地改同一对象的 labelStyle）。
+- 勿改 `barHeight`；折叠态 icon-only 为官方预期。
+
+## 页签栏高度
+
+- 系统默认 **56vp**；勿 `barHeight('auto')` / `72`。
+
 ## ArkTS 类型
 
 - 使用 `@kit.UIDesignKit` 导出类型：`HdsTabsFloatingStyle`、`HdsBarWidthRangeOptions`、`HdsTabsMiniBar` 等。
@@ -64,9 +97,8 @@ alwaysApply: true
 
 ## 验收
 
-- 展开：页签与播放区协调，不盖住左侧页签圆球；曲名与操作按钮可读。
-- 折叠：右侧 56vp 圆盘/音符。
-- 无曲目：展开见文案，无播放按钮；有曲目：封面/标题/控制齐全。
+- **展开**：页签胶囊三 Tab 均为 icon + 文案；miniBar 见曲名/占位文案 + 操作区。
+- **折叠（官方）**：左侧页签球、右侧 miniBar 均可仅 icon；**换色后 icon 不上移、无 phantom label 空白**（依赖 COLLAPSE 双轨样式）。
 - 三档断点真机各扫一眼；深浅色蒙层与材质可读。
 
 ## 参考文档

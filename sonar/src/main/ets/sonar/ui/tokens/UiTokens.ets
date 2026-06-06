@@ -2,6 +2,8 @@ export class UiTokens {
   static readonly TAB_BAR_CONTENT_EXTRA_PADDING: number = 16;
 
   static readonly COLOR_PRIMARY: ResourceColor = $r('app.color.sonar_primary');
+  static readonly COLOR_PRIMARY_ON_LIGHT_BG: ResourceColor = $r('app.color.sonar_primary_on_light_bg');
+  static readonly COLOR_PRIMARY_ON_DARK_BG: ResourceColor = $r('app.color.sonar_primary_on_dark_bg');
   static readonly COLOR_INFO: ResourceColor = $r('app.color.sonar_info');
   static readonly COLOR_SUCCESS: ResourceColor = $r('app.color.sonar_success');
   static readonly COLOR_DANGER: ResourceColor = $r('app.color.sonar_danger');
@@ -80,4 +82,61 @@ export class UiTokens {
   static readonly LIBRARY_CARD_MIN_WIDTH: number = 180;
   static readonly LIBRARY_CARD_COVER_HEIGHT: number = 146;
   static readonly LIBRARY_CARD_TITLE_HEIGHT: number = 22;
+
+  /** Pura X 外屏：1:1 方形判定容差 */
+  static readonly OUTER_SCREEN_ASPECT_RATIO_MIN: number = 0.85;
+  static readonly OUTER_SCREEN_ASPECT_RATIO_MAX: number = 1.15;
+  /** 外屏紧凑边长上限（vp），Pura X 外屏官方 326vp，略留容差 */
+  static readonly OUTER_SCREEN_MAX_COMPACT_EDGE: number = 340;
+  static readonly OUTER_SCREEN_COVER_SIZE_RATIO: number = 0.62;
+  static readonly OUTER_SCREEN_PLAY_MASK_SIZE: number = 56;
+  static readonly OUTER_SCREEN_PLAY_ICON_SIZE: number = 28;
+  static readonly OUTER_SCREEN_PLAY_MASK_COLOR: string = '#E6000000';
+  static readonly OUTER_SCREEN_COVER_PROGRESS_GAP: number = 16;
+  static readonly OUTER_SCREEN_PROGRESS_HEIGHT: number = 2.5;
+  static readonly OUTER_SCREEN_PROGRESS_WIDTH_RATIO: number = 0.85;
+  static readonly OUTER_SCREEN_PROGRESS_TOUCH_HEIGHT: number = 28;
+  static readonly OUTER_SCREEN_PROGRESS_THUMB_SIZE: number = 10;
+  static readonly OUTER_SCREEN_PROGRESS_TRACK_COLOR: string = '#18FFFFFF';
+  static readonly OUTER_SCREEN_PROGRESS_FILL_COLOR: string = '#59FFFFFF';
+  static readonly OUTER_SCREEN_PROGRESS_THUMB_COLOR: string = '#B3FFFFFF';
+  /** 外屏专用暗色背景（不随主题变浅，亦不用 #333） */
+  static readonly OUTER_SCREEN_BG_GRADIENT_TOP: string = '#1A1B22';
+  static readonly OUTER_SCREEN_BG_GRADIENT_BOTTOM: string = '#101116';
+  /** 内屏预览时机身/留白区，比视口背景更深 */
+  static readonly OUTER_SCREEN_BEZEL_COLOR: string = '#06070A';
+
+  /**
+   * Pura X 外屏官方规格（bpta-purax-guide「屏幕规格信息」）：
+   * 折叠态 980×980 px，326×326 vp；展开态内屏 1320×2120 px，440×707 vp。
+   */
+  static readonly PURAX_OUTER_SCREEN_EDGE_VP: number = 326;
+  static readonly PURAX_OUTER_SCREEN_EDGE_PX: number = 980;
+  static readonly PURAX_INNER_SCREEN_WIDTH_VP: number = 440;
+  static readonly PURAX_INNER_SCREEN_HEIGHT_VP: number = 707;
+  static readonly PURAX_INNER_SCREEN_WIDTH_PX: number = 1320;
+  static readonly PURAX_INNER_SCREEN_HEIGHT_PX: number = 2120;
+  /**
+   * 外屏物理圆角：官方文档未给 vp 值，按外屏边长等比推导（约 11% 边长，4vp 对齐为 36vp）。
+   * 真外屏由系统窗口裁剪，预览框按视口等比缩放该值。
+   */
+  static readonly PURAX_OUTER_SCREEN_CORNER_RADIUS_VP: number = 36;
+
+  /** 内屏预览：方屏边长 = 宿主短边 × (外屏宽 vp / 内屏宽 vp)。 */
+  static resolveOuterScreenPreviewViewportVp(hostMinEdgeVp: number): number {
+    if (hostMinEdgeVp <= 0) {
+      return 280;
+    }
+    return Math.floor(hostMinEdgeVp * UiTokens.PURAX_OUTER_SCREEN_EDGE_VP / UiTokens.PURAX_INNER_SCREEN_WIDTH_VP);
+  }
+
+  /** 预览框圆角随视口相对 326vp 外屏等比缩放。 */
+  static resolveOuterScreenPreviewCornerRadiusVp(viewportEdgeVp: number): number {
+    if (viewportEdgeVp <= 0) {
+      return 16;
+    }
+    const scaled: number = Math.floor(viewportEdgeVp * UiTokens.PURAX_OUTER_SCREEN_CORNER_RADIUS_VP /
+      UiTokens.PURAX_OUTER_SCREEN_EDGE_VP);
+    return Math.max(12, scaled);
+  }
 }

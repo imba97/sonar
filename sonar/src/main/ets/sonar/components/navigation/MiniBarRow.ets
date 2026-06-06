@@ -5,11 +5,12 @@ import { UiTokens } from '../../ui/tokens/UiTokens';
 import { MiniBarCoverDisc } from './MiniBarCoverDisc';
 
 const BAR_TONE_COLOR_ANIM_MS: number = 280;
+const TONE_COLOR_ANIM_CURVE: Curve = Curve.EaseInOut;
 
 /**
- * git HEAD 同款 miniBar Row；渐变在组件内逐帧插值，不触发父级 HdsTabs 重建。
+ * 官方 miniBar 模型：单一 Row + width('100%') + clip(true)。
+ * 目标色经 AppStorage 注入；BarToneColorAnimator 280ms 插值 + .animation 平滑。
  */
-@Reusable
 @Component
 export struct MiniBarRow {
   @Prop @Watch('onToneTargetChange') targetInactive: string = '#282A32';
@@ -81,6 +82,7 @@ export struct MiniBarRow {
         .width(iconSize)
         .height(iconSize)
         .fillColor(this.displayPrimary)
+        .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
     }
     .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
     .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
@@ -99,11 +101,13 @@ export struct MiniBarRow {
           .width(iconSize)
           .height(iconSize)
           .fillColor(this.displayPrimary)
+          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
       } else {
         Image($r('app.media.cb_play'))
           .width(iconSize)
           .height(iconSize)
           .fillColor(this.displayPrimary)
+          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
       }
     }
     .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
@@ -123,16 +127,19 @@ export struct MiniBarRow {
           .width(iconSize)
           .height(iconSize)
           .fillColor(this.displayPrimary)
+          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
       } else if (this.playback.mode === 'random') {
         Image($r('app.media.cb_mode_shuffle'))
           .width(iconSize)
           .height(iconSize)
           .fillColor(this.displayPrimary)
+          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
       } else {
         Image($r('app.media.cb_mode_list'))
           .width(iconSize)
           .height(iconSize)
           .fillColor(this.displayPrimary)
+          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
       }
     }
     .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
@@ -162,6 +169,7 @@ export struct MiniBarRow {
           .fontColor(this.hasActiveTrack() ? this.displayPrimary : this.displayInactive)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
         if (this.hasActiveTrack()) {
           Text(this.playback.track !== null && this.playback.track.artist.length > 0 ?
             this.playback.track.artist : '未知歌手')
@@ -169,6 +177,7 @@ export struct MiniBarRow {
             .fontColor(this.displaySecondary)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
         }
       }
       .layoutWeight(1)

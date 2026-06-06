@@ -140,6 +140,7 @@ export struct PlaybackCoverDisc {
       .height(this.idleIconSize())
       .fillColor(this.idleIconColor)
       .objectFit(ImageFit.Contain)
+      .animation({ duration: 280, curve: Curve.EaseInOut })
   }
 
   @Builder

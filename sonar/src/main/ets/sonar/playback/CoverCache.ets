@@ -172,12 +172,17 @@ export class CoverCache {
     }
     const request = http.createHttp();
     try {
-      const response = await request.request(remoteUrl, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        connectTimeout: 8000,
-        readTimeout: 12000
-      });
+      let response: http.HttpResponse;
+      try {
+        response = await request.request(remoteUrl, {
+          method: http.RequestMethod.GET,
+          expectDataType: http.HttpDataType.ARRAY_BUFFER,
+          connectTimeout: 8000,
+          readTimeout: 12000
+        });
+      } catch (err) {
+        throw new Error(`http request failed: ${(err as Error).message}`);
+      }
       if (response.responseCode !== http.ResponseCode.OK) {
         throw new Error(`http ${response.responseCode}`);
       }
@@ -186,15 +191,22 @@ export class CoverCache {
         fileIo.unlinkSync(localPath);
       } catch (_err) {
       }
-      const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
       try {
-        const writeOptions: WriteOptions = {
-          offset: 0,
-          length: content.byteLength
-        };
-        fileIo.writeSync(file.fd, content, writeOptions);
-      } finally {
-        fileIo.closeSync(file);
+        const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+        try {
+          const writeOptions: WriteOptions = {
+            offset: 0,
+            length: content.byteLength
+          };
+          fileIo.writeSync(file.fd, content, writeOptions);
+        } finally {
+          try {
+            fileIo.closeSync(file);
+          } catch (_err) {
+          }
+        }
+      } catch (err) {
+        throw new Error(`write cover file failed: ${(err as Error).message}`);
       }
     } finally {
       request.destroy();

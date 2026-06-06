@@ -1,24 +1,58 @@
 import { SystemMaterialParams, hdsMaterial } from '@kit.UIDesignKit';
+import deviceInfo from '@ohos.deviceInfo';
+
+export enum MaterialSurfaceTier {
+  CHROME = 0,
+  CONTENT = 1,
+  NAVIGATION = 2
+}
+
+const HDS_MATERIAL_AVAILABLE_KEY: string = 'hdsMaterialAvailable';
 
 export class ImmersiveMaterialHelper {
-  static resolveMaterialLevel(): hdsMaterial.MaterialLevel {
-    // style.mdc: 默认 ADAPTIVE，若设备不支持 IMMERSIVE，降级到 SMOOTH 以保证性能与稳定性。
-    let level: hdsMaterial.MaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
+  static probeAndCache(): void {
+    let available: boolean = false;
     try {
-      const supportedTypes: Array<hdsMaterial.MaterialType> = hdsMaterial.getSystemMaterialTypes();
-      if (supportedTypes.indexOf(hdsMaterial.MaterialType.IMMERSIVE) < 0) {
-        level = hdsMaterial.MaterialLevel.SMOOTH;
+      if (deviceInfo.distributionOSApiVersion >= 60100) {
+        const supportedTypes: Array<hdsMaterial.MaterialType> = hdsMaterial.getSystemMaterialTypes();
+        available = supportedTypes.indexOf(hdsMaterial.MaterialType.IMMERSIVE) >= 0;
       }
     } catch (_err) {
-      level = hdsMaterial.MaterialLevel.SMOOTH;
+      available = false;
     }
-    return level;
+    AppStorage.setOrCreate<boolean>(HDS_MATERIAL_AVAILABLE_KEY, available);
   }
 
-  static buildAdaptiveEffect(level: hdsMaterial.MaterialLevel): SystemMaterialParams {
+  static canUseImmersiveMaterial(): boolean {
+    return AppStorage.get<boolean>(HDS_MATERIAL_AVAILABLE_KEY) ?? false;
+  }
+
+  static buildEffectForTier(tier: MaterialSurfaceTier): SystemMaterialParams | undefined {
+    if (!ImmersiveMaterialHelper.canUseImmersiveMaterial()) {
+      return undefined;
+    }
+    if (tier === MaterialSurfaceTier.CONTENT) {
+      return {
+        materialType: hdsMaterial.MaterialType.ADAPTIVE,
+        materialLevel: hdsMaterial.MaterialLevel.SMOOTH
+      };
+    }
     return {
       materialType: hdsMaterial.MaterialType.ADAPTIVE,
-      materialLevel: level
+      materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+    };
+  }
+
+  static buildNavigationEffect(): SystemMaterialParams {
+    if (!ImmersiveMaterialHelper.canUseImmersiveMaterial()) {
+      return {
+        materialType: hdsMaterial.MaterialType.NONE,
+        materialLevel: hdsMaterial.MaterialLevel.SMOOTH
+      };
+    }
+    return {
+      materialType: hdsMaterial.MaterialType.ADAPTIVE,
+      materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
     };
   }
 }

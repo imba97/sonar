@@ -1,4 +1,5 @@
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { GlassSurfaceHelper } from '../../ui/material/GlassSurfaceHelper';
 
 @Component
 export struct SuccessButton {
@@ -11,11 +12,7 @@ export struct SuccessButton {
       .fontSize(12)
       .fontColor(UiTokens.COLOR_SUCCESS)
       .fontWeight(FontWeight.Medium)
-      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-        colorMode: ThemeColorMode.SYSTEM,
-        adaptiveColor: AdaptiveColor.DEFAULT,
-        scale: 1.0
-      })
+      .backgroundBlurStyle(GlassSurfaceHelper.BLUR_STYLE, GlassSurfaceHelper.BLUR_OPTIONS)
       .backgroundColor(UiTokens.COLOR_SUCCESS_SOFT_BG)
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .borderRadius(UiTokens.RADIUS_CHIP)

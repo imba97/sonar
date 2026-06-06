@@ -1,4 +1,5 @@
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { GlassSurfaceHelper } from '../../ui/material/GlassSurfaceHelper';
 
 @Component
 export struct TagButton {
@@ -13,11 +14,7 @@ export struct TagButton {
       .fontSize(12)
       .fontColor(this.fontColor)
       .fontWeight(FontWeight.Medium)
-      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-        colorMode: ThemeColorMode.SYSTEM,
-        adaptiveColor: AdaptiveColor.DEFAULT,
-        scale: 1.0
-      })
+      .backgroundBlurStyle(GlassSurfaceHelper.BLUR_STYLE, GlassSurfaceHelper.BLUR_OPTIONS)
       .backgroundColor(this.bgColor)
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .borderRadius(UiTokens.RADIUS_CHIP)

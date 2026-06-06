@@ -190,31 +190,51 @@ export class MediaCenter {
     if (this.eventsRegistered) {
       return;
     }
-    session.on('play', () => {
-      if (this.commands !== null) {
-        void this.commands.onPlay();
-      }
-    });
-    session.on('pause', () => {
-      if (this.commands !== null) {
-        void this.commands.onPause();
-      }
-    });
-    session.on('playNext', () => {
-      if (this.commands !== null) {
-        void this.commands.onNext();
-      }
-    });
-    session.on('playPrevious', () => {
-      if (this.commands !== null) {
-        void this.commands.onPrevious();
-      }
-    });
-    session.on('seek', (timeMs: number) => {
-      if (this.commands !== null) {
-        void this.commands.onSeek(timeMs);
-      }
-    });
+    try {
+      session.on('play', () => {
+        if (this.commands !== null) {
+          void this.commands.onPlay();
+        }
+      });
+    } catch (err) {
+      Logger.warn('MediaCenter', `register play failed: ${(err as Error).message}`);
+    }
+    try {
+      session.on('pause', () => {
+        if (this.commands !== null) {
+          void this.commands.onPause();
+        }
+      });
+    } catch (err) {
+      Logger.warn('MediaCenter', `register pause failed: ${(err as Error).message}`);
+    }
+    try {
+      session.on('playNext', () => {
+        if (this.commands !== null) {
+          void this.commands.onNext();
+        }
+      });
+    } catch (err) {
+      Logger.warn('MediaCenter', `register playNext failed: ${(err as Error).message}`);
+    }
+    try {
+      session.on('playPrevious', () => {
+        if (this.commands !== null) {
+          void this.commands.onPrevious();
+        }
+      });
+    } catch (err) {
+      Logger.warn('MediaCenter', `register playPrevious failed: ${(err as Error).message}`);
+    }
+    try {
+      session.on('seek', (timeMs: number) => {
+        if (this.commands !== null) {
+          void this.commands.onSeek(timeMs);
+        }
+      });
+    } catch (err) {
+      Logger.warn('MediaCenter', `register seek failed: ${(err as Error).message}`);
+    }
     this.eventsRegistered = true;
   }
 }

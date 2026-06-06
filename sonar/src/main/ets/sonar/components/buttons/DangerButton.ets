@@ -1,4 +1,5 @@
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { GlassSurfaceHelper } from '../../ui/material/GlassSurfaceHelper';
 
 @Component
 export struct DangerButton {
@@ -11,11 +12,7 @@ export struct DangerButton {
       .fontSize(12)
       .fontColor(UiTokens.COLOR_DANGER)
       .fontWeight(FontWeight.Medium)
-      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-        colorMode: ThemeColorMode.SYSTEM,
-        adaptiveColor: AdaptiveColor.DEFAULT,
-        scale: 1.0
-      })
+      .backgroundBlurStyle(GlassSurfaceHelper.BLUR_STYLE, GlassSurfaceHelper.BLUR_OPTIONS)
       .backgroundColor(UiTokens.COLOR_DANGER_SOFT_BG)
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
       .borderRadius(UiTokens.RADIUS_CHIP)

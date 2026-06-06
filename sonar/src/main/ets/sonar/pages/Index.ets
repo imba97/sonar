@@ -5,6 +5,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PlaybackController } from '../playback/PlaybackController';
 import { common } from '@kit.AbilityKit';
 import { FloatingTabBar } from '../components/navigation/FloatingTabBar';
+import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
 const DOMAIN = 0x0000;
@@ -19,6 +20,7 @@ struct Index {
   @State private lastBackPressTime: number = 0;
 
   async aboutToAppear(): Promise<void> {
+    ImmersiveMaterialHelper.probeAndCache();
     await AuthSession.restoreFromStore();
     AppStorage.setOrCreate<number>('rootTabIndex', 0);
     if (!AuthStore.getInstance().isLoggedIn()) {

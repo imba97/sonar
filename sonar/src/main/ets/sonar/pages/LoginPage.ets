@@ -4,6 +4,7 @@ import { AppTextInput } from '../components/forms/AppTextInput';
 import { PrimaryButton } from '../components/buttons/PrimaryButton';
 import { CardContainer } from '../components/layout/CardContainer';
 import { PageScaffold } from '../components/layout/PageScaffold';
+import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
 const DOMAIN = 0x0000;
@@ -15,6 +16,7 @@ export struct LoginPage {
   @State vm: LoginViewModel = new LoginViewModel();
 
   aboutToAppear(): void {
+    ImmersiveMaterialHelper.probeAndCache();
     hilog.info(DOMAIN, TAG, 'LoginPage aboutToAppear');
     void this.vm.restoreRememberedInputs();
     try {

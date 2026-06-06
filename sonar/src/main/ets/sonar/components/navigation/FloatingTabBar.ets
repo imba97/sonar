@@ -4,24 +4,15 @@ import { ProfilePage } from '../../pages/ProfilePage';
 import { PlaybackController } from '../../playback/PlaybackController';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
 import { MiniBarCoverDisc } from './MiniBarCoverDisc';
 import {
-
   HdsBarWidthRangeOptions,
-
   HdsTabs,
-
   HdsTabsBackgroundStyle,
-
   HdsTabsController,
-
   HdsTabsFloatingStyle,
-
-  HdsTabsMiniBar,
-
-  SystemMaterialParams,
-
-  hdsMaterial
+  HdsTabsMiniBar
 } from '@kit.UIDesignKit';
 import deviceInfo from '@ohos.deviceInfo';
 interface RootTabItem {
@@ -58,15 +49,9 @@ export struct FloatingTabBar {
 
   @State private containerWidth: number = 360;
 
-  @State private customMaterialType: hdsMaterial.MaterialType = hdsMaterial.MaterialType.ADAPTIVE;
-
-  @State private customMaterialLevel: hdsMaterial.MaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
-
   aboutToAppear(): void {
 
     AppStorage.setOrCreate<boolean>('rootTabActive', true);
-
-    this.initMaterialEffect();
 
   }
 
@@ -79,38 +64,6 @@ export struct FloatingTabBar {
   private supportsHdsTabs(): boolean {
 
     return deviceInfo.distributionOSApiVersion >= 60100;
-
-  }
-
-  private initMaterialEffect(): void {
-
-    const supportedTypes: Array<hdsMaterial.MaterialType> = hdsMaterial.getSystemMaterialTypes();
-
-    if (supportedTypes.indexOf(hdsMaterial.MaterialType.IMMERSIVE) < 0) {
-
-      this.customMaterialType = hdsMaterial.MaterialType.NONE;
-
-      this.customMaterialLevel = hdsMaterial.MaterialLevel.SMOOTH;
-
-      return;
-
-    }
-
-    this.customMaterialType = hdsMaterial.MaterialType.ADAPTIVE;
-
-    this.customMaterialLevel = hdsMaterial.MaterialLevel.ADAPTIVE;
-
-  }
-
-  private buildTabBarMaterialEffect(): SystemMaterialParams {
-
-    return {
-
-      materialType: this.customMaterialType,
-
-      materialLevel: this.customMaterialLevel
-
-    };
 
   }
 
@@ -198,7 +151,7 @@ export struct FloatingTabBar {
 
       gradientMask: gradientMask,
 
-      systemMaterialEffect: this.buildTabBarMaterialEffect(),
+      systemMaterialEffect: ImmersiveMaterialHelper.buildNavigationEffect(),
 
       miniBar: miniBar
 

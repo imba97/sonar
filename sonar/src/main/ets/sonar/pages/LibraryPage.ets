@@ -8,6 +8,7 @@ import { ErrorState } from '../components/feedback/ErrorState';
 import { CardContainer } from '../components/layout/CardContainer';
 import { AutoMarqueeText } from '../components/layout/AutoMarqueeText';
 import { PageScaffold } from '../components/layout/PageScaffold';
+import { GlassSearchBar } from '../components/forms/GlassSearchBar';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
 @Component
@@ -141,42 +142,6 @@ export struct LibraryPage {
   }
 
   @Builder
-  private buildFloatingSearchBox() {
-    Row() {
-      Row() {
-        TextInput({ text: $$this._searchKeyword, placeholder: '搜索媒体库' })
-          .width('100%')
-          .height(UiTokens.LIBRARY_SEARCH_HEIGHT)
-          .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
-          .backgroundColor(Color.Transparent)
-          .padding({ left: 18, right: 18 })
-          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-          .placeholderColor(UiTokens.COLOR_TEXT_SECONDARY)
-          .enterKeyType(EnterKeyType.Search)
-          .caretColor(UiTokens.COLOR_PRIMARY)
-          .onSubmit((_enterKey: EnterKeyType) => {
-            this.submitSearch();
-          })
-      }
-      .width('100%')
-      .borderRadius(UiTokens.LIBRARY_SEARCH_HEIGHT / 2)
-      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-        colorMode: ThemeColorMode.SYSTEM,
-        adaptiveColor: AdaptiveColor.DEFAULT,
-        scale: 1.0
-      })
-      .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
-      .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
-    }
-    .width('100%')
-    .padding({
-      left: UiTokens.LIBRARY_SEARCH_SIDE_PADDING,
-      right: UiTokens.LIBRARY_SEARCH_SIDE_PADDING,
-      top: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN
-    })
-  }
-
-  @Builder
   private buildAlbumsList() {
     List({ space: UiTokens.LIBRARY_GRID_GAP }) {
       if (this.vm.isLoading && this.vm.albums.length === 0) {
@@ -298,7 +263,17 @@ export struct LibraryPage {
       }) {
         Stack({ alignContent: Alignment.Top }) {
           this.buildAlbumsList()
-          this.buildFloatingSearchBox()
+          GlassSearchBar({
+            keyword: this._searchKeyword,
+            onKeywordChange: (value: string) => {
+              this._searchKeyword = value;
+            },
+            placeholder: '搜索媒体库',
+            topPadding: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN,
+            onSubmit: () => {
+              this.submitSearch();
+            }
+          })
         }
         .width('100%')
         .height('100%')

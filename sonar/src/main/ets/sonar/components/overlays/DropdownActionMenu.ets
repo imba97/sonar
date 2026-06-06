@@ -1,4 +1,5 @@
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { GlassSurfaceHelper } from '../../ui/material/GlassSurfaceHelper';
 
 export interface DropdownActionItem {
   id: string;
@@ -41,11 +42,7 @@ export struct DropdownActionMenu {
               .width('100%')
               .height(34)
               .fontSize(13)
-              .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-                colorMode: ThemeColorMode.SYSTEM,
-                adaptiveColor: AdaptiveColor.DEFAULT,
-                scale: 1.0
-              })
+              .backgroundBlurStyle(GlassSurfaceHelper.BLUR_STYLE, GlassSurfaceHelper.BLUR_OPTIONS)
               .backgroundColor(item.backgroundColor)
               .fontColor(item.fontColor)
               .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
@@ -59,6 +56,7 @@ export struct DropdownActionMenu {
         }
         .width(188)
         .padding(12)
+        .backgroundBlurStyle(GlassSurfaceHelper.BLUR_STYLE, GlassSurfaceHelper.BLUR_OPTIONS)
         .backgroundColor(UiTokens.COLOR_DROPDOWN_PANEL_BG)
         .borderRadius(12)
         .alignItems(HorizontalAlign.Start)

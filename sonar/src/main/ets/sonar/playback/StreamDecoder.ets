@@ -57,12 +57,17 @@ export class StreamDecoder {
   private static async downloadToFile(remoteUrl: string, localPath: string): Promise<void> {
     const request = http.createHttp();
     try {
-      const response = await request.request(remoteUrl, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER,
-        connectTimeout: 15000,
-        readTimeout: 120000
-      });
+      let response: http.HttpResponse;
+      try {
+        response = await request.request(remoteUrl, {
+          method: http.RequestMethod.GET,
+          expectDataType: http.HttpDataType.ARRAY_BUFFER,
+          connectTimeout: 15000,
+          readTimeout: 120000
+        });
+      } catch (err) {
+        throw new Error(`stream http request failed: ${(err as Error).message}`);
+      }
       if (response.responseCode !== http.ResponseCode.OK) {
         throw new Error(`stream http ${response.responseCode}`);
       }
@@ -71,15 +76,22 @@ export class StreamDecoder {
         fileIo.unlinkSync(localPath);
       } catch (_err) {
       }
-      const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
       try {
-        const writeOptions: WriteOptions = {
-          offset: 0,
-          length: content.byteLength
-        };
-        fileIo.writeSync(file.fd, content, writeOptions);
-      } finally {
-        fileIo.closeSync(file);
+        const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+        try {
+          const writeOptions: WriteOptions = {
+            offset: 0,
+            length: content.byteLength
+          };
+          fileIo.writeSync(file.fd, content, writeOptions);
+        } finally {
+          try {
+            fileIo.closeSync(file);
+          } catch (_err) {
+          }
+        }
+      } catch (err) {
+        throw new Error(`write stream file failed: ${(err as Error).message}`);
       }
       Logger.debug('StreamDecoder', `cached stream bytes=${content.byteLength} path=${localPath}`);
     } finally {

@@ -1,4 +1,5 @@
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { GlassSurfaceHelper } from '../../ui/material/GlassSurfaceHelper';
 
 @Component
 export struct AppTextInput {
@@ -28,11 +29,7 @@ export struct AppTextInput {
       .width('100%')
       .height(46)
       .borderRadius(12)
-      .backgroundBlurStyle(BlurStyle.COMPONENT_THICK, {
-        colorMode: ThemeColorMode.SYSTEM,
-        adaptiveColor: AdaptiveColor.DEFAULT,
-        scale: 1.0
-      })
+      .backgroundBlurStyle(GlassSurfaceHelper.BLUR_STYLE, GlassSurfaceHelper.BLUR_OPTIONS)
       .backgroundColor(UiTokens.COLOR_GLASS_BAR_BG)
       .border({ width: 1, color: UiTokens.COLOR_GLASS_BAR_BORDER })
   }

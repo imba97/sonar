@@ -2,13 +2,13 @@
   "app": {
     "signingConfigs": [
       {
-        "name": "default",
+        "name": "debug",
         "type": "HarmonyOS",
         "material": {
           "storeFile": "D:/sonar-certificate/SonarDebug.p12",
-          "storePassword": "0000001E703C48D618A0E5034CA330861797BFA5E194176D30387964D45E50103C434ED158AECDC7CC99DE304E5E",
+          "storePassword": "0000001EF0B09ADBE8B5619282E096F6FCC3988C87F846FEC4315765006FAF6D755221C4FDE9CFBFC0B9BEECF5C8",
           "keyAlias": "sonar-debug",
-          "keyPassword": "0000001E41153E4BBEF20D40C9EA542107A1C64930AB94690485B42B5C9F26110359BA0370EBC2928F621AF82982",
+          "keyPassword": "0000001E4186D37582D2FEC05940BFD5AFD66A0E21642E3FD9DB8F40D8663E0532185DBFFAE0B0F48B2A10F6B2EC",
           "signAlg": "SHA256withECDSA",
           "profile": "D:/sonar-certificate/SonarDebugDebug.p7b",
           "certpath": "D:/sonar-certificate/SonarDebug.cer"

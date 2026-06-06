@@ -43,7 +43,7 @@ export class UiTokens {
 
   static readonly FLOATING_TAB_BAR_HEIGHT: number = 56;
   static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
-  /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds-tabs-bar-floating.mdc「展开底部胶囊宽度」 */
+  /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds/tabs-bar-floating.mdc「展开底部胶囊宽度」 */
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL: number = 262;
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM: number = 278;
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE: number = 294;

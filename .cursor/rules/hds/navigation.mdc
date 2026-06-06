@@ -7,12 +7,12 @@ alwaysApply: false
 # HDS 导航（HdsNavigation）规范
 
 ## 文档要点总览
-- `HdsNavigation` 为 HDS 路由根容器，子页用 `HdsNavDestination`；栈操作仍用 `NavPathStack`（与 ArkUI 路由模型一致，见 `arkui-navigation-routing.mdc`）。
+- `HdsNavigation` 为 HDS 路由根容器，子页用 `HdsNavDestination`；栈操作仍用 `NavPathStack`（与 ArkUI 路由模型一致，见 `arkui/navigation-routing.mdc`）。
 - 标题栏支持 **动态模糊**（通用 / 过渡 / 渐变）、自定义 `stackBuilder` / `bottomBuilder`、消息红点、Sheet 样式等。
 - 默认标题栏 **层叠**于内容区上层；横屏 Stack 模式不支持合并工具栏到菜单栏。
 
 ## 适用范围
-- API 18+：通用模糊；API 20+：过渡模糊、渐变模糊、自定义区域；API 23+：沉浸光感（见 `immersive-light-perception.mdc`）。
+- API 18+：通用模糊；API 20+：过渡模糊、渐变模糊、自定义区域；API 23+：沉浸光感（见 `hds/immersive-light-perception.mdc`）。
 - 模块：`import { HdsNavigation, HdsNavDestination, ... } from '@kit.UIDesignKit'`。
 
 ## 动态模糊选型（scrollEffectType）
@@ -65,12 +65,12 @@ struct Index {
 ## 开发落地清单
 - 路由跳转与 ArkUI 一致：`pathStack.pushPath` / `pop`；二级页根节点为 `HdsNavDestination`。
 - PC/2in1：可分栏、悬浮分栏等模式，按设备能力配置（官方一多指南）。
-- 沉浸光感：标题栏 `titleBar.style.systemMaterialEffect` 与底栏策略一致。
+- 沉浸光感：标题栏 `titleBar.style.systemMaterialEffect` 与底栏同一策略（见 `hds/immersive-light-perception.mdc`）。
 - API 22+ 起部分类型可免手动导入 `HdsNavigationAttribute`，以当前 SDK 文档为准。
 
 ## 与 ArkUI Navigation 选型
 - 需要 HDS 模糊、菜单气泡、Design System 标题栏 → `HdsNavigation`。
-- 轻量、完全自绘标题 → `Navigation`（`arkui-navigation-routing.mdc`）。
+- 轻量、完全自绘标题 → `Navigation`（`arkui/navigation-routing.mdc`）。
 
 ## 常见误区
 - 在普通 `Navigation` 上期望 HDS 模糊 API 生效。

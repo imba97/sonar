@@ -61,7 +61,7 @@ const options: audio.AudioRendererOptions = { streamInfo, rendererInfo };
 - 统一封装状态机守卫（`canStart/canPause/canStop/canRelease`）。
 - 页面销毁、任务中断、异常分支都必须兜底 `release()`。
 - **禁止在 `writeData` 回调内做 HTTP/解码**；解码应在 TaskPool/独立模块写入环形缓冲。
-- 音乐类后台播放须同时接入 **AVSession** + `AUDIO_PLAYBACK` 长时任务（见 `avsession-media-center.mdc`）。
+- 音乐类后台播放须同时接入 **AVSession** + `AUDIO_PLAYBACK` 长时任务（见 `media/avsession-media-center.mdc`）。
 
 ## 常见问题与规避
 - 问题 1：`StreamUsage` 配置错误导致音量策略或音频焦点异常。

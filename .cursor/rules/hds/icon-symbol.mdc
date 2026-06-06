@@ -10,14 +10,14 @@ alwaysApply: false
 - `hdsDrawable` 将单层/分层图标处理为符合 HarmonyOS Design System 的样式（合成、剪切、缩放、描边）。
 - **推荐分层图标**；单层场景用 `getHdsIcon` / `getHdsIcons`（API 12+）。
 - 应用内 **自定义 Symbol** 可注册动效资源，与 `SymbolGlyph` 配合，无需预置进系统。
+- 桌面/启动分层图标见 `app/icon.mdc`（勿与 `hdsDrawable` 业务图标混用）。
 
 ## 适用范围
 - Phone、Tablet、PC/2in1；TV 单层处理自 API 19 起。
 - 模块：`import { hdsDrawable } from '@kit.UIDesignKit'`。
 
 ## 规格限制
-- 批量处理：最大并发 **10**，单次最多 **500** 个。
-- Symbol 注册：仅 **1 组** 资源，最多 **10** 个自定义图标与动效参数。
+- 批量与 Symbol 注册上限见 `hds/overview.mdc`「约束与限制」。
 
 ## 单层图标（开发步骤）
 

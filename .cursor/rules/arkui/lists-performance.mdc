@@ -9,7 +9,7 @@ alwaysApply: false
 ## 文档要点总览
 - 长列表必须用 `LazyForEach` + `IDataSource`，仅渲染可视区；短固定项可用 `ForEach`。
 - `Repeat`（API 12+）适合可复用模板的重复渲染；与 `@Reusable` 组合进一步降开销。
-- HDS 列表卡片/横滑删除见 `hds-list-card.mdc`；动画见 `arkts-animation.mdc`。
+- HDS 列表卡片/横滑删除见 `hds/list-card.mdc`；动画见 `arkui/animation.mdc`。
 
 ## 渲染控制选型
 

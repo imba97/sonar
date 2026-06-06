@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## 文档要点总览
 - **推荐** `Navigation` + `NavDestination` + `NavPathStack` 替代已不推荐的路由 `@ohos.router`。
-- 系统级模糊标题栏、HDS 自定义区请用 `HdsNavigation`（见 `hds-navigation.mdc`），勿与原生 `Navigation` 混在同一栈语义里。
+- 系统级模糊标题栏、HDS 自定义区请用 `HdsNavigation`（见 `hds/navigation.mdc`），勿与原生 `Navigation` 混在同一栈语义里。
 - 转场、共享元素、蒙层动画有明确挂载点，错误挂在 `NavDestination` 容器上易冲突。
 
 ## 基本结构

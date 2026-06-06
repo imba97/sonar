@@ -9,10 +9,10 @@ alwaysApply: false
 ## 文档要点总览
 - `@kit.UIDesignKit` 的 `hdsEffect` 提供点光源、按压阴影、边缘/背景流光等沉浸视效。
 - 通过 `HdsEffectBuilder` + `.visualEffect(...)` 或 `.effect(...)` 挂载到组件。
-- **沉浸光感材质**（`systemMaterialEffect`）见 [`immersive-light-perception.mdc`](immersive-light-perception.mdc)，本节不重复。
+- **沉浸光感材质**（`systemMaterialEffect`）见 [`hds/immersive-light-perception.mdc`](hds/immersive-light-perception.mdc)，本节不重复。
 
 ## 适用范围
-- API 20+（6.0.0）起逐步提供；**模拟器不支持** HDS 沉浸视效，须真机验证（见 `ui-design-kit-overview.mdc`）。
+- API 20+（6.0.0）起逐步提供；**模拟器不支持** HDS 沉浸视效，须真机验证（见 `hds/overview.mdc`）。
 
 ## 点光源（Point Light）
 
@@ -54,7 +54,7 @@ Button('操作')
 
 ## 开发落地清单
 - 光效仅用于关键可点击控件，勿全页铺满。
-- 与动画规范一致：优先短反馈，避免长时发光常亮（见 `arkts-animation.mdc`）。
+- 与动画规范一致：优先短反馈，避免长时发光常亮（见 `arkui/animation.mdc`）。
 - 性能冲突时降级或关闭光效，优先帧率与温控。
 
 ## 常见误区

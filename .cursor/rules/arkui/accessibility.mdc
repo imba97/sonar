@@ -16,7 +16,7 @@ alwaysApply: false
 - **分组**：`Row().accessibilityGroup(true)` 将封面+标题+操作读作一条。
 - **状态**：播放/选中/禁用通过 `accessibilityDescription` 或系统控件状态传递。
 - **触控目标**：交互热区建议 ≥ 48 vp；视觉可小但 `.responseRegion` 扩大命中。
-- **对比度**：文本与背景满足 WCAG 思路；深色模式单独验收（见 `arkui-theme-window-adaptation.mdc`）。
+- **对比度**：文本与背景满足 WCAG 思路；深色模式单独验收（见 `arkui/theme-window-adaptation.mdc`）。
 - **动画**：尊重系统「减少动态效果」；必要动画勿唯一传达状态。
 
 ```typescript

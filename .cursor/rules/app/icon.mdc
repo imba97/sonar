@@ -11,6 +11,7 @@ alwaysApply: false
 - 启动闪屏：`module.json5` → `startWindowIcon: "$media:startIcon"`。
 - module 级 `abilities[].icon` **可选**；若配置且含 `entity.system.home`，**优先级高于** app.json5。
 - 业务 SVG（`lib_icon_*`、`dock_music_note` 等）**不得**用作应用/启动图标。
+- 应用内 UI 图标与 Symbol 见 `hds/icon-symbol.mdc`（与桌面/启动图标职责不同）。
 
 ## 图标位点（三处职责）
 
@@ -108,7 +109,6 @@ sonar/src/main/resources/base/media/
 | 桌面是地球/库页图标 | module `icon` → `lib_icon_*` | 删除 module `icon` 或改为 `$media:layered_image` |
 | 桌面图标空白/异常 | 只有 `layered_image.json`，无 PNG | 提交 `foreground.png` / `background.png` 到 AppScope |
 | 启动页图标错误 | `startWindowIcon` 指向业务 SVG | 使用 `$media:startIcon` |
-| 无曲目底栏误用 Logo | 播放占位用 `lib_icon_12` | 无曲目用 `dock_music_note`（见 hds-tabs-bar-floating 规范） |
 
 ## 验收清单
 

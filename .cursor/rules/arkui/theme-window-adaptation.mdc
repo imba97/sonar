@@ -10,7 +10,7 @@ alwaysApply: false
 - 颜色/图片优先 **资源限定词**：`base` + `dark` 同名字段，运行时随系统主题切换。
 - 沉浸式与安全区：`expandSafeArea`、窗口避让区（状态栏/导航条/刘海）；与 HDS 悬浮底栏叠加时注意 `bottomRectHeight`。
 - 软键盘：`KeyboardAvoidMode` + 可选监听 `keyboardHeightChange`；标题栏可 `.expandSafeArea([SafeAreaType.KEYBOARD])` 固定。
-- 一多：断点 + 栅格见 `arkui-layout-containers.mdc`；无障碍见 `arkui-accessibility.mdc`。
+- 一多：断点 + 栅格见 `arkui/layout-containers.mdc`；无障碍见 `arkui/accessibility.mdc`。
 
 ## 深色模式
 

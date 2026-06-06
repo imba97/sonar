@@ -1,0 +1,74 @@
+---
+description: HDS 悬浮页签/miniBar 技术规范；展开宽度改 UiTokens 三档
+alwaysApply: true
+---
+
+# HDS 底部页签悬浮样式规范
+
+曾犯错误与反模式见 `hds/tabs-bar-floating-pitfalls.mdc`。
+
+## 文档要点总览
+- HarmonyOS 6.1.0(23)+：`HdsTabs` 支持 `barFloatingStyle` 悬浮页签与 `miniBar`。
+- 须 `.barOverlap(true)` + `.barPosition(BarPosition.End)` + `.vertical(false)`。
+- 页签栏样式仅支持 `BottomTabBarStyle` 或 `CustomBuilder`（主导航须 `BottomTabBarStyle`）。
+
+## `barFloatingStyle` 参数
+
+| 参数 | 作用 |
+| --- | --- |
+| `barWidth` | 分档宽度（`smallWidth` / `mediumWidth` / `largeWidth`） |
+| `barBottomMargin` | 页签栏与底部间距 |
+| `gradientMask` | 渐变蒙层（`maskColor`、`maskHeight`） |
+| `systemMaterialEffect` | 沉浸光感（见 `hds/immersive-light-perception.mdc`） |
+| `miniBar.miniBarBuilder` | 迷你栏自定义 UI |
+
+## miniBar 官方模型
+
+- 折叠/展开由 **HDS 控制 mini 槽位宽度**，应用侧勿自建折叠状态机。
+- `miniBarBuilder` **仅一个 `Row`**：`width('100%')` + `.clip(true)`。
+- 封面 + 文案（`layoutWeight(1)` + `flexShrink(1)`）+ 操作区；封面外径 `FLOATING_TAB_BAR_HEIGHT`（56vp）。
+- 参考：[设置页签栏的悬浮样式](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ui-design-hds-tabs-bar-floating)
+
+## Sonar 播放 UI 结构
+
+- 播放态 UI **唯一入口**：`FloatingTabBar.miniBarBuilder()`。
+- 根页勿 `Stack` 叠加 `MiniPlayerBar` 或第二套播放条（详见 pitfalls 归档）。
+- 无曲目占位图标：`dock_music_note`，勿用 `lib_icon_12` / Logo。
+
+## 展开底部胶囊宽度（唯一修改点）
+
+用户要求调整展开宽度时，**只改** `sonar/src/main/ets/sonar/ui/tokens/UiTokens.ets` 三档 token（同增同减 ±8～12vp）：
+
+| Token | 断点 |
+| --- | --- |
+| `FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL` | 屏宽 &lt; 600vp |
+| `FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM` | 600vp ≤ 宽 &lt; 840vp |
+| `FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE` | 宽 ≥ 840vp |
+
+**当前值：262 / 278 / 294 vp。**
+
+生效链路：`resolveFloatingBarWidth()` → `barFloatingStyle.barWidth`；`miniBarBuilder` 内 Row 保持 `width('100%')`，不在 Builder 钉展开宽。
+
+折叠态圆球约 56vp，由系统 mini 槽控制，不在此调节。
+
+## ArkTS 类型
+
+- 使用 `@kit.UIDesignKit` 导出类型：`HdsTabsFloatingStyle`、`HdsBarWidthRangeOptions`、`HdsTabsMiniBar` 等。
+- 禁止自定义 interface 充当 `barFloatingStyle` 返回值。
+- 可封装 `buildBarFloatingStyle(): HdsTabsFloatingStyle`。
+
+## 页签图标（紧凑态）
+
+- `TabBarIconStyle` 无 `size` 字段；须 `new BottomTabBarStyle(icon, label).labelStyle(...).iconStyle(...)`。
+- 禁止 CustomBuilder 替代 `BottomTabBarStyle` 做主导航（图标不可见仍可点击）。
+
+## 验收
+
+- 展开：页签与播放区协调，不盖住左侧页签圆球；曲名与操作按钮可读。
+- 折叠：右侧 56vp 圆盘/音符。
+- 无曲目：展开见文案，无播放按钮；有曲目：封面/标题/控制齐全。
+- 三档断点真机各扫一眼；深浅色蒙层与材质可读。
+
+## 参考文档
+
+- https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/ui-design-hds-tabs-bar-floating

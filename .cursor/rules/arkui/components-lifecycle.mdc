@@ -13,7 +13,7 @@ alwaysApply: false
 
 ## 适用范围
 - 所有 ArkTS 声明式 UI 组件。
-- V2 组件（`@ComponentV2`）新代码优先；与 V1 混用见 `arkui-state-management.mdc`。
+- V2 组件（`@ComponentV2`）新代码优先；与 V1 混用见 `arkui/state-management.mdc`。
 
 ## 生命周期顺序与禁忌
 

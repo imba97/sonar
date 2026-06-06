@@ -6,6 +6,9 @@ import { LoadingIcon } from '../feedback/LoadingIcon';
 /** 约 60fps 更新角度，便于暂停时冻结当前朝向（animateTo 无法保留中间角度） */
 const COVER_ROTATION_TICK_MS: number = 16;
 
+/** miniBar 因 Tab 切换重建时保留封面旋转角 */
+let persistedCoverRotateDeg: number = 0;
+
 @Component
 export struct PlaybackCoverDisc {
   @Prop discSize: number = 44;
@@ -25,6 +28,7 @@ export struct PlaybackCoverDisc {
   private rotationTimerId: number = -1;
 
   aboutToAppear(): void {
+    this.coverRotateDeg = persistedCoverRotateDeg;
     this.lastCoverRevision = this.coverRevision;
     this.lastTrackId = this.trackId;
     this.syncCoverPixelMap(true);
@@ -33,6 +37,7 @@ export struct PlaybackCoverDisc {
   }
 
   aboutToDisappear(): void {
+    persistedCoverRotateDeg = this.coverRotateDeg;
     this.stopRotationTimer();
   }
 
@@ -44,17 +49,16 @@ export struct PlaybackCoverDisc {
     const trackIdChanged: boolean = this.trackId !== this.lastTrackId;
     if (trackIdChanged) {
       this.lastTrackId = this.trackId;
+      this.resetCoverRotation();
     }
     const artId: string = this.showCover ? this.coverArtId : '';
     const artIdChanged: boolean = artId !== this.boundCoverArtId;
-    if (trackIdChanged || artIdChanged || revisionChanged) {
-      this.resetCoverRotation();
-    }
     this.syncCoverPixelMap(revisionChanged || artIdChanged);
   }
 
   private resetCoverRotation(): void {
     this.coverRotateDeg = 0;
+    persistedCoverRotateDeg = 0;
   }
 
   private onSpinInputsChange(): void {

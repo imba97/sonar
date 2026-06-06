@@ -1,4 +1,11 @@
+---
+description: Sonar 网络传输封装与 Endpoint 路由规范（项目内）
+alwaysApply: false
+---
+
 # 网络传输与 Endpoint 路由规范
+
+> HarmonyOS Network Kit 通用规范见 `network/overview.mdc` 及子规则；本文档为 Sonar 项目内强制约定。
 
 ## 路由哲学
 
@@ -11,8 +18,9 @@
 - 禁止业务层直接 `http.createHttp()`。
 - REST JSON 必须 `HttpTransport.requestWithFallback`（经 `SubsonicApi`）。
 - 小二进制（封面）必须 `HttpTransport.requestBufferWithFallback`。
-- 音频长流必须 `MediaResourceService.openStream` + `HttpTransport.openStream`（`FetchWorker`）。
-- Endpoint 切换必须经 `EndpointRouter`；长流 migrate 经 `NetworkCoordinator` → `PlaybackPipelineBridge`。
+- 音频播放：`MediaResourceService.openStream` 构建 URL → **AVPlayer HTTP 直连接口**（`PipelineOrchestrator.replayAt`）；禁止播放路径并行 Fetch。
+- 可选预拉：`PrefetchWorker` 经 `HttpTransport.openStream`（local boost 下一首）。
+- Endpoint 切换必须经 `EndpointRouter`；长流 migrate 顺序：**`NetworkCoordinator` 先 `MediaResourceService.migrateActiveStreams(to)`，再 `PlaybackPipelineBridge` → `replayAt`**。
 
 ## WiFi 信任缓存
 
@@ -22,4 +30,6 @@
 
 ## 参考
 
-- `sonar/src/main/ets/sonar/network/` 目录结构
+- Network Kit 总览：`network/overview.mdc`
+- 官方：[系统网络开发指南](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/system-network)
+- 代码：`sonar/src/main/ets/sonar/network/` 目录结构

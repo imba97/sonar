@@ -39,14 +39,17 @@ export class AuthContext {
     const resolvedEndpoint: EndpointType = targetEndpoint ?? AuthContext.resolveActiveEndpoint();
     const baseSource: string = AuthStore.resolveEndpointUrl(a, resolvedEndpoint);
     const base: string = SubsonicUrlUtil.normalizeServerUrl(baseSource);
+    const isBinaryMedia: boolean = endpoint === 'stream.view' || endpoint === 'getCoverArt.view';
     const allParams: string[] = [
       'u=' + encodeURIComponent(a.username),
       'v=' + encodeURIComponent(API_VERSION),
       'c=' + encodeURIComponent(CLIENT_NAME),
-      'f=json',
       't=' + encodeURIComponent(a.token),
       's=' + encodeURIComponent(a.salt)
     ];
+    if (!isBinaryMedia) {
+      allParams.push('f=json');
+    }
     if (a.authMode !== undefined && a.authMode !== 'subsonicToken') {
       throw new SubsonicApiError(-4, `Unsupported auth mode: ${a.authMode}`);
     }

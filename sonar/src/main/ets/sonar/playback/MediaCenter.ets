@@ -4,6 +4,11 @@ import { image } from '@kit.ImageKit';
 import { Logger } from '../common/Logger';
 import { NowPlayingTrack, PlaybackSnapshot } from './PlaybackSnapshot';
 
+interface MediaCenterAvPlayback {
+  state: avSession.PlaybackState;
+  speed: number;
+}
+
 export interface MediaCenterCommands {
   onPlay: () => Promise<void>;
   onPause: () => Promise<void>;
@@ -24,6 +29,7 @@ export class MediaCenter {
   private lastPlaybackSyncSecond: number = -1;
   private lastPlaybackStateIsPlaying: boolean = false;
   private lastPlaybackStateSyncAt: number = 0;
+  private playbackStateChain: Promise<void> = Promise.resolve();
 
   setContext(context: common.UIAbilityContext): void {
     this.context = context;
@@ -122,6 +128,9 @@ export class MediaCenter {
     lastDurationMs: number
   ): boolean {
     if (assetChanged) {
+      if (track.coverArtId.length > 0 && cover === null) {
+        return false;
+      }
       return true;
     }
     if (cover !== null && track.coverArtId.length > 0 && track.coverArtId !== lastCoverArtId) {
@@ -161,41 +170,91 @@ export class MediaCenter {
     if (session === null) {
       return;
     }
-    const isPlaying: boolean = snapshot.phase === 'playing';
-    const positionMs: number = snapshot.isProgressFrozen()
-      ? snapshot.positionMs
-      : snapshot.positionMs;
+    const avState: MediaCenterAvPlayback = MediaCenter.resolveAvPlaybackState(snapshot);
+    const isPlaying: boolean = avState.state === avSession.PlaybackState.PLAYBACK_STATE_PLAY;
+    const positionMs: number = snapshot.positionMs;
     const now: number = Date.now();
     const currentSecond: number = Math.floor(positionMs / 1000);
-    if (!force && isPlaying && !snapshot.isBuffering && currentSecond === this.lastPlaybackSyncSecond) {
+    if (snapshot.isBuffering) {
+      this.playbackStateChain = this.playbackStateChain.then(async (): Promise<void> => {
+        try {
+          await session.setAVPlaybackState({
+            state: avSession.PlaybackState.PLAYBACK_STATE_PAUSE,
+            speed: 1.0,
+            position: {
+              elapsedTime: positionMs,
+              updateTime: now
+            }
+          });
+          this.lastPlaybackStateSyncAt = now;
+          this.lastPlaybackStateIsPlaying = false;
+          this.lastPlaybackSyncSecond = currentSecond;
+        } catch (err) {
+          Logger.warn('MediaCenter', `buffering pause state failed: ${(err as Error).message}`);
+        }
+      });
+      await this.playbackStateChain;
       return;
     }
-    if (!force && isPlaying === this.lastPlaybackStateIsPlaying &&
-      !snapshot.isBuffering &&
+    if (!force && isPlaying && currentSecond === this.lastPlaybackSyncSecond) {
+      return;
+    } else if (!force && isPlaying === this.lastPlaybackStateIsPlaying &&
       now - this.lastPlaybackStateSyncAt < 1000) {
       return;
     }
-    let state: avSession.PlaybackState = avSession.PlaybackState.PLAYBACK_STATE_PAUSE;
+    this.playbackStateChain = this.playbackStateChain.then(async (): Promise<void> => {
+      try {
+        await session.setAVPlaybackState({
+          state: avState.state,
+          speed: avState.speed,
+          position: {
+            elapsedTime: positionMs,
+            updateTime: now
+          }
+        });
+        this.lastPlaybackStateSyncAt = now;
+        this.lastPlaybackStateIsPlaying = isPlaying;
+        this.lastPlaybackSyncSecond = currentSecond;
+      } catch (err) {
+        Logger.warn('MediaCenter', `setAVPlaybackState failed: ${(err as Error).message}`);
+      }
+    });
+    await this.playbackStateChain;
+  }
+
+  /**
+   * 系统播控在 PLAY 下会 extrapolate 进度。rebuffer/切网对系统上报 PAUSE + 冻结位置；
+   * 应用内仍保持 phase=playing + isBuffering（封面 loading）。
+   */
+  private static resolveAvPlaybackState(snapshot: PlaybackSnapshot): MediaCenterAvPlayback {
+    if (snapshot.isBuffering) {
+      return {
+        state: avSession.PlaybackState.PLAYBACK_STATE_PAUSE,
+        speed: 1.0
+      };
+    }
     if (snapshot.phase === 'playing') {
-      state = avSession.PlaybackState.PLAYBACK_STATE_PLAY;
-    } else if (snapshot.phase === 'loading' && !snapshot.isBuffering) {
-      state = avSession.PlaybackState.PLAYBACK_STATE_PREPARE;
+      return {
+        state: avSession.PlaybackState.PLAYBACK_STATE_PLAY,
+        speed: 1.0
+      };
     }
-    try {
-      await session.setAVPlaybackState({
-        state,
-        speed: 1.0,
-        position: {
-          elapsedTime: positionMs,
-          updateTime: Date.now()
-        }
-      });
-      this.lastPlaybackStateSyncAt = now;
-      this.lastPlaybackStateIsPlaying = isPlaying;
-      this.lastPlaybackSyncSecond = currentSecond;
-    } catch (err) {
-      Logger.warn('MediaCenter', `setAVPlaybackState failed: ${(err as Error).message}`);
+    if (snapshot.phase === 'loading') {
+      return {
+        state: avSession.PlaybackState.PLAYBACK_STATE_PREPARE,
+        speed: 1.0
+      };
     }
+    if (snapshot.phase === 'paused') {
+      return {
+        state: avSession.PlaybackState.PLAYBACK_STATE_PAUSE,
+        speed: 1.0
+      };
+    }
+    return {
+      state: avSession.PlaybackState.PLAYBACK_STATE_PAUSE,
+      speed: 1.0
+    };
   }
 
   private async ensureSession(): Promise<avSession.AVSession | null> {

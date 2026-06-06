@@ -78,8 +78,9 @@ const options: audio.AudioRendererOptions = { streamInfo, rendererInfo };
 ## 参考文档
 - https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/using-audiorenderer-for-playback
 
-## Sonar 方案 F 管线（playback/pipeline/）
-- **FetchWorker**：`HttpTransport.openStream` + `CompressedRingBuffer` + `StreamCacheFile`；禁止 `http.createHttp()`。
-- **PlayWorker + AudioRenderSink**：Governor ≥10s 水位后出声；`writeData` 读 `PcmRingBuffer`（当前过渡经 AVPlayer 解码，F2 可切纯 AudioRenderer）。
-- **BufferGovernor**：10s 起播 / 3s 低水位 rebuffer；与切网 `migrateInPlace` 共用 `isBuffering` UX。
-- **禁止**在 `writeData` 内 HTTP/解码；Fetch 与 Play 分 Worker，CancelToken 统一 cancel。
+## Sonar 播放管线（playback/pipeline/）
+- **AVPlayer-only**：`AudioRenderSink.openUrl(HTTP stream URL)` → prepare → seek(可选) → play；禁止并行 Fetch/磁盘缓存/fd。
+- **PipelineOrchestrator.replayAt**：首播、切网 migrate、error 恢复共用同一原语。
+- **切网 migrate**：`enterBuffering` → `replayAt(新 endpoint URL, frozenMs, wasPlaying)` → `exitBuffering`；等价于手动选曲 + 拖进度。
+- **用户 seek**：同 endpoint 且 player 已 prepared/playing/paused 时仅 `AVPlayer.seek`；error/idle 才 `replayAt`。
+- **PrefetchWorker**：下一首 local boost 预拉（与当前播放独立）；禁止业务层直接 `http.createHttp()`。

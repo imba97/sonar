@@ -11,14 +11,17 @@ export class StreamResource {
   readonly songId: string;
   private cancelTokenRef: CancelToken;
   byteOffset: number;
+  /** Subsonic stream.view offset（毫秒），用于切网续播，避免 AVPlayer 远程 seek 超时 */
+  timeOffsetMs: number;
   private endpoint: EndpointType;
   private readonly maxBitRate: number;
 
   constructor(songId: string, endpoint: EndpointType, byteOffset: number, maxBitRate: number,
-    cancelToken: CancelToken) {
+    cancelToken: CancelToken, timeOffsetMs: number = 0) {
     this.songId = songId;
     this.endpoint = endpoint;
     this.byteOffset = byteOffset;
+    this.timeOffsetMs = timeOffsetMs;
     this.maxBitRate = maxBitRate;
     this.cancelTokenRef = cancelToken;
   }
@@ -41,6 +44,9 @@ export class StreamResource {
     const params: string[] = ['id', this.songId];
     if (this.maxBitRate > 0) {
       params.push('maxBitRate', String(this.maxBitRate));
+    }
+    if (this.timeOffsetMs > 0) {
+      params.push('offset', String(this.timeOffsetMs));
     }
     const url: string = AuthContext.buildMediaUrl('stream', params, undefined, this.endpoint);
     const headers: Record<string, string> = {};

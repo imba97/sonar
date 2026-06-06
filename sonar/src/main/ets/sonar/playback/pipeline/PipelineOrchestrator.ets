@@ -1,19 +1,13 @@
 import { common } from '@kit.AbilityKit';
+import { AuthStore, EndpointType } from '../../auth/AuthStore';
+import { AuthContext } from '../../network/auth/AuthContext';
 import { Logger } from '../../common/Logger';
+import { MusicDebug } from '../MusicDebug';
+import { HttpTransport } from '../../network/transport/HttpTransport';
 import { StreamResource } from '../../network/media/StreamResource';
-import { CancelToken } from '../../network/transport/CancelToken';
 import { EndpointChangeEvent } from '../../network/routing/EndpointTypes';
-import { AudioRenderSink } from './AudioRenderSink';
-import { BufferGovernor, BufferGovernorListener } from './BufferGovernor';
-import { COMPRESSED_RING_CAPACITY_BYTES, estimateByteOffset, PCM_RING_CAPACITY_BYTES } from './PlaybackBufferPolicy';
-import { CompressedRingBuffer } from './CompressedRingBuffer';
-import { FetchWorker } from './FetchWorker';
+import { AudioRenderSink, AudioRenderSinkListener, PlaySinkPhase } from './AudioRenderSink';
 import { PipelineMetrics } from './PipelineMetrics';
-import { PlayWorker, PlayWorkerCallbacks } from './PlayWorker';
-import { PlaySinkPhase } from './AudioRenderSink';
-import { PcmRingBuffer } from '../PcmRingBuffer';
-import { SeekCoordinator } from './SeekCoordinator';
-import { StreamCacheFile } from './StreamCacheFile';
 
 export interface PipelineOrchestratorCallbacks {
   onEnterBuffering(frozenPositionMs: number): void;
@@ -27,74 +21,46 @@ export interface PipelineOrchestratorCallbacks {
   getCurrentPhase(): string;
 }
 
+const MAX_REPLAY_RETRIES: number = 3;
+
 /**
- * 播放管线编排：FetchWorker ∥ PlayWorker + BufferGovernor。
+ * AVPlayer-only 播放编排：首播 / 切网 / seek 共用 replayAt(HTTP URL)。
  */
-export class PipelineOrchestrator implements BufferGovernorListener {
-  private context: common.UIAbilityContext | null = null;
+export class PipelineOrchestrator implements AudioRenderSinkListener {
   private callbacks: PipelineOrchestratorCallbacks | null = null;
-  private readonly governor: BufferGovernor = new BufferGovernor();
-  private readonly compressedRing: CompressedRingBuffer =
-    new CompressedRingBuffer(COMPRESSED_RING_CAPACITY_BYTES);
-  private readonly pcmRing: PcmRingBuffer = new PcmRingBuffer(PCM_RING_CAPACITY_BYTES);
-  private readonly cacheFile: StreamCacheFile = new StreamCacheFile();
   private readonly audioSink: AudioRenderSink = new AudioRenderSink();
-  private readonly playWorker: PlayWorker = new PlayWorker(this.audioSink);
-  private readonly seekCoordinator: SeekCoordinator = new SeekCoordinator();
   private activeStreamResource: StreamResource | null = null;
-  private fetchRunning: boolean = false;
   private migrating: boolean = false;
+  private bufferingActive: boolean = false;
   private frozenPositionMs: number = 0;
   private wasPlayingBeforeBuffer: boolean = false;
   private durationMs: number = 0;
-  private downloadedBytes: number = 0;
-  private contentLength: number = 0;
-  private fetchCancelToken: CancelToken | null = null;
+  private replayRetryTimerId: number = -1;
+  private replayRetryCount: number = 0;
+  private lastReplayUrl: string = '';
+  private lastReplaySeekMs: number = 0;
+  private lastReplayAutoPlay: boolean = false;
+  /** replayAt(seek>0)：等 onReplayReady 再 exitBuffering */
+  private awaitReplayReady: boolean = false;
 
   constructor() {
-    this.governor.setListener(this);
-    this.playWorker.setGovernor(this.governor);
+    this.audioSink.setListener(this);
   }
 
-  setContext(context: common.UIAbilityContext): void {
-    this.context = context;
-    this.cacheFile.setContext(context);
+  setContext(_context: common.UIAbilityContext): void {
   }
 
   setCallbacks(callbacks: PipelineOrchestratorCallbacks | null): void {
     this.callbacks = callbacks;
-    const playCallbacks: PlayWorkerCallbacks = {
-      onPhaseChanged: (phase: PlaySinkPhase): void => {
-        this.callbacks?.onPhaseChanged(phase);
-      },
-      onPositionChanged: (positionMs: number): void => {
-        if (!this.governor.isBuffering()) {
-          this.callbacks?.onPositionChanged(positionMs);
-        }
-      },
-      onDurationChanged: (durationMs: number): void => {
-        this.durationMs = durationMs;
-        this.governor.setDurationMs(durationMs);
-        this.callbacks?.onDurationChanged(durationMs);
-      },
-      onCompleted: (): void => {
-        this.callbacks?.onCompleted();
-      },
-      onError: (message: string): void => {
-        this.callbacks?.onError(message);
-      }
-    };
-    this.playWorker.setCallbacks(playCallbacks);
   }
 
   async initialize(): Promise<void> {
-    await this.playWorker.initialize();
+    await this.audioSink.initialize();
   }
 
   async release(): Promise<void> {
-    await this.cancel(/* keepStreamResource */ false);
-    await this.playWorker.release();
-    this.governor.reset();
+    await this.cancel(false);
+    await this.audioSink.release();
   }
 
   getActiveStreamResource(): StreamResource | null {
@@ -109,68 +75,64 @@ export class PipelineOrchestrator implements BufferGovernorListener {
     await this.cancel(false);
     this.activeStreamResource = streamResource;
     this.durationMs = durationMs;
-    this.governor.reset();
-    this.governor.setDurationMs(durationMs);
-    this.compressedRing.clear();
-    this.pcmRing.clear();
-    this.cacheFile.openForSong(streamResource.songId, streamResource.byteOffset);
-    this.downloadedBytes = streamResource.byteOffset;
-    this.contentLength = 0;
     const url: string = streamResource.resolveRequest().url;
-    this.playWorker.scheduleStart(url, autoPlay, 0);
-    this.startFetch(streamResource);
+    await this.replayAt(url, 0, autoPlay);
     PipelineMetrics.recordTrackStart();
   }
 
   async cancel(keepStreamResource: boolean = false): Promise<void> {
-    this.cancelFetchToken();
+    this.clearReplayRetry();
     if (this.activeStreamResource !== null && !keepStreamResource) {
       this.activeStreamResource.cancelToken.cancel();
     }
-    this.fetchRunning = false;
-    await this.playWorker.stop();
-    this.compressedRing.clear();
-    this.pcmRing.clear();
-    this.cacheFile.close();
-    this.governor.reset();
+    await this.audioSink.stop();
+    this.bufferingActive = false;
+    this.awaitReplayReady = false;
+    this.migrating = false;
+    this.replayRetryCount = 0;
     if (!keepStreamResource) {
       this.activeStreamResource = null;
     }
   }
 
-  /** 切网无感续播：同 StreamResource，Range 续拉 + 进度冻结 */
   async migrateInPlace(frozenPositionMs: number, wasPlaying: boolean): Promise<void> {
     if (this.activeStreamResource === null || this.migrating) {
       return;
     }
     this.migrating = true;
+    this.clearReplayRetry();
     this.frozenPositionMs = frozenPositionMs;
     this.wasPlayingBeforeBuffer = wasPlaying;
-    Logger.info('PipelineOrchestrator',
-      `migrateInPlace song=${this.activeStreamResource.songId} pos=${frozenPositionMs}`);
-    this.governor.forceEnterBuffering(frozenPositionMs);
-    await this.cancelFetchOnly();
-    const resource: StreamResource = this.activeStreamResource;
-    const totalLength: number = this.contentLength > 0 ? this.contentLength : this.downloadedBytes;
-    if (this.durationMs > 0 && totalLength > 0) {
-      resource.byteOffset = estimateByteOffset(frozenPositionMs, this.durationMs, totalLength);
-    } else {
-      resource.byteOffset = 0;
+    this.replayRetryCount = 0;
+    const songId: string = this.activeStreamResource.songId;
+    MusicDebug.log('migrate.start',
+      `song=${songId} pos=${frozenPositionMs} wasPlaying=${wasPlaying} sink=${this.audioSink.getPhase()}`);
+    this.enterBuffering(frozenPositionMs);
+    await this.audioSink.stop();
+    try {
+      await PipelineOrchestrator.probeStreamEndpoint(this.activeStreamResource.getEndpoint());
+    } catch (err) {
+      Logger.warn('PipelineOrchestrator', `endpoint probe: ${(err as Error).message}`);
     }
-    this.compressedRing.clear();
-    this.cacheFile.openForSong(resource.songId, resource.byteOffset);
-    this.downloadedBytes = resource.byteOffset;
-    const url: string = resource.resolveRequest().url;
-    this.playWorker.scheduleMigrate(url, frozenPositionMs, wasPlaying);
-    this.startFetch(resource);
+    this.activeStreamResource.timeOffsetMs = 0;
+    this.activeStreamResource.byteOffset = 0;
+    const url: string = this.resolveStreamUrl();
+    MusicDebug.log('migrate.url',
+      `host=${MusicDebug.urlHost(url)} endpoint=${this.activeStreamResource.getEndpoint()} seek=${frozenPositionMs}`);
+    await this.replayAt(url, frozenPositionMs, wasPlaying);
     PipelineMetrics.recordMigrate();
     this.migrating = false;
+    MusicDebug.log('migrate.end',
+      `sink=${this.audioSink.getPhase()} buffering=${this.bufferingActive}`);
   }
 
-  async onNetworkPathChanged(_event: EndpointChangeEvent): Promise<void> {
+  async onNetworkPathChanged(event: EndpointChangeEvent): Promise<void> {
+    if (this.activeStreamResource !== null) {
+      this.activeStreamResource.migrate(event.to);
+    }
     const frozenMs: number = this.callbacks?.getAuthoritativePositionMs() ?? this.frozenPositionMs;
     const phase: string = this.callbacks?.getCurrentPhase() ?? 'idle';
-    const wasPlaying: boolean = phase === 'playing';
+    const wasPlaying: boolean = phase === 'playing' || this.wasPlayingBeforeBuffer;
     if (this.activeStreamResource === null) {
       return;
     }
@@ -181,115 +143,225 @@ export class PipelineOrchestrator implements BufferGovernorListener {
     if (this.activeStreamResource === null) {
       return;
     }
-    const plan = this.seekCoordinator.planSeek(positionMs, this.downloadedBytes, this.durationMs);
-    if (plan.restartFetch) {
-      this.governor.forceEnterBuffering(positionMs);
-      await this.cancelFetchOnly();
-      this.activeStreamResource.byteOffset = plan.byteOffset;
-      this.compressedRing.clear();
-      this.cacheFile.openForSong(this.activeStreamResource.songId, plan.byteOffset);
-      this.downloadedBytes = plan.byteOffset;
-      const url: string = this.activeStreamResource.resolveRequest().url;
-      const wasPlaying: boolean = this.callbacks?.getCurrentPhase() === 'playing';
-      this.playWorker.scheduleMigrate(url, positionMs, wasPlaying);
-      this.startFetch(this.activeStreamResource);
-    } else {
-      await this.playWorker.seek(positionMs);
+    if (this.audioSink.canSeekInPlace()) {
+      await this.audioSink.seek(positionMs);
+      this.frozenPositionMs = positionMs;
+      PipelineMetrics.recordSeek();
+      return;
     }
+    const wasPlaying: boolean = this.callbacks?.getCurrentPhase() === 'playing';
+    const url: string = this.resolveStreamUrl();
+    await this.replayAt(url, positionMs, wasPlaying);
     PipelineMetrics.recordSeek();
   }
 
   async play(): Promise<void> {
-    await this.playWorker.play();
+    const sinkPhase: PlaySinkPhase = this.audioSink.getPhase();
+    if (sinkPhase === 'error' || sinkPhase === 'stopped' || sinkPhase === 'idle') {
+      await this.resumeAfterError();
+      return;
+    }
+    await this.audioSink.play();
+  }
+
+  async resumeAfterError(): Promise<void> {
+    if (this.activeStreamResource === null) {
+      return;
+    }
+    const frozenMs: number = this.callbacks?.getAuthoritativePositionMs() ?? this.frozenPositionMs;
+    const url: string = this.resolveStreamUrl();
+    await this.replayAt(url, frozenMs > 0 ? frozenMs : this.audioSink.getPositionMs(), true);
   }
 
   async pause(): Promise<void> {
-    await this.playWorker.pause();
+    await this.audioSink.pause();
   }
 
   getPositionMs(): number {
-    if (this.governor.isBuffering()) {
+    if (this.bufferingActive) {
       return this.frozenPositionMs;
     }
-    return this.playWorker.getPositionMs();
+    return this.audioSink.getPositionMs();
   }
 
   getDurationMs(): number {
-    const fromSink: number = this.playWorker.getDurationMs();
+    const fromSink: number = this.audioSink.getDurationMs();
     return fromSink > 0 ? fromSink : this.durationMs;
   }
 
   getPhase(): PlaySinkPhase {
-    return this.playWorker.getPhase();
+    return this.audioSink.getPhase();
   }
 
   isBuffering(): boolean {
-    return this.governor.isBuffering();
+    return this.bufferingActive;
   }
 
-  onEnterBuffering(frozenPositionMs: number): void {
-    if (frozenPositionMs > 0) {
-      this.frozenPositionMs = frozenPositionMs;
-    } else {
-      this.frozenPositionMs = this.callbacks?.getAuthoritativePositionMs() ?? this.playWorker.getPositionMs();
+  isAwaitingReplayReady(): boolean {
+    return this.awaitReplayReady;
+  }
+
+  /** open → prepare → play → seek(切网) → 退出 buffering 后按需恢复播放 */
+  private async replayAt(url: string, seekMs: number, shouldResumeAfterLoad: boolean): Promise<void> {
+    this.lastReplayUrl = url;
+    this.lastReplaySeekMs = seekMs;
+    this.lastReplayAutoPlay = shouldResumeAfterLoad;
+    this.awaitReplayReady = seekMs > 0;
+    if (seekMs > 0 && !this.bufferingActive) {
+      this.wasPlayingBeforeBuffer = shouldResumeAfterLoad;
+      this.enterBuffering(seekMs);
     }
-    this.callbacks?.onEnterBuffering(this.frozenPositionMs);
+    const autoPlayDuringLoad: boolean = seekMs === 0 && shouldResumeAfterLoad && !this.bufferingActive;
+    MusicDebug.log('play.restart',
+      `seek=${seekMs} resumeAfter=${shouldResumeAfterLoad} loadPlay=${autoPlayDuringLoad} ` +
+      `sink=${this.audioSink.getPhase()} src=${MusicDebug.urlHost(url)}`);
+    try {
+      await this.audioSink.openUrl(url, seekMs, autoPlayDuringLoad);
+    } catch (err) {
+      Logger.warn('PipelineOrchestrator', `replayAt failed: ${(err as Error).message}`);
+      this.callbacks?.onError((err as Error).message);
+    }
   }
 
-  onExitBuffering(): void {
+  private static async probeStreamEndpoint(endpoint: EndpointType): Promise<void> {
+    const creds = AuthStore.getInstance().getCredentials();
+    if (creds === null) {
+      return;
+    }
+    const pingUrl: string = AuthContext.buildRestUrl('ping.view', [], creds, endpoint);
+    await HttpTransport.probeRest(pingUrl);
+  }
+
+  private resolveStreamUrl(): string {
+    if (this.activeStreamResource === null) {
+      return '';
+    }
+    return this.activeStreamResource.resolveRequest().url;
+  }
+
+  private enterBuffering(frozenPositionMs: number): void {
+    this.bufferingActive = true;
+    this.frozenPositionMs = frozenPositionMs;
+    this.callbacks?.onEnterBuffering(frozenPositionMs);
+  }
+
+  private exitBuffering(): void {
+    if (!this.bufferingActive) {
+      return;
+    }
+    const shouldResume: boolean = this.wasPlayingBeforeBuffer;
+    const targetMs: number = this.frozenPositionMs;
+    MusicDebug.log('buffer.exit',
+      `shouldResume=${shouldResume} sink=${this.audioSink.getPhase()} pos=${targetMs}`);
+    this.bufferingActive = false;
+    this.wasPlayingBeforeBuffer = false;
+    this.replayRetryCount = 0;
     this.callbacks?.onExitBuffering();
-    if (this.wasPlayingBeforeBuffer) {
-      void this.playWorker.play();
-      this.wasPlayingBeforeBuffer = false;
-    }
+    void this.resumeAfterBufferingExit(shouldResume, targetMs);
   }
 
-  onReadyToPlay(): void {
-    this.playWorker.onGovernorReadyToPlay();
-  }
-
-  private async cancelFetchOnly(): Promise<void> {
-    this.cancelFetchToken();
-    this.fetchRunning = false;
-    this.governor.setFetchActive(false);
-  }
-
-  private cancelFetchToken(): void {
-    if (this.fetchCancelToken !== null) {
-      this.fetchCancelToken.cancel();
-      this.fetchCancelToken = null;
-    }
-  }
-
-  private startFetch(streamResource: StreamResource): void {
-    this.cancelFetchToken();
-    this.fetchCancelToken = new CancelToken();
-    this.fetchRunning = true;
-    this.governor.setFetchActive(true);
-    const fetchToken: CancelToken = this.fetchCancelToken as CancelToken;
-    FetchWorker.run(streamResource, {
-      onProgress: (progress): void => {
-        this.downloadedBytes = progress.downloadedBytes;
-        if (progress.contentLength !== undefined && progress.contentLength > 0) {
-          this.contentLength = progress.contentLength;
-        }
-        this.governor.onFetchProgress(progress.downloadedBytes, progress.contentLength);
-      },
-      onChunk: (chunk: ArrayBuffer): void => {
-        this.cacheFile.appendChunk(chunk);
-        this.compressedRing.write(new Uint8Array(chunk));
-      },
-      onComplete: (): void => {
-        this.fetchRunning = false;
-        this.governor.setFetchActive(false);
-        PipelineMetrics.recordFetchComplete();
-      },
-      onError: (err: Error): void => {
-        this.fetchRunning = false;
-        this.governor.setFetchActive(false);
-        Logger.warn('PipelineOrchestrator', `fetch error: ${err.message}`);
-        PipelineMetrics.recordFetchError();
+  private async resumeAfterBufferingExit(shouldResume: boolean, targetMs: number): Promise<void> {
+    if (targetMs > 0) {
+      const currentMs: number = this.audioSink.getPositionMs();
+      if (Math.abs(currentMs - targetMs) > 1500) {
+        MusicDebug.log('buffer.seekCorrect', `cur=${currentMs} target=${targetMs}`);
+        await this.audioSink.seek(targetMs);
       }
-    }, fetchToken);
+    }
+    if (shouldResume) {
+      await this.audioSink.play();
+    }
+  }
+
+  private clearReplayRetry(): void {
+    if (this.replayRetryTimerId >= 0) {
+      clearTimeout(this.replayRetryTimerId);
+      this.replayRetryTimerId = -1;
+    }
+  }
+
+  private scheduleReplayRetry(): void {
+    if (!this.bufferingActive || this.lastReplayUrl.length === 0) {
+      return;
+    }
+    if (this.replayRetryCount >= MAX_REPLAY_RETRIES) {
+      Logger.warn('PipelineOrchestrator', 'replay retries exhausted');
+      this.bufferingActive = false;
+      this.callbacks?.onError('replay retries exhausted');
+      return;
+    }
+    this.replayRetryCount++;
+    const delayMs: number = 1500 * this.replayRetryCount;
+    this.clearReplayRetry();
+    this.replayRetryTimerId = setTimeout((): void => {
+      this.replayRetryTimerId = -1;
+      if (!this.bufferingActive || this.lastReplayUrl.length === 0) {
+        return;
+      }
+      Logger.info('PipelineOrchestrator',
+        `retry replay attempt=${this.replayRetryCount} pos=${this.frozenPositionMs}`);
+      void this.retryReplayAfterError();
+    }, delayMs);
+  }
+
+  private retryReplayAfterError(): void {
+    if (!this.bufferingActive || this.activeStreamResource === null) {
+      return;
+    }
+    this.activeStreamResource.timeOffsetMs = 0;
+    const seekMs: number = this.frozenPositionMs > 0 ? this.frozenPositionMs : this.lastReplaySeekMs;
+    void this.replayAt(this.resolveStreamUrl(), seekMs, this.lastReplayAutoPlay);
+  }
+
+  onPhaseChanged(phase: PlaySinkPhase): void {
+    if (this.bufferingActive && !this.awaitReplayReady) {
+      const replayDone: boolean =
+        phase === 'playing' ||
+        (phase === 'paused' && !this.lastReplayAutoPlay);
+      if (replayDone) {
+        this.exitBuffering();
+      }
+    }
+    this.callbacks?.onPhaseChanged(phase);
+  }
+
+  onReplayReady(positionMs: number): void {
+    this.awaitReplayReady = false;
+    if (this.activeStreamResource !== null) {
+      this.activeStreamResource.timeOffsetMs = 0;
+    }
+    const reportPos: number =
+      this.bufferingActive && this.frozenPositionMs > 0 ? this.frozenPositionMs : positionMs;
+    MusicDebug.log('replay.ready', `pos=${reportPos} sink=${this.audioSink.getPositionMs()}`);
+    if (this.bufferingActive) {
+      this.exitBuffering();
+    }
+    this.callbacks?.onPositionChanged(reportPos);
+  }
+
+  onPositionChanged(positionMs: number): void {
+    if (!this.bufferingActive) {
+      this.callbacks?.onPositionChanged(positionMs);
+    }
+  }
+
+  onDurationChanged(durationMs: number): void {
+    if (durationMs > 0) {
+      this.durationMs = durationMs;
+    }
+    this.callbacks?.onDurationChanged(durationMs);
+  }
+
+  onCompleted(): void {
+    this.callbacks?.onCompleted();
+  }
+
+  onError(message: string): void {
+    MusicDebug.log('player.error', message);
+    Logger.warn('PipelineOrchestrator', message);
+    if (this.bufferingActive) {
+      this.scheduleReplayRetry();
+    }
+    this.callbacks?.onError(message);
   }
 }

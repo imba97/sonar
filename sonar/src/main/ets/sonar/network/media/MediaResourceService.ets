@@ -76,6 +76,11 @@ export class MediaResourceService {
     }
   }
 
+  /** 由 NetworkCoordinator 在通知播放管线之前调用，保证 URL 已切到新 endpoint */
+  static migrateActiveStreams(to: EndpointType): void {
+    MediaResourceService.onEndpointChanged(to);
+  }
+
   private static removeStream(resource: StreamResource): void {
     const idx: number = MediaResourceService.activeStreams.indexOf(resource);
     if (idx >= 0) {

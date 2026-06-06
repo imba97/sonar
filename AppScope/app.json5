@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "com.imba97.sonar",
+    "bundleName": "dev.imba97.sonar",
     "vendor": "imba97",
     "versionCode": 1000000,
     "versionName": "1.0.0",

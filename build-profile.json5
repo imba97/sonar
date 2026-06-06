@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\imba97\\.ohos\\config\\default_Sonar_YRHgVtYJNKU8UYBJ4fh2qrHYtnjOB8C0hAFh00tWK6w=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001AB105705E0553B4EA9355C9626681908F0C2E9632545657A00E503F5B989726DDF85AB96DC072",
-          "profile": "C:\\Users\\imba97\\.ohos\\config\\default_Sonar_YRHgVtYJNKU8UYBJ4fh2qrHYtnjOB8C0hAFh00tWK6w=.p7b",
+          "storeFile": "D:/sonar-certificate/SonarDebug.p12",
+          "storePassword": "0000001E703C48D618A0E5034CA330861797BFA5E194176D30387964D45E50103C434ED158AECDC7CC99DE304E5E",
+          "keyAlias": "sonar-debug",
+          "keyPassword": "0000001E41153E4BBEF20D40C9EA542107A1C64930AB94690485B42B5C9F26110359BA0370EBC2928F621AF82982",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\imba97\\.ohos\\config\\default_Sonar_YRHgVtYJNKU8UYBJ4fh2qrHYtnjOB8C0hAFh00tWK6w=.p12",
-          "storePassword": "0000001ADA1E4951BAF125D096A913B961D3794FE93AF443C9F79DF0CCEC92B81648D7CBAAFE17DEFC5E"
+          "profile": "D:/sonar-certificate/SonarDebugDebug.p7b",
+          "certpath": "D:/sonar-certificate/SonarDebug.cer"
         }
       }
     ],

@@ -1,6 +1,5 @@
 export class UiTokens {
   static readonly TAB_BAR_CONTENT_EXTRA_PADDING: number = 16;
-  static readonly MINI_PLAYER_TAB_EXTRA_OFFSET: number = 8;
 
   static readonly COLOR_PRIMARY: ResourceColor = $r('app.color.sonar_primary');
   static readonly COLOR_INFO: ResourceColor = $r('app.color.sonar_info');
@@ -42,52 +41,22 @@ export class UiTokens {
   static readonly RADIUS_CARD: number = 14;
   static readonly RADIUS_CHIP: number = 15;
 
-  /** 展开态页签图标（与改前一致，勿动） */
-  static readonly TAB_BAR_ICON_SIZE: number = 26;
-  /** 收起/紧凑态页签胶囊内图标，仅 CustomBuilder 紧凑分支使用 */
-  static readonly FLOATING_TAB_BAR_COMPACT_ICON_SIZE: number = 30;
-  static readonly TAB_BAR_ICON_GAP: number = 24;
   static readonly FLOATING_TAB_BAR_HEIGHT: number = 56;
-  static readonly FLOATING_TAB_BAR_COMPACT_WIDTH: number = 236;
-  static readonly FLOATING_TAB_BAR_WIDTH_SMALL: number = 228;
-  static readonly FLOATING_TAB_BAR_WIDTH_MEDIUM: number = 248;
-  static readonly FLOATING_TAB_BAR_WIDTH_LARGE: number = 268;
+  static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
   /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds-tabs-bar-floating.mdc「展开底部胶囊宽度」 */
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL: number = 262;
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM: number = 278;
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE: number = 294;
-  static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
-  static readonly DOCK_SIDE_MARGIN: number = 16;
-  static readonly DOCK_COMPONENT_GAP: number = 12;
-  static readonly DOCK_BALL_SIZE: number = UiTokens.FLOATING_TAB_BAR_HEIGHT;
-  static readonly DOCK_SWITCH_ANIMATION_DURATION: number = 240;
-  static readonly DOCK_SWITCH_JELLY_DURATION_STAGE1: number = 110;
-  static readonly DOCK_SWITCH_JELLY_DURATION_STAGE2: number = 130;
   static readonly DOCK_COVER_ROTATION_DURATION: number = 9000;
-  static readonly DOCK_JELLY_SCALE_X: number = 1.08;
-  static readonly DOCK_JELLY_SCALE_Y: number = 0.94;
-  static readonly DOCK_MINI_EXPANDED_TRANSLATE_X: number = 8;
-  static readonly DOCK_TAB_COMPACT_TRANSLATE_X: number = -8;
-  static readonly DOCK_TAB_COMPACT_WIDTH: number = 56;
-  static readonly MINI_PLAYER_MINI_BAR_COLLAPSED_WIDTH: number = 56;
-  static readonly MINI_PLAYER_MINI_BAR_EXPANDED_WIDTH: number = UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL;
-  static readonly MINI_PLAYER_CAPSULE_HEIGHT: number = 56;
-  static readonly MINI_PLAYER_CAPSULE_COVER_SIZE: number = 42;
   static readonly MINI_BAR_BALL_COVER_INSET: number = 6;
-  static readonly MINI_PLAYER_CAPSULE_COVER_INSET: number = 3;
-  static readonly MINI_BAR_WIDTH_COLLAPSE_THRESHOLD: number = 64;
-  static readonly MINI_BAR_WIDTH_EXPAND_THRESHOLD: number = 120;
-  static readonly MINI_PLAYER_CAPSULE_HORIZONTAL_PADDING: number = 10;
   static readonly MINI_PLAYER_CAPSULE_CONTENT_GAP: number = 10;
-  static readonly MINI_PLAYER_CAPSULE_MAX_WIDTH: number = UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL;
   static readonly MINI_PLAYER_ACTION_TOUCH_SIZE: number = 34;
   static readonly MINI_PLAYER_ACTION_ICON_GAP: number = 6;
   static readonly BOTTOM_PADDING_WITH_TAB_BAR: number =
     UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN +
     UiTokens.TAB_BAR_CONTENT_EXTRA_PADDING;
-  static readonly MINI_PLAYER_BASE_MARGIN_BOTTOM: number = 8;
   static readonly MINI_PLAYER_TAB_OFFSET: number =
-    UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + UiTokens.DOCK_COMPONENT_GAP;
+    UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + 12;
   static readonly MINI_PLAYER_BOTTOM_PADDING: number = 92;
   static readonly MINI_PLAYER_WITH_TAB_BOTTOM_PADDING: number = 96;
 

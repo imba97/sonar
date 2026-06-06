@@ -1,12 +1,6 @@
 import { SystemMaterialParams, hdsMaterial } from '@kit.UIDesignKit';
 import deviceInfo from '@ohos.deviceInfo';
 
-export enum MaterialSurfaceTier {
-  CHROME = 0,
-  CONTENT = 1,
-  NAVIGATION = 2
-}
-
 const HDS_MATERIAL_AVAILABLE_KEY: string = 'hdsMaterialAvailable';
 
 export class ImmersiveMaterialHelper {
@@ -23,28 +17,9 @@ export class ImmersiveMaterialHelper {
     AppStorage.setOrCreate<boolean>(HDS_MATERIAL_AVAILABLE_KEY, available);
   }
 
-  static canUseImmersiveMaterial(): boolean {
-    return AppStorage.get<boolean>(HDS_MATERIAL_AVAILABLE_KEY) ?? false;
-  }
-
-  static buildEffectForTier(tier: MaterialSurfaceTier): SystemMaterialParams | undefined {
-    if (!ImmersiveMaterialHelper.canUseImmersiveMaterial()) {
-      return undefined;
-    }
-    if (tier === MaterialSurfaceTier.CONTENT) {
-      return {
-        materialType: hdsMaterial.MaterialType.ADAPTIVE,
-        materialLevel: hdsMaterial.MaterialLevel.SMOOTH
-      };
-    }
-    return {
-      materialType: hdsMaterial.MaterialType.ADAPTIVE,
-      materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
-    };
-  }
-
   static buildNavigationEffect(): SystemMaterialParams {
-    if (!ImmersiveMaterialHelper.canUseImmersiveMaterial()) {
+    const available: boolean = AppStorage.get<boolean>(HDS_MATERIAL_AVAILABLE_KEY) ?? false;
+    if (!available) {
       return {
         materialType: hdsMaterial.MaterialType.NONE,
         materialLevel: hdsMaterial.MaterialLevel.SMOOTH

@@ -85,24 +85,6 @@ export struct FloatingTabBar {
 
   }
 
-  private resolveDockExpandedWidthVp(): number {
-
-    if (this.containerWidth >= WIDTH_BREAKPOINT_LARGE) {
-
-      return UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE;
-
-    }
-
-    if (this.containerWidth >= WIDTH_BREAKPOINT_MEDIUM) {
-
-      return UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM;
-
-    }
-
-    return UiTokens.FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL;
-
-  }
-
   private resolveFloatingBarWidth(): HdsBarWidthRangeOptions {
 
     const expandedWidth: HdsBarWidthRangeOptions = {

@@ -78,7 +78,6 @@ export class PlaybackController {
   private static queue: Song[] = [];
   private static currentIndex: number = -1;
   private static currentMode: PlaybackMode = 'listLoop';
-  private static bottomDockSwapped: boolean = false;
   private static coverRevision: number = 0;
   private static currentCover: image.PixelMap | null = null;
   private static currentCoverId: string = '';
@@ -247,11 +246,6 @@ export class PlaybackController {
     PlaybackController.publishSnapshot(PlaybackController.snapshot.phase, true);
   }
 
-  static setBottomDockSwapped(swapped: boolean): void {
-    PlaybackController.bottomDockSwapped = swapped;
-    PlaybackController.publishSnapshot(PlaybackController.snapshot.phase, true);
-  }
-
   private static async playCurrentSong(reportStart: boolean): Promise<void> {
     const song: Song | null = PlaybackController.getCurrentSong();
     if (song === null) {
@@ -341,7 +335,6 @@ export class PlaybackController {
       PlaybackController.snapshot.positionMs,
       PlaybackController.currentMode,
       PlaybackController.currentIndex >= 0,
-      PlaybackController.bottomDockSwapped,
       PlaybackController.coverRevision
     );
     PlaybackStore.publish(PlaybackController.snapshot);
@@ -370,7 +363,6 @@ export class PlaybackController {
       positionMs,
       PlaybackController.currentMode,
       PlaybackController.currentIndex >= 0,
-      PlaybackController.bottomDockSwapped,
       PlaybackController.coverRevision
     );
     PlaybackStore.publish(PlaybackController.snapshot);

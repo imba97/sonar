@@ -30,7 +30,6 @@ export class PlaybackSnapshot {
   readonly positionMs: number;
   readonly mode: PlaybackMode;
   readonly showMiniPlayer: boolean;
-  readonly bottomDockSwapped: boolean;
   /** 封面 revision，CoverCache 异步加载后递增以触发 UI 刷新 */
   readonly coverRevision: number;
 
@@ -40,7 +39,6 @@ export class PlaybackSnapshot {
     positionMs: number,
     mode: PlaybackMode,
     showMiniPlayer: boolean,
-    bottomDockSwapped: boolean,
     coverRevision: number
   ) {
     this.track = track;
@@ -48,12 +46,11 @@ export class PlaybackSnapshot {
     this.positionMs = positionMs;
     this.mode = mode;
     this.showMiniPlayer = showMiniPlayer;
-    this.bottomDockSwapped = bottomDockSwapped;
     this.coverRevision = coverRevision;
   }
 
   static idle(mode: PlaybackMode = 'listLoop'): PlaybackSnapshot {
-    return new PlaybackSnapshot(null, 'idle', 0, mode, false, false, 0);
+    return new PlaybackSnapshot(null, 'idle', 0, mode, false, 0);
   }
 
   isPlaying(): boolean {

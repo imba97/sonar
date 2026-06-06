@@ -56,6 +56,10 @@ export class PlaybackSnapshot {
   isPlaying(): boolean {
     return this.phase === 'playing';
   }
+
+  isLoading(): boolean {
+    return this.phase === 'loading';
+  }
 }
 
 export function buildNowPlayingTrack(song: Song, albumCoverArtId?: string): NowPlayingTrack {

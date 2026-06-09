@@ -6,11 +6,36 @@ import { EmptyState } from '../components/feedback/EmptyState';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { CardContainer } from '../components/layout/CardContainer';
 import { AutoMarqueeText } from '../components/layout/AutoMarqueeText';
-import { PageScaffold } from '../components/layout/PageScaffold';
 import { GlassSearchBar } from '../components/forms/GlassSearchBar';
+import { SonarPageLayout } from '../components/layout/SonarPageLayout';
+import { ImmersivePageOffsets } from '../ui/layout/ImmersivePageOffsets';
+import {
+  FloatingHeaderType,
+  SonarPageRole,
+  SonarScrollMode
+} from '../ui/layout/SonarPageLayoutOptions';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
 import { PlaybackService } from '../playback/PlaybackService';
+
+function resolveVpLength(context: UIContext, value: Length): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    if (value.endsWith('vp')) {
+      return Number.parseFloat(value);
+    }
+    if (value.endsWith('px')) {
+      return context.px2vp(Number.parseFloat(value));
+    }
+    const parsed: number = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return 0;
+}
 
 @Component
 export struct LibraryPage {
@@ -27,27 +52,6 @@ export struct LibraryPage {
 
   private listScroller: Scroller = new Scroller();
 
-  private resolveVpLength(value: Length): number {
-    if (typeof value === 'number') {
-      // Area.width/height 在 onAreaChange 中语义单位为 vp，number 直接使用即可。
-      return value;
-    }
-    if (typeof value === 'string') {
-      if (value.endsWith('vp')) {
-        return Number.parseFloat(value);
-      }
-      if (value.endsWith('px')) {
-        return this.getUIContext().px2vp(Number.parseFloat(value));
-      }
-      const parsed: number = Number.parseFloat(value);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-    // Resource 等非数值长度在此场景无法换算，回退为 0
-    return 0;
-  }
-
   private updateGridColumnsByWidth(widthVp: number): void {
     const safeWidthVp: number = Math.max(0, widthVp);
     const columnsByWidth: number = Math.floor(
@@ -58,20 +62,6 @@ export struct LibraryPage {
     if (nextColumns !== this._gridColumns) {
       this._gridColumns = nextColumns;
     }
-  }
-
-  private listStartOffset(): number {
-    return this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN + UiTokens.LIBRARY_SEARCH_HEIGHT +
-      UiTokens.LIBRARY_SEARCH_CONTENT_GAP;
-  }
-
-  private listEndOffset(): number {
-    if (this.rootTabActive) {
-      return UiTokens.MINI_PLAYER_TAB_OFFSET + UiTokens.FLOATING_TAB_BAR_HEIGHT + this.bottomInset +
-        UiTokens.LIBRARY_LIST_EDGE_GAP;
-    }
-    return UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_BAR_BOTTOM_MARGIN + this.bottomInset +
-      UiTokens.LIBRARY_LIST_EDGE_GAP;
   }
 
   private submitSearch(): void {
@@ -274,14 +264,15 @@ export struct LibraryPage {
       right: UiTokens.LIBRARY_PAGE_HORIZONTAL_PADDING
     })
     .backgroundColor(Color.Transparent)
-    .contentStartOffset(this.listStartOffset())
-    .contentEndOffset(this.listEndOffset())
+    .contentStartOffset(ImmersivePageOffsets.libraryListStartOffset(this.topInset))
+    .contentEndOffset(ImmersivePageOffsets.tabContentEnd(this.bottomInset, this.rootTabActive))
     .lanes(this.vm.albums.length > 0 ? this._gridColumns : 1, `${UiTokens.LIBRARY_GRID_GAP}vp`)
     .listDirection(Axis.Vertical)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
     .onAreaChange((_oldValue, newValue) => {
-      const widthVp: number = this.resolveVpLength(newValue.width) - UiTokens.LIBRARY_PAGE_HORIZONTAL_PADDING * 2;
+      const widthVp: number = resolveVpLength(this.getUIContext(), newValue.width) -
+        UiTokens.LIBRARY_PAGE_HORIZONTAL_PADDING * 2;
       this.updateGridColumnsByWidth(widthVp);
     })
     .onReachEnd(() => {
@@ -313,57 +304,83 @@ export struct LibraryPage {
   }
 
   @Builder
-  private buildBootingScaffold() {
-    PageScaffold({
-      pageBackground: UiTokens.COLOR_PAGE_BG,
-      barToneTabIndex: 0
-    }) {
-      Column() {
-        LoadingState({ message: '正在恢复会话…' })
+  private buildLibrarySearchHeader() {
+    GlassSearchBar({
+      keyword: this._searchKeyword,
+      onKeywordChange: (value: string) => {
+        this._searchKeyword = value;
+      },
+      placeholder: '搜索媒体库',
+      topPadding: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN,
+      onSubmit: () => {
+        this.submitSearch();
       }
-      .width('100%')
-      .height('100%')
-      .justifyContent(FlexAlign.Center)
+    })
+  }
+
+  @LocalBuilder
+  buildBootingBody() {
+    Column() {
+      LoadingState({ message: '正在恢复会话…' })
     }
+    .width('100%')
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  @LocalBuilder
+  buildAnonymousBody() {
+    Column() {
+    }
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private buildBootingScaffold() {
+    SonarPageLayout({
+      options: {
+        role: SonarPageRole.TAB_ROOT,
+        headerType: FloatingHeaderType.NONE,
+        barToneTabIndex: 0,
+        scrollMode: SonarScrollMode.SCROLL
+      },
+      content: this.buildBootingBody
+    })
   }
 
   @Builder
   private buildAnonymousScaffold() {
-    PageScaffold({
-      pageBackground: UiTokens.COLOR_PAGE_BG,
-      barToneTabIndex: 0
-    }) {
-      Column() {
-      }
-    }
+    SonarPageLayout({
+      options: {
+        role: SonarPageRole.TAB_ROOT,
+        headerType: FloatingHeaderType.NONE,
+        barToneTabIndex: 0,
+        scrollMode: SonarScrollMode.SCROLL
+      },
+      content: this.buildAnonymousBody
+    })
   }
 
   @Builder
   private buildAuthenticatedScaffold() {
-    PageScaffold({
-      pageBackground: UiTokens.COLOR_PAGE_BG,
-      topPadding: 0,
-      bottomPadding: 0,
-      applySystemInsets: false,
-      barToneTabIndex: 0
-    }) {
+    // List 含嵌套 @Builder，须在页面内直接调用，不可经 SonarPageLayout @BuilderParam 转发
+    Column() {
       Stack({ alignContent: Alignment.Top }) {
         this.buildAlbumsList()
-        GlassSearchBar({
-          keyword: this._searchKeyword,
-          onKeywordChange: (value: string) => {
-            this._searchKeyword = value;
-          },
-          placeholder: '搜索媒体库',
-          topPadding: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN,
-          onSubmit: () => {
-            this.submitSearch();
-          }
-        })
+        this.buildLibrarySearchHeader()
       }
       .width('100%')
       .height('100%')
     }
+    .width('100%')
+    .height('100%')
+    .linearGradient({
+      angle: 160,
+      colors: [[UiTokens.COLOR_BG_GRADIENT_TOP, 0], [UiTokens.COLOR_BG_GRADIENT_BOTTOM, 1]]
+    })
+    .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .id('bar-tone-probe-0')
   }
 
   build() {

@@ -131,13 +131,33 @@ export class AudioRenderSink {
       return;
     }
     this.closeLocalFile();
-    const file: fileIo.File = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY);
-    const stat = fileIo.statSync(path);
+    let file: fileIo.File | null = null;
+    try {
+      file = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY);
+    } catch (err) {
+      Logger.warn('AudioRenderSink', `openLocalFile open failed: ${(err as Error).message}`);
+      this.reopeningStream = false;
+      this.setPhase('error');
+      return;
+    }
+    let fileSize: number = 0;
+    try {
+      fileSize = fileIo.statSync(path).size;
+    } catch (err) {
+      try {
+        fileIo.closeSync(file);
+      } catch (_closeErr) {
+      }
+      Logger.warn('AudioRenderSink', `openLocalFile stat failed: ${(err as Error).message}`);
+      this.reopeningStream = false;
+      this.setPhase('error');
+      return;
+    }
     this.localFile = file;
     player.fdSrc = {
       fd: file.fd,
       offset: 0,
-      length: stat.size
+      length: fileSize
     };
     this.activeOpenGen = generation;
   }

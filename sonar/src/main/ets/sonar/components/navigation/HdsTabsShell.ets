@@ -241,7 +241,7 @@ export struct HdsTabsShell {
       barSideMargin: sideMargin,
       gradientMask: {
         maskColor: UiTokens.COLOR_OVERLAY_SCRIM,
-        maskHeight: UiTokens.FLOATING_TAB_BAR_HEIGHT + 16
+        maskHeight: UiTokens.FLOATING_TAB_BAR_HEIGHT + UiTokens.FLOATING_TAB_GRADIENT_MASK_EXTRA
       },
       systemMaterialEffect: ImmersiveMaterialHelper.buildNavigationEffect(),
       miniBar: miniBar

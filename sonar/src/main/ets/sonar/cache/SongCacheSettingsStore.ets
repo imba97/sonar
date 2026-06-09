@@ -87,8 +87,18 @@ export class SongCacheSettingsStore {
       return;
     }
     this.autoCacheMode = mode;
-    await this.store.put(KEY_AUTO_CACHE_MODE, mode);
-    await this.store.flush();
+    try {
+      await this.store.put(KEY_AUTO_CACHE_MODE, mode);
+    } catch (err) {
+      Logger.warn('SongCacheSettingsStore', `setAutoCacheMode put failed: ${(err as Error).message}`);
+      return;
+    }
+    try {
+      await this.store.flush();
+    } catch (err) {
+      Logger.warn('SongCacheSettingsStore', `setAutoCacheMode flush failed: ${(err as Error).message}`);
+      return;
+    }
     SongCacheStore.publishAutoCacheMode(mode);
   }
 
@@ -98,8 +108,18 @@ export class SongCacheSettingsStore {
       return;
     }
     this.limitGb = limitGb;
-    await this.store.put(KEY_LIMIT_GB, limitGb);
-    await this.store.flush();
+    try {
+      await this.store.put(KEY_LIMIT_GB, limitGb);
+    } catch (err) {
+      Logger.warn('SongCacheSettingsStore', `setLimitGb put failed: ${(err as Error).message}`);
+      return;
+    }
+    try {
+      await this.store.flush();
+    } catch (err) {
+      Logger.warn('SongCacheSettingsStore', `setLimitGb flush failed: ${(err as Error).message}`);
+      return;
+    }
     SongCacheStore.publishLimitGb(limitGb);
   }
 

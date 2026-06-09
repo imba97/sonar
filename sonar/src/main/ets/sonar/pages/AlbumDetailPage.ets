@@ -4,10 +4,9 @@ import { AlbumDetailViewModel } from '../viewmodel/AlbumDetailViewModel';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { TagButton } from '../components/buttons/TagButton';
-import { SecondaryButton } from '../components/buttons/SecondaryButton';
 import { CardContainer } from '../components/layout/CardContainer';
-import { PageScaffold } from '../components/layout/PageScaffold';
 import { DropdownActionItem, DropdownActionMenu } from '../components/overlays/DropdownActionMenu';
+import { SecondaryHdsDestination } from '../components/navigation/SecondaryHdsDestination';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
 import { PlaybackService } from '../playback/PlaybackService';
@@ -100,140 +99,139 @@ export struct AlbumDetailPage {
     await this.vm.load(this.albumId);
   }
 
-  build() {
-    Stack() {
-      PageScaffold({
-        pageBackground: UiTokens.COLOR_PAGE_BG,
-        topPadding: 10,
-        bottomPadding: this.playback.showMiniPlayer ? UiTokens.MINI_PLAYER_BOTTOM_PADDING : 12
-      }) {
+  @LocalBuilder
+  buildAlbumHeader() {
+    Column() {
+      if (this.vm.album !== null && this.vm.album.coverArt !== undefined && this.vm.album.coverArt.length > 0) {
+        Image(this.vm.coverUrl(this.vm.album.coverArt))
+          .width(180)
+          .height(180)
+          .borderRadius(18)
+          .objectFit(ImageFit.Cover)
+          .alt('#E5E5EA')
+      } else {
         Column() {
-          Row() {
-            SecondaryButton({
-              text: '返回',
-              onPressed: () => {
-                this.appPathStack.pop();
-              }
-            })
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 8 })
-
-          if (this.vm.isLoading) {
-            LoadingState({ message: '正在加载专辑详情…' })
-          } else if (this.vm.errorMessage.length > 0 || this.vm.album === null) {
-            ErrorState({
-              message: this.vm.errorMessage.length > 0 ? this.vm.errorMessage : '专辑详情加载失败',
-              onRetryPress: () => {
-                void this.vm.load(this.albumId);
-              }
-            })
-          } else {
-            Column() {
-              Column() {
-                if (this.vm.album.coverArt !== undefined && this.vm.album.coverArt.length > 0) {
-                  Image(this.vm.coverUrl(this.vm.album.coverArt))
-                    .width(180)
-                    .height(180)
-                    .borderRadius(18)
-                    .objectFit(ImageFit.Cover)
-                    .alt('#E5E5EA')
-                } else {
-                  Column() {
-                    Text('♪')
-                      .fontSize(56)
-                      .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
-                  }
-                  .width(180)
-                  .height(180)
-                  .borderRadius(18)
-                  .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-                  .justifyContent(FlexAlign.Center)
-                  .alignItems(HorizontalAlign.Center)
-                }
-                Text(this.vm.album.title ?? this.vm.album.name ?? '未知专辑')
-                  .fontSize(20)
-                  .fontWeight(FontWeight.Bold)
-                  .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-                  .margin({ top: 14 })
-                  .maxLines(1)
-                  .textOverflow({ overflow: TextOverflow.Ellipsis })
-                Text(`${this.vm.album.artist} · ${this.vm.songs.length} 首`)
-                  .fontSize(13)
-                  .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                  .margin({ top: 6 })
-              }
-              .width('100%')
-              .padding({ top: 8, bottom: 14 })
-              .alignItems(HorizontalAlign.Center)
-
-              List({ space: 8 }) {
-                ForEach(this.vm.songs, (song: Song, index: number) => {
-                  ListItem() {
-                    CardContainer() {
-                      Row() {
-                        Column() {
-                          Text(`${index + 1}. ${song.title}`)
-                            .fontSize(14)
-                            .fontWeight(FontWeight.Medium)
-                            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-                            .maxLines(1)
-                            .textOverflow({ overflow: TextOverflow.Ellipsis })
-                          Text(song.artist)
-                            .fontSize(12)
-                            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                            .margin({ top: 4 })
-                            .maxLines(1)
-                            .textOverflow({ overflow: TextOverflow.Ellipsis })
-                        }
-                        .layoutWeight(1)
-                        .alignItems(HorizontalAlign.Start)
-
-                        TagButton({
-                          text: '更多',
-                          onPressed: () => {
-                            this.openMoreMenu(song);
-                          }
-                        })
-                      }
-                      .width('100%')
-                      .onClick(() => {
-                        this.playSong(index, song);
-                      })
-                    }
-                  }
-                }, (song: Song) => song.id)
-              }
-              .width('100%')
-              .layoutWeight(1)
-              .padding({ left: 16, right: 16, bottom: 16 })
-              .listDirection(Axis.Vertical)
-              .scrollBar(BarState.Off)
-              .edgeEffect(EdgeEffect.Spring)
-            }
-            .width('100%')
-            .layoutWeight(1)
-          }
+          Text('♪')
+            .fontSize(56)
+            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
         }
-        .width('100%')
+        .width(180)
+        .height(180)
+        .borderRadius(18)
+        .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
       }
-
-      if (this.menuVisible) {
-        DropdownActionMenu({
-          isVisible: this.menuVisible,
-          title: this.menuSongTitle,
-          actions: this.menuActions,
-          closeMenu: () => {
-            this.closeMoreMenu();
-          },
-          selectAction: (id: string) => {
-            this.onMenuSelect(id);
-          }
-        })
+      if (this.vm.album !== null) {
+        Text(this.vm.album.title ?? this.vm.album.name ?? '未知专辑')
+          .fontSize(20)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          .margin({ top: 14 })
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(`${this.vm.album.artist} · ${this.vm.songs.length} 首`)
+          .fontSize(13)
+          .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+          .margin({ top: 6 })
       }
     }
     .width('100%')
-    .height('100%')
+    .padding({ top: 8, bottom: 14 })
+    .alignItems(HorizontalAlign.Center)
+  }
+
+  @LocalBuilder
+  buildSongList() {
+    Column({ space: 8 }) {
+      ForEach(this.vm.songs, (song: Song, index: number) => {
+        CardContainer() {
+          Row() {
+            Column() {
+              Text(`${index + 1}. ${song.title}`)
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+              Text(song.artist)
+                .fontSize(12)
+                .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+                .margin({ top: 4 })
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+            }
+            .layoutWeight(1)
+            .alignItems(HorizontalAlign.Start)
+
+            TagButton({
+              text: '更多',
+              onPressed: () => {
+                this.openMoreMenu(song);
+              }
+            })
+          }
+          .width('100%')
+          .onClick(() => {
+            this.playSong(index, song);
+          })
+        }
+      }, (song: Song) => song.id)
+    }
+    .width('100%')
+    .padding({ bottom: 16 })
+  }
+
+  @LocalBuilder
+  buildPageContent() {
+    if (this.vm.isLoading) {
+      LoadingState({ message: '正在加载专辑详情…' })
+    } else if (this.vm.errorMessage.length > 0 || this.vm.album === null) {
+      ErrorState({
+        message: this.vm.errorMessage.length > 0 ? this.vm.errorMessage : '专辑详情加载失败',
+        onRetryPress: () => {
+          void this.vm.load(this.albumId);
+        }
+      })
+    } else {
+      this.buildAlbumHeader()
+      this.buildSongList()
+    }
+  }
+
+  @LocalBuilder
+  buildMenuOverlay() {
+    if (this.menuVisible) {
+      DropdownActionMenu({
+        isVisible: this.menuVisible,
+        title: this.menuSongTitle,
+        actions: this.menuActions,
+        closeMenu: () => {
+          this.closeMoreMenu();
+        },
+        selectAction: (id: string) => {
+          this.onMenuSelect(id);
+        }
+      })
+    }
+  }
+
+  @LocalBuilder
+  buildDestinationContent() {
+    this.buildPageContent()
+  }
+
+  @LocalBuilder
+  buildDestinationFloatingLayer() {
+    this.buildMenuOverlay()
+  }
+
+  build() {
+    SecondaryHdsDestination({
+      title: '专辑',
+      contentVariant: 'hero',
+      content: this.buildDestinationContent,
+      floatingLayer: this.buildDestinationFloatingLayer
+    })
   }
 }

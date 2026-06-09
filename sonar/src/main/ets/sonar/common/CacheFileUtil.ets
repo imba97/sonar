@@ -73,23 +73,40 @@ export class CacheFileUtil {
     }
   }
 
+  private static closeFileQuietly(file: fileIo.File): void {
+    try {
+      fileIo.closeSync(file);
+    } catch (_err) {
+    }
+  }
+
   /** 写入临时文件后 rename，避免半写损坏 */
   static writeTextAtomic(targetPath: string, text: string): void {
     CacheFileUtil.ensureParentDir(targetPath);
     const tempPath: string = `${targetPath}.tmp`;
     CacheFileUtil.removeIfExists(tempPath);
     const bytes: Uint8Array = new Uint8Array(CacheFileUtil.utf8ToBuffer(text));
-    const file = fileIo.openSync(tempPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+    let file: fileIo.File | null = null;
+    try {
+      file = fileIo.openSync(tempPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+    } catch (_err) {
+      CacheFileUtil.removeIfExists(tempPath);
+      return;
+    }
     try {
       fileIo.writeSync(file.fd, bytes.buffer);
-    } finally {
-      try {
-        fileIo.closeSync(file);
-      } catch (_err) {
-      }
+    } catch (_err) {
+      CacheFileUtil.closeFileQuietly(file);
+      CacheFileUtil.removeIfExists(tempPath);
+      return;
     }
+    CacheFileUtil.closeFileQuietly(file);
     CacheFileUtil.removeIfExists(targetPath);
-    fileIo.renameSync(tempPath, targetPath);
+    try {
+      fileIo.renameSync(tempPath, targetPath);
+    } catch (_err) {
+      CacheFileUtil.removeIfExists(tempPath);
+    }
   }
 
   static bufferToUtf8(buf: ArrayBuffer): string {

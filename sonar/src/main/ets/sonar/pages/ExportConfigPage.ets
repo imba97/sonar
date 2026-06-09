@@ -5,15 +5,12 @@ import { AppTextInput } from '../components/forms/AppTextInput';
 import { PrimaryButton } from '../components/buttons/PrimaryButton';
 import { SecondaryButton } from '../components/buttons/SecondaryButton';
 import { CardContainer } from '../components/layout/CardContainer';
-import { PageScaffold } from '../components/layout/PageScaffold';
 import { ToastUtil } from '../common/ToastUtil';
 import { ConfigCodecError, SonarConfigCodec } from '../settings/SonarConfigCodec';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
 @Component
 export struct ExportConfigPage {
-  @Consume('appPathStack') appPathStack: NavPathStack;
-  @StorageLink('rootTabActive') rootTabActive: boolean = false;
   @State exportPassword: string = '';
   @State exportedBase64: string = '';
   @State isGenerating: boolean = false;
@@ -70,116 +67,71 @@ export struct ExportConfigPage {
   }
 
   build() {
-    PageScaffold({
-      pageBackground: UiTokens.COLOR_PAGE_BG,
-      topPadding: 10,
-      barToneTabIndex: 2,
-      bottomPadding: this.rootTabActive ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
-        UiTokens.BOTTOM_PADDING_WITH_TAB_BAR
-    }) {
-      Scroll() {
-        Column({ space: 12 }) {
-          Row() {
-            SecondaryButton({
-              text: '返回',
-              onPressed: () => {
-                this.appPathStack.pop();
-              }
-            })
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16, top: 8, bottom: 0 })
+    CardContainer() {
+      Column({ space: 10 }) {
+        Text('导出服务器登录配置为 Base64，可在登录页「导入」Tab 恢复。')
+          .fontSize(13)
+          .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+          .alignSelf(ItemAlign.Start)
 
-          Row() {
-            Text('导出配置')
-              .fontSize(22)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 20, right: 20 })
-
-          Column() {
-            CardContainer() {
-              Column({ space: 10 }) {
-                Text('导出服务器登录配置为 Base64，可在登录页「导入」Tab 恢复。')
-                  .fontSize(13)
-                  .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                  .alignSelf(ItemAlign.Start)
-
-                if (!this.hasRememberedInfo) {
-                  Text('请先在服务器页完成登录')
-                    .fontSize(13)
-                    .fontColor(UiTokens.COLOR_ERROR)
-                    .alignSelf(ItemAlign.Start)
-                }
-
-                AppTextInput({
-                  text: this.exportPassword,
-                  placeholder: '配置密码 (可选，留空使用默认)',
-                  isPassword: true,
-                  onValueChange: (v: string) => {
-                    this.exportPassword = v;
-                  }
-                })
-
-                PrimaryButton({
-                  text: '生成配置',
-                  loading: this.isGenerating,
-                  isEnabled: this.hasRememberedInfo && !this.isGenerating,
-                  onPressed: () => {
-                    void this.generateConfig();
-                  }
-                })
-
-                if (this.exportedBase64.length > 0) {
-                  AppTextArea({
-                    text: this.exportedBase64,
-                    placeholder: '',
-                    areaHeight: 140,
-                    readOnly: true,
-                    onValueChange: (_v: string) => {
-                    }
-                  })
-
-                  SecondaryButton({
-                    text: '复制到剪贴板',
-                    onPressed: () => {
-                      void this.copyToClipboard();
-                    }
-                  })
-                    .alignSelf(ItemAlign.Start)
-
-                  Text('配置含登录密码，请勿分享给不可信的人')
-                    .fontSize(12)
-                    .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                    .alignSelf(ItemAlign.Start)
-                }
-
-                if (this.errorMessage.length > 0) {
-                  Text(this.errorMessage)
-                    .fontSize(13)
-                    .fontColor(UiTokens.COLOR_ERROR)
-                    .alignSelf(ItemAlign.Start)
-                }
-              }
-              .width('100%')
-              .alignItems(HorizontalAlign.Start)
-            }
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16 })
+        if (!this.hasRememberedInfo) {
+          Text('请先在服务器页完成登录')
+            .fontSize(13)
+            .fontColor(UiTokens.COLOR_ERROR)
+            .alignSelf(ItemAlign.Start)
         }
-        .width('100%')
-        .padding({ bottom: 12 })
+
+        AppTextInput({
+          text: this.exportPassword,
+          placeholder: '配置密码 (可选，留空使用默认)',
+          isPassword: true,
+          onValueChange: (v: string) => {
+            this.exportPassword = v;
+          }
+        })
+
+        PrimaryButton({
+          text: '生成配置',
+          loading: this.isGenerating,
+          isEnabled: this.hasRememberedInfo && !this.isGenerating,
+          onPressed: () => {
+            void this.generateConfig();
+          }
+        })
+
+        if (this.exportedBase64.length > 0) {
+          AppTextArea({
+            text: this.exportedBase64,
+            placeholder: '',
+            areaHeight: 140,
+            readOnly: true,
+            onValueChange: (_v: string) => {
+            }
+          })
+
+          SecondaryButton({
+            text: '复制到剪贴板',
+            onPressed: () => {
+              void this.copyToClipboard();
+            }
+          })
+            .alignSelf(ItemAlign.Start)
+
+          Text('配置含登录密码，请勿分享给不可信的人')
+            .fontSize(12)
+            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+            .alignSelf(ItemAlign.Start)
+        }
+
+        if (this.errorMessage.length > 0) {
+          Text(this.errorMessage)
+            .fontSize(13)
+            .fontColor(UiTokens.COLOR_ERROR)
+            .alignSelf(ItemAlign.Start)
+        }
       }
       .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .align(Alignment.Top)
+      .alignItems(HorizontalAlign.Start)
     }
   }
 }

@@ -3,7 +3,14 @@ import { SongCacheStore } from '../cache/SongCacheStore';
 import { DangerButton } from '../components/buttons/DangerButton';
 import { OuterScreenPreviewEntry } from '../components/debug/OuterScreenPreviewEntry';
 import { CardContainer } from '../components/layout/CardContainer';
-import { PageScaffold } from '../components/layout/PageScaffold';
+import { FloatingPageTitle } from '../components/layout/FloatingPageTitle';
+import { SonarPageLayout } from '../components/layout/SonarPageLayout';
+import {
+  FloatingHeaderType,
+  SonarPageLayoutOptions,
+  SonarPageRole,
+  SonarScrollMode
+} from '../ui/layout/SonarPageLayoutOptions';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
 const LOGOUT_DESTINATION_TAB_INDEX: number = 1;
@@ -11,138 +18,120 @@ const LOGOUT_DESTINATION_TAB_INDEX: number = 1;
 @Component
 export struct ProfilePage {
   @Consume('appPathStack') appPathStack: NavPathStack;
-  @StorageLink('rootTabActive') rootTabActive: boolean = false;
-  @StorageLink('rootTabIndex') rootTabIndex: number = 0;
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('loggedInUser') loggedInUser: string = '';
   @StorageLink('loggedInServer') loggedInServer: string = '';
   @StorageLink('songCacheUsedBytes') songCacheUsedBytes: number = 0;
+  @StorageProp('topRectHeight') topInset: number = 0;
+
+  private layoutOptions(): SonarPageLayoutOptions {
+    return {
+      role: SonarPageRole.TAB_ROOT,
+      headerType: FloatingHeaderType.FLOATING_TITLE,
+      barToneTabIndex: 2,
+      scrollMode: SonarScrollMode.SCROLL
+    };
+  }
 
   private async handleLogout(): Promise<void> {
     await AuthSession.signOut();
     AppStorage.setOrCreate<number>('rootTabIndex', LOGOUT_DESTINATION_TAB_INDEX);
   }
 
-  build() {
-    PageScaffold({
-      pageBackground: UiTokens.COLOR_PAGE_BG,
-      topPadding: 10,
-      barToneTabIndex: 2,
-      bottomPadding: this.rootTabActive ? UiTokens.MINI_PLAYER_WITH_TAB_BOTTOM_PADDING :
-        UiTokens.BOTTOM_PADDING_WITH_TAB_BAR
-    }) {
-      Scroll() {
-        Column({ space: 12 }) {
-          Row() {
-            Text('我的')
-              .fontSize(22)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-            Blank()
-          }
-          .width('100%')
-          .padding({ left: 20, right: 20, top: 14, bottom: 0 })
+  @LocalBuilder
+  buildProfileHeader() {
+    FloatingPageTitle({
+      title: '我的',
+      topInset: this.topInset
+    })
+  }
 
-          Column() {
-            OuterScreenPreviewEntry()
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16 })
+  @LocalBuilder
+  buildProfileBody() {
+    Column({ space: UiTokens.SECTION_GAP }) {
+      OuterScreenPreviewEntry()
 
-          Column() {
-            CardContainer() {
-              Row() {
-                Column({ space: 4 }) {
-                  Text('缓存设置')
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-                  Text(`已用 ${SongCacheStore.formatBytes(this.songCacheUsedBytes)}`)
-                    .fontSize(12)
-                    .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                }
-                .alignItems(HorizontalAlign.Start)
-                .layoutWeight(1)
-                Text('›')
-                  .fontSize(20)
-                  .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
-              }
-              .width('100%')
-              .alignItems(VerticalAlign.Center)
-              .onClick(() => {
-                this.appPathStack.pushPathByName('CacheSettingsPage', null);
-              })
-            }
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16 })
-
-          Column() {
-            CardContainer() {
-              Row() {
-                Column({ space: 4 }) {
-                  Text('导出配置')
-                    .fontSize(16)
-                    .fontWeight(FontWeight.Medium)
-                    .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-                  Text('导出服务器登录信息')
-                    .fontSize(12)
-                    .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                }
-                .alignItems(HorizontalAlign.Start)
-                .layoutWeight(1)
-                Text('›')
-                  .fontSize(20)
-                  .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
-              }
-              .width('100%')
-              .alignItems(VerticalAlign.Center)
-              .onClick(() => {
-                this.appPathStack.pushPathByName('ExportConfigPage', null);
-              })
-            }
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16 })
-
-          Column() {
-            CardContainer() {
-              Column({ space: 10 }) {
-                Text(this.isLoggedIn ? (this.loggedInUser.length > 0 ? this.loggedInUser : '已登录用户') : '未登录')
-                  .fontSize(16)
-                  .fontWeight(FontWeight.Medium)
-                  .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-                Text(this.isLoggedIn ? this.loggedInServer : '请先在服务器页完成登录')
-                  .fontSize(12)
-                  .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                if (this.isLoggedIn) {
-                  DangerButton({
-                    text: '退出登录',
-                    onPressed: () => {
-                      this.handleLogout().catch((err: Error) => {
-                        console.error(`logout failed: ${err.message}`);
-                      });
-                    }
-                  })
-                  .margin({ top: 6 })
-                }
-              }
-              .width('100%')
-              .alignItems(HorizontalAlign.Start)
-            }
-          }
-          .width('100%')
-          .padding({ left: 16, right: 16 })
+      CardContainer() {
+      Row() {
+        Column({ space: 4 }) {
+          Text('缓存设置')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          Text(`已用 ${SongCacheStore.formatBytes(this.songCacheUsedBytes)}`)
+            .fontSize(12)
+            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
         }
-        .width('100%')
-        .padding({ bottom: 12 })
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        Text('›')
+          .fontSize(20)
+          .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
       }
       .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .align(Alignment.Top)
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.appPathStack.pushPathByName('CacheSettingsPage', null);
+      })
     }
+
+    CardContainer() {
+      Row() {
+        Column({ space: 4 }) {
+          Text('导出配置')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          Text('导出服务器登录信息')
+            .fontSize(12)
+            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+        }
+        .alignItems(HorizontalAlign.Start)
+        .layoutWeight(1)
+        Text('›')
+          .fontSize(20)
+          .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+      }
+      .width('100%')
+      .alignItems(VerticalAlign.Center)
+      .onClick(() => {
+        this.appPathStack.pushPathByName('ExportConfigPage', null);
+      })
+    }
+
+    CardContainer() {
+      Column({ space: 10 }) {
+        Text(this.isLoggedIn ? (this.loggedInUser.length > 0 ? this.loggedInUser : '已登录用户') : '未登录')
+          .fontSize(16)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+        Text(this.isLoggedIn ? this.loggedInServer : '请先在服务器页完成登录')
+          .fontSize(12)
+          .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+        if (this.isLoggedIn) {
+          DangerButton({
+            text: '退出登录',
+            onPressed: () => {
+              this.handleLogout().catch((err: Error) => {
+                console.error(`logout failed: ${err.message}`);
+              });
+            }
+          })
+            .margin({ top: 6 })
+        }
+      }
+      .width('100%')
+      .alignItems(HorizontalAlign.Start)
+      }
+    }
+    .width('100%')
+  }
+
+  build() {
+    SonarPageLayout({
+      options: this.layoutOptions(),
+      headerSlot: this.buildProfileHeader,
+      content: this.buildProfileBody
+    })
   }
 }
-

@@ -9,7 +9,9 @@ import { FloatingTabBar } from '../components/navigation/FloatingTabBar';
 import { ScreenProfileStore } from '../ui/adaptation/ScreenProfileStore';
 import { OuterScreenPalette, OuterScreenTheme } from '../ui/adaptation/OuterScreenTheme';
 import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
+import { NavigationPlatform } from '../navigation/NavigationPlatform';
 import { UiTokens } from '../ui/tokens/UiTokens';
+import { HdsNavigation } from '@kit.UIDesignKit';
 
 const DOMAIN = 0x0000;
 const TAG = 'Sonar.Index';
@@ -84,14 +86,19 @@ struct Index {
   }
 
   @Builder
-  private buildStandardApp() {
+  private buildNavHome() {
+    Column() {
+      FloatingTabBar()
+    }
+    .backgroundColor(Color.Transparent)
+    .width('100%')
+    .height('100%')
+  }
+
+  @Builder
+  private buildLegacyNavigation() {
     Navigation(this.appPathStack) {
-      Column() {
-        FloatingTabBar()
-      }
-      .backgroundColor(Color.Transparent)
-      .width('100%')
-      .height('100%')
+      this.buildNavHome()
     }
     .navDestination(PageMap)
     .hideTitleBar(true)
@@ -103,7 +110,33 @@ struct Index {
       angle: 160,
       colors: [[UiTokens.COLOR_BG_GRADIENT_TOP, 0], [UiTokens.COLOR_BG_GRADIENT_BOTTOM, 1]]
     })
+  }
+
+  @Builder
+  private buildHdsNavigation() {
+    HdsNavigation(this.appPathStack) {
+      this.buildNavHome()
+    }
+    .navDestination(PageMap)
+    .hideTitleBar(true)
+    .mode(NavigationMode.Stack)
+    .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
+    .width('100%')
+    .height('100%')
+    .linearGradient({
+      angle: 160,
+      colors: [[UiTokens.COLOR_BG_GRADIENT_TOP, 0], [UiTokens.COLOR_BG_GRADIENT_BOTTOM, 1]]
+    })
+  }
+
+  @Builder
+  private buildStandardApp() {
+    if (NavigationPlatform.supportsHdsNavigation()) {
+      this.buildHdsNavigation()
+    } else {
+      this.buildLegacyNavigation()
+    }
   }
 
   private outerScreenPalette(): OuterScreenPalette {

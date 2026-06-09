@@ -55,6 +55,35 @@ export class UiTokens {
 
   static readonly FLOATING_TAB_BAR_HEIGHT: number = 56;
   static readonly FLOATING_TAB_BAR_BOTTOM_MARGIN: number = 10;
+  /** 底栏渐变蒙层额外高度（barFloatingStyle.gradientMask.maskHeight = TAB_HEIGHT + 此值） */
+  static readonly FLOATING_TAB_GRADIENT_MASK_EXTRA: number = 32;
+  /** 全站页面内容区水平边距（Tab / 二级表单） */
+  static readonly PAGE_HORIZONTAL_PADDING: number = 16;
+  /** 登录页水平边距（百分比） */
+  static readonly LOGIN_HORIZONTAL_PADDING_PERCENT: string = '6%';
+  /** 头部底缘到首行内容（form） */
+  static readonly CONTENT_TOP_GAP: number = 12;
+  /** 头部底缘到首行内容（hero 专辑头图） */
+  static readonly CONTENT_TOP_GAP_HERO: number = 8;
+  /** 页面内多卡片/段落间距 */
+  static readonly SECTION_GAP: number = 12;
+  /** HdsNavigation MINI 标题栏占位高度 */
+  static readonly HDS_TITLE_BAR_MINI_HEIGHT: number = 56;
+  /** 二级页标题栏内容区上内边距（对齐 HDS MINI 背板 8vp 上 padding） */
+  static readonly HDS_TITLE_BAR_TOP_EXTRA: number = 8;
+  /** 标题栏 GRADIENT_BLUR 蒙层向下延伸（vp） */
+  static readonly HDS_TITLE_BAR_GRADIENT_MASK_EXTRA: number = 40;
+  static readonly LIBRARY_SEARCH_TOP_MARGIN: number = 10;
+  static readonly LIBRARY_SEARCH_HEIGHT: number = 48;
+  static readonly LIBRARY_SEARCH_SIDE_PADDING: number = 18;
+  static readonly LIBRARY_SEARCH_CONTENT_GAP: number = 8;
+  /** Tab 根页浮层页标题区（对齐媒体库搜索栏 top margin） */
+  static readonly TAB_PAGE_HEADER_TOP_MARGIN: number = UiTokens.LIBRARY_SEARCH_TOP_MARGIN;
+  static readonly TAB_PAGE_HEADER_TITLE_HEIGHT: number = 28;
+  static readonly TAB_PAGE_HEADER_CONTENT_GAP: number = UiTokens.LIBRARY_SEARCH_CONTENT_GAP;
+  static readonly TAB_PAGE_HEADER_OVERLAY_VP: number =
+    UiTokens.TAB_PAGE_HEADER_TOP_MARGIN + UiTokens.TAB_PAGE_HEADER_TITLE_HEIGHT +
+    UiTokens.TAB_PAGE_HEADER_CONTENT_GAP;
   /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds/tabs-bar-floating.mdc「展开底部胶囊宽度」 */
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL: number = 262;
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM: number = 278;
@@ -72,10 +101,6 @@ export class UiTokens {
   static readonly MINI_PLAYER_BOTTOM_PADDING: number = 92;
   static readonly MINI_PLAYER_WITH_TAB_BOTTOM_PADDING: number = 96;
 
-  static readonly LIBRARY_SEARCH_TOP_MARGIN: number = 10;
-  static readonly LIBRARY_SEARCH_HEIGHT: number = 48;
-  static readonly LIBRARY_SEARCH_SIDE_PADDING: number = 18;
-  static readonly LIBRARY_SEARCH_CONTENT_GAP: number = 8;
   static readonly LIBRARY_PAGE_HORIZONTAL_PADDING: number = 14;
   static readonly LIBRARY_LIST_EDGE_GAP: number = 8;
   static readonly LIBRARY_GRID_GAP: number = 12;

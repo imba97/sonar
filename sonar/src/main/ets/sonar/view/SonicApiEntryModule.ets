@@ -71,6 +71,6 @@ export struct SonicApiEntryModule {
       }
     }
     .width('92%')
-    .margin({ top: 12, bottom: 6 })
+    .margin({ bottom: 6 })
   }
 }

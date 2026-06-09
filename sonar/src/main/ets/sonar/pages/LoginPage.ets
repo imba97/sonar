@@ -5,8 +5,14 @@ import { AppTextArea } from '../components/forms/AppTextArea';
 import { LoginModeSegment } from '../components/forms/LoginModeSegment';
 import { PrimaryButton } from '../components/buttons/PrimaryButton';
 import { CardContainer } from '../components/layout/CardContainer';
-import { PageScaffold } from '../components/layout/PageScaffold';
+import { SonarPageLayout } from '../components/layout/SonarPageLayout';
 import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
+import {
+  FloatingHeaderType,
+  SonarPageLayoutOptions,
+  SonarPageRole,
+  SonarScrollMode
+} from '../ui/layout/SonarPageLayoutOptions';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
 const DOMAIN = 0x0000;
@@ -19,6 +25,15 @@ export struct LoginPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
   @State vm: LoginViewModel = new LoginViewModel();
   @State loginTabIndex: number = 0;
+
+  private layoutOptions(): SonarPageLayoutOptions {
+    return {
+      role: SonarPageRole.STANDALONE,
+      headerType: FloatingHeaderType.NONE,
+      contentVariant: 'login',
+      scrollMode: SonarScrollMode.SCROLL
+    };
+  }
 
   aboutToAppear(): void {
     ImmersiveMaterialHelper.probeAndCache();
@@ -36,7 +51,7 @@ export struct LoginPage {
     this.vm.errorMessage = '';
   }
 
-  @Builder
+  @LocalBuilder
   serverTabContent() {
     AppTextInput({
       text: this.vm.serverUrl,
@@ -88,7 +103,7 @@ export struct LoginPage {
     })
   }
 
-  @Builder
+  @LocalBuilder
   importTabContent() {
     Text('粘贴导出的 Base64 配置')
       .fontSize(13)
@@ -134,66 +149,67 @@ export struct LoginPage {
     })
   }
 
-  build() {
-    PageScaffold({
-      pageBackground: UiTokens.COLOR_PRIMARY,
-      topPadding: 48,
-      bottomPadding: 24
-    }) {
-      Scroll() {
-        Column() {
-          Column() {
-            Text('Sonar')
-              .fontSize(48)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-              .letterSpacing(2)
-            Text('让自部署音乐，回到你的口袋')
-              .fontSize(14)
-              .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-              .margin({ top: 8 })
-          }
-          .margin({ bottom: 24 })
-          .alignItems(HorizontalAlign.Center)
-
-          CardContainer() {
-            LoginModeSegment({
-              selectedIndex: this.loginTabIndex,
-              onSelect: (index: number) => {
-                this.selectLoginTab(index);
-              }
-            })
-              .margin({ bottom: 16 })
-
-            Column() {
-              if (this.loginTabIndex === 0) {
-                this.serverTabContent()
-              } else {
-                this.importTabContent()
-              }
-            }
-            .width('100%')
-            .height(LOGIN_FORM_BODY_MIN_HEIGHT)
-            .alignItems(HorizontalAlign.Start)
-            .justifyContent(FlexAlign.Start)
-
-            if (this.vm.errorMessage.length > 0) {
-              Text(this.vm.errorMessage)
-                .fontSize(13)
-                .fontColor(UiTokens.COLOR_ERROR)
-                .margin({ top: 14 })
-                .alignSelf(ItemAlign.Start)
-            }
-          }
-        }
-        .width('100%')
-        .padding({ left: '6%', right: '6%', bottom: 24 })
+  @LocalBuilder
+  buildLoginFormCard() {
+    LoginModeSegment({
+      selectedIndex: this.loginTabIndex,
+      onSelect: (index: number) => {
+        this.selectLoginTab(index);
       }
-      .width('100%')
-      .height('100%')
-      .scrollBar(BarState.Off)
-      .edgeEffect(EdgeEffect.Spring)
-      .align(Alignment.Top)
+    })
+      .margin({ bottom: 16 })
+
+    Column() {
+      if (this.loginTabIndex === 0) {
+        this.serverTabContent()
+      } else {
+        this.importTabContent()
+      }
     }
+    .width('100%')
+    .height(LOGIN_FORM_BODY_MIN_HEIGHT)
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Start)
+
+    if (this.vm.errorMessage.length > 0) {
+      Text(this.vm.errorMessage)
+        .fontSize(13)
+        .fontColor(UiTokens.COLOR_ERROR)
+        .margin({ top: 14 })
+        .alignSelf(ItemAlign.Start)
+    }
+  }
+
+  @LocalBuilder
+  buildLoginBody() {
+    Column() {
+      Blank().height(48)
+      Column() {
+        Text('Sonar')
+          .fontSize(48)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+          .letterSpacing(2)
+        Text('让自部署音乐，回到你的口袋')
+          .fontSize(14)
+          .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+          .margin({ top: 8 })
+      }
+      .margin({ bottom: 24 })
+      .alignItems(HorizontalAlign.Center)
+
+      CardContainer() {
+        this.buildLoginFormCard()
+      }
+    }
+    .width('100%')
+    .justifyContent(FlexAlign.Center)
+  }
+
+  build() {
+    SonarPageLayout({
+      options: this.layoutOptions(),
+      content: this.buildLoginBody
+    })
   }
 }

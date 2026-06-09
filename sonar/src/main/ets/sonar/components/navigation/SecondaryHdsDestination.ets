@@ -11,7 +11,7 @@ function emptySecondaryContent() {
 function emptySecondaryFloatingLayer() {
 }
 
-/** 二级页：HdsNavDestination 直包 Scroll + COMMON_BLUR + bindToScrollable（官方骨架） */
+/** 二级页：HdsNavDestination 直包 Scroll + IMMERSIVE_GRADIENT_BLUR + bindToScrollable（官方骨架） */
 @Component
 export struct SecondaryHdsDestination {
   @Prop title: string = '';

@@ -81,7 +81,7 @@ export class UiTokens {
   static readonly SECONDARY_CONTENT_PADDING_TOP_HERO: number =
     UiTokens.SECONDARY_HEADER_OVERLAY_VP + UiTokens.CONTENT_TOP_GAP_HERO;
   /** 二级页浮层头部：上滑多少 vp 后毛玻璃满强度 */
-  static readonly SECONDARY_GLASS_REVEAL_SCROLL_VP: number = 24;
+  static readonly SECONDARY_GLASS_REVEAL_SCROLL_VP: number = 20;
   static readonly LIBRARY_SEARCH_HEIGHT: number = 48;
   /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds/tabs-bar-floating.mdc「展开底部胶囊宽度」 */
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL: number = 262;

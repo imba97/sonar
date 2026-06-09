@@ -30,4 +30,19 @@ export class ImmersiveMaterialHelper {
       materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
     };
   }
+
+  /** 标题栏沉浸光感：对齐官方示例 IMMERSIVE + ADAPTIVE */
+  static buildTitleBarEffect(): SystemMaterialParams {
+    const available: boolean = AppStorage.get<boolean>(HDS_MATERIAL_AVAILABLE_KEY) ?? false;
+    if (!available) {
+      return {
+        materialType: hdsMaterial.MaterialType.NONE,
+        materialLevel: hdsMaterial.MaterialLevel.SMOOTH
+      };
+    }
+    return {
+      materialType: hdsMaterial.MaterialType.IMMERSIVE,
+      materialLevel: hdsMaterial.MaterialLevel.ADAPTIVE
+    };
+  }
 }

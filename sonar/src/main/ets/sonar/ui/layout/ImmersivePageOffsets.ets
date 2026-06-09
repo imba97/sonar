@@ -22,18 +22,14 @@ export class ImmersivePageOffsets {
     return topInset + UiTokens.SECONDARY_HEADER_OVERLAY_VP;
   }
 
-  /** Tab 根页：状态栏 + 首行间距（空标题栏无控件，不预留 MINI 56vp） */
-  static primaryContentTopPadding(topInset: number, variant: SonarContentVariant = 'form'): number {
-    const firstLineGap: number = variant === 'hero' ?
-      UiTokens.CONTENT_TOP_GAP_HERO : UiTokens.CONTENT_TOP_GAP;
-    return topInset + firstLineGap;
+  /** Tab 根页：官方沉浸式图文，内容顶格穿透标题栏 */
+  static primaryContentTopPadding(_topInset: number, _variant: SonarContentVariant = 'form'): number {
+    return 0;
   }
 
-  /** 二级页：状态栏 + 标题栏占位 + 首行间距 */
-  static secondaryContentTopPadding(topInset: number, variant: SonarContentVariant = 'form'): number {
-    const firstLineGap: number = variant === 'hero' ?
-      UiTokens.CONTENT_TOP_GAP_HERO : UiTokens.CONTENT_TOP_GAP;
-    return ImmersivePageOffsets.secondaryHeaderOverlayHeight(topInset) + firstLineGap;
+  /** 二级页：官方示例 Blank(TITLE_BAR_HEIGHT_MINI)，仅预留 56vp 标题栏占位 */
+  static secondaryContentTopPadding(_topInset: number, _variant: SonarContentVariant = 'form'): number {
+    return UiTokens.HDS_TITLE_BAR_MINI_HEIGHT;
   }
 
 }

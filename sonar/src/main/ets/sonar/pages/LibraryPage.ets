@@ -207,10 +207,6 @@ export struct LibraryPage {
       })
     }
     .width('100%')
-    // ListItemGroup header 不参与 contentStartOffset，顶距须写在 header 内
-    .padding({
-      top: ImmersivePageOffsets.primaryContentTopPadding(this.topInset)
-    })
     .margin({ bottom: UiTokens.SECTION_GAP })
   }
 

@@ -11,7 +11,7 @@ import { OuterScreenPalette, OuterScreenTheme } from '../ui/adaptation/OuterScre
 import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
 import { NavigationPlatform } from '../navigation/NavigationPlatform';
 import { UiTokens } from '../ui/tokens/UiTokens';
-import { HdsNavigation } from '@kit.UIDesignKit';
+import { HdsNavigation, HdsNavigationTitleMode } from '@kit.UIDesignKit';
 import { HdsPageTitleBar } from '../ui/material/HdsPageTitleBar';
 import { TabScrollerBridge } from '../ui/layout/TabScrollerBridge';
 
@@ -125,6 +125,8 @@ struct Index {
     .navDestination(PageMap)
     .hideTitleBar(this.appPathStack.size() > 0)
     .titleBar(HdsPageTitleBar.buildPrimary())
+    .titleMode(HdsNavigationTitleMode.MINI)
+    .hideBackButton(true)
     .bindToScrollable([this.tabScrollerBridge.scrollerForTab(this.rootTabIndex)])
     .mode(NavigationMode.Stack)
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])

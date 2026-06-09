@@ -6,7 +6,7 @@ export struct GlassSearchBar {
   @Prop keyword: string = '';
   @Prop placeholder: string = '搜索';
   @Prop topPadding: number = 0;
-  @Prop sidePadding: number = UiTokens.LIBRARY_SEARCH_SIDE_PADDING;
+  @Prop sidePadding: number = UiTokens.PAGE_HORIZONTAL_PADDING;
   @Prop barHeight: number = UiTokens.LIBRARY_SEARCH_HEIGHT;
   @BuilderParam onKeywordChange: (value: string) => void;
   @BuilderParam onSubmit: () => void;

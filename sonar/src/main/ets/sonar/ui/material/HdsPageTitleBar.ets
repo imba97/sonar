@@ -7,7 +7,7 @@ import {
 import { LengthMetrics } from '@kit.ArkUI';
 import { UiTokens } from '../tokens/UiTokens';
 
-const SECONDARY_TITLE_BAR_CONTENT_STYLE: HdsTitleBarContentStyle = {
+const PAGE_TITLE_BAR_CONTENT_STYLE: HdsTitleBarContentStyle = {
   titleStyle: {
     mainTitleColor: $r('sys.color.font_primary')
   },
@@ -17,8 +17,8 @@ const SECONDARY_TITLE_BAR_CONTENT_STYLE: HdsTitleBarContentStyle = {
   }
 };
 
-/** 二级页 HdsNavDestination 标题栏：官方 COMMON_BLUR 骨架，静止透明背板 */
-export class HdsSecondaryTitleBar {
+/** 全站 HDS 标题栏：官方 COMMON_BLUR 骨架，静止透明背板 */
+export class HdsPageTitleBar {
   static buildTitleBarStyle(): TitleBarStyleOptions {
     return {
       scrollEffectOpts: {
@@ -31,26 +31,42 @@ export class HdsSecondaryTitleBar {
         backgroundStyle: {
           backgroundColor: Color.Transparent
         },
-        contentStyle: SECONDARY_TITLE_BAR_CONTENT_STYLE
+        contentStyle: PAGE_TITLE_BAR_CONTENT_STYLE
       },
       scrollEffectStyle: {
         backgroundStyle: {
           backgroundColor: $r('sys.color.ohos_id_color_background_transparent')
         },
-        contentStyle: SECONDARY_TITLE_BAR_CONTENT_STYLE
+        contentStyle: PAGE_TITLE_BAR_CONTENT_STYLE
       }
     };
   }
 
-  static build(mainTitle: string): HdsNavigationTitleBarOptions {
+  private static baseOptions(): HdsNavigationTitleBarOptions {
     return {
-      // ignoreLayoutSafeArea 沉浸布局下，标题栏主动避让状态栏（仅布局高度，不影响 COMMON_BLUR）
       avoidLayoutSafeArea: true,
       padding: {
         start: LengthMetrics.vp(2),
         end: LengthMetrics.vp(2)
       },
-      style: HdsSecondaryTitleBar.buildTitleBarStyle(),
+      style: HdsPageTitleBar.buildTitleBarStyle()
+    };
+  }
+
+  /** Tab 根页：空标题栏（无返回、无标题） */
+  static buildPrimary(): HdsNavigationTitleBarOptions {
+    return HdsPageTitleBar.baseOptions();
+  }
+
+  /** 二级页：返回 + 标题 */
+  static buildSecondary(mainTitle: string): HdsNavigationTitleBarOptions {
+    return {
+      avoidLayoutSafeArea: true,
+      padding: {
+        start: LengthMetrics.vp(2),
+        end: LengthMetrics.vp(2)
+      },
+      style: HdsPageTitleBar.buildTitleBarStyle(),
       content: {
         title: {
           mainTitle: mainTitle

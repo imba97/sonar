@@ -1,9 +1,7 @@
 import { SonicApiEntryModule } from '../view/SonicApiEntryModule';
 import { CardContainer } from '../components/layout/CardContainer';
-import { FloatingPageTitle } from '../components/layout/FloatingPageTitle';
 import { SonarPageLayout } from '../components/layout/SonarPageLayout';
 import {
-  FloatingHeaderType,
   SonarPageLayoutOptions,
   SonarPageRole,
   SonarScrollMode
@@ -16,12 +14,10 @@ export struct ServerPage {
   @StorageLink('loggedInServer') loggedInServer: string = '';
   @StorageLink('loggedInEndpoint') loggedInEndpoint: string = 'remote';
   @StorageLink('networkType') networkType: string = 'none';
-  @StorageProp('topRectHeight') topInset: number = 0;
 
   private layoutOptions(): SonarPageLayoutOptions {
     return {
       role: SonarPageRole.TAB_ROOT,
-      headerType: FloatingHeaderType.FLOATING_TITLE,
       barToneTabIndex: 1,
       scrollMode: SonarScrollMode.SCROLL
     };
@@ -38,14 +34,6 @@ export struct ServerPage {
       default:
         return '其他网络';
     }
-  }
-
-  @LocalBuilder
-  buildServerHeader() {
-    FloatingPageTitle({
-      title: '服务器',
-      topInset: this.topInset
-    })
   }
 
   @LocalBuilder
@@ -90,7 +78,6 @@ export struct ServerPage {
   build() {
     SonarPageLayout({
       options: this.layoutOptions(),
-      headerSlot: this.buildServerHeader,
       content: this.buildServerBody
     })
   }

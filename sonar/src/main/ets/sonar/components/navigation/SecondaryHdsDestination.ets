@@ -1,6 +1,6 @@
 import { HdsNavDestination, HdsNavDestinationTitleMode } from '@kit.UIDesignKit';
 import { SecondaryScrollContent } from '../layout/SecondaryScrollContent';
-import { HdsSecondaryTitleBar } from '../../ui/material/HdsSecondaryTitleBar';
+import { HdsPageTitleBar } from '../../ui/material/HdsPageTitleBar';
 import { SonarContentVariant } from '../../ui/layout/SonarPageLayoutOptions';
 
 @Builder
@@ -48,7 +48,7 @@ export struct SecondaryHdsDestination {
     .hideTitleBar(false)
     .hideBackButton(false)
     .titleMode(HdsNavDestinationTitleMode.MINI)
-    .titleBar(HdsSecondaryTitleBar.build(this.title))
+    .titleBar(HdsPageTitleBar.buildSecondary(this.title))
     .bindToScrollable([this.scroller])
     .backgroundColor(Color.Transparent)
     .systemTransition(NavigationSystemTransitionType.CONTENT)

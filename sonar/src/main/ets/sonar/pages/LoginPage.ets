@@ -8,7 +8,6 @@ import { CardContainer } from '../components/layout/CardContainer';
 import { SonarPageLayout } from '../components/layout/SonarPageLayout';
 import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
 import {
-  FloatingHeaderType,
   SonarPageLayoutOptions,
   SonarPageRole,
   SonarScrollMode
@@ -29,7 +28,6 @@ export struct LoginPage {
   private layoutOptions(): SonarPageLayoutOptions {
     return {
       role: SonarPageRole.STANDALONE,
-      headerType: FloatingHeaderType.NONE,
       contentVariant: 'login',
       scrollMode: SonarScrollMode.SCROLL
     };

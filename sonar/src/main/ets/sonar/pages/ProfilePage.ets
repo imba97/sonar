@@ -3,10 +3,8 @@ import { SongCacheStore } from '../cache/SongCacheStore';
 import { DangerButton } from '../components/buttons/DangerButton';
 import { OuterScreenPreviewEntry } from '../components/debug/OuterScreenPreviewEntry';
 import { CardContainer } from '../components/layout/CardContainer';
-import { FloatingPageTitle } from '../components/layout/FloatingPageTitle';
 import { SonarPageLayout } from '../components/layout/SonarPageLayout';
 import {
-  FloatingHeaderType,
   SonarPageLayoutOptions,
   SonarPageRole,
   SonarScrollMode
@@ -22,12 +20,10 @@ export struct ProfilePage {
   @StorageLink('loggedInUser') loggedInUser: string = '';
   @StorageLink('loggedInServer') loggedInServer: string = '';
   @StorageLink('songCacheUsedBytes') songCacheUsedBytes: number = 0;
-  @StorageProp('topRectHeight') topInset: number = 0;
 
   private layoutOptions(): SonarPageLayoutOptions {
     return {
       role: SonarPageRole.TAB_ROOT,
-      headerType: FloatingHeaderType.FLOATING_TITLE,
       barToneTabIndex: 2,
       scrollMode: SonarScrollMode.SCROLL
     };
@@ -36,14 +32,6 @@ export struct ProfilePage {
   private async handleLogout(): Promise<void> {
     await AuthSession.signOut();
     AppStorage.setOrCreate<number>('rootTabIndex', LOGOUT_DESTINATION_TAB_INDEX);
-  }
-
-  @LocalBuilder
-  buildProfileHeader() {
-    FloatingPageTitle({
-      title: '我的',
-      topInset: this.topInset
-    })
   }
 
   @LocalBuilder
@@ -130,7 +118,6 @@ export struct ProfilePage {
   build() {
     SonarPageLayout({
       options: this.layoutOptions(),
-      headerSlot: this.buildProfileHeader,
       content: this.buildProfileBody
     })
   }

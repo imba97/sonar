@@ -82,21 +82,7 @@ export class UiTokens {
     UiTokens.SECONDARY_HEADER_OVERLAY_VP + UiTokens.CONTENT_TOP_GAP_HERO;
   /** 二级页浮层头部：上滑多少 vp 后毛玻璃满强度 */
   static readonly SECONDARY_GLASS_REVEAL_SCROLL_VP: number = 24;
-  /** 二级页标题栏内容区上内边距（对齐 HDS MINI 背板 8vp 上 padding） */
-  static readonly HDS_TITLE_BAR_TOP_EXTRA: number = 8;
-  /** 标题栏 GRADIENT_BLUR 模糊蒙层下延（vp，非标题控件高度；官方默认 32） */
-  static readonly HDS_TITLE_BAR_GRADIENT_MASK_EXTRA: number = 28;
-  static readonly LIBRARY_SEARCH_TOP_MARGIN: number = 10;
   static readonly LIBRARY_SEARCH_HEIGHT: number = 48;
-  static readonly LIBRARY_SEARCH_SIDE_PADDING: number = 18;
-  static readonly LIBRARY_SEARCH_CONTENT_GAP: number = 8;
-  /** Tab 根页浮层页标题区（对齐媒体库搜索栏 top margin） */
-  static readonly TAB_PAGE_HEADER_TOP_MARGIN: number = UiTokens.LIBRARY_SEARCH_TOP_MARGIN;
-  static readonly TAB_PAGE_HEADER_TITLE_HEIGHT: number = 28;
-  static readonly TAB_PAGE_HEADER_CONTENT_GAP: number = UiTokens.LIBRARY_SEARCH_CONTENT_GAP;
-  static readonly TAB_PAGE_HEADER_OVERLAY_VP: number =
-    UiTokens.TAB_PAGE_HEADER_TOP_MARGIN + UiTokens.TAB_PAGE_HEADER_TITLE_HEIGHT +
-    UiTokens.TAB_PAGE_HEADER_CONTENT_GAP;
   /** 展开底栏总宽（页签+mini）：唯一调节点；见 .cursor/rules/hds/tabs-bar-floating.mdc「展开底部胶囊宽度」 */
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_SMALL: number = 262;
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_MEDIUM: number = 278;

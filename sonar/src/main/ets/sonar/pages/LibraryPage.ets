@@ -9,8 +9,8 @@ import { AutoMarqueeText } from '../components/layout/AutoMarqueeText';
 import { GlassSearchBar } from '../components/forms/GlassSearchBar';
 import { SonarPageLayout } from '../components/layout/SonarPageLayout';
 import { ImmersivePageOffsets } from '../ui/layout/ImmersivePageOffsets';
+import { TabScrollerBridge } from '../ui/layout/TabScrollerBridge';
 import {
-  FloatingHeaderType,
   SonarPageRole,
   SonarScrollMode
 } from '../ui/layout/SonarPageLayoutOptions';
@@ -40,6 +40,7 @@ function resolveVpLength(context: UIContext, value: Length): number {
 @Component
 export struct LibraryPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
+  @Consume('tabScrollerBridge') tabScrollerBridge: TabScrollerBridge = new TabScrollerBridge();
   @StorageLink('authPhase') @Watch('onAuthSnapshotChanged') authPhase: string = 'booting';
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
@@ -50,7 +51,6 @@ export struct LibraryPage {
   @State private _gridColumns: number = 1;
   @State private _playAllLoading: boolean = false;
 
-  private listScroller: Scroller = new Scroller();
 
   private updateGridColumnsByWidth(widthVp: number): void {
     const safeWidthVp: number = Math.max(0, widthVp);
@@ -192,8 +192,27 @@ export struct LibraryPage {
   }
 
   @Builder
+  private buildLibrarySearchItem() {
+    ListItem() {
+      GlassSearchBar({
+        keyword: this._searchKeyword,
+        onKeywordChange: (value: string) => {
+          this._searchKeyword = value;
+        },
+        placeholder: '搜索媒体库',
+        sidePadding: 0,
+        onSubmit: () => {
+          this.submitSearch();
+        }
+      })
+    }
+  }
+
+  @Builder
   private buildAlbumsList() {
-    List({ scroller: this.listScroller, space: UiTokens.LIBRARY_GRID_GAP }) {
+    List({ scroller: this.tabScrollerBridge.scrollerForTab(0), space: UiTokens.LIBRARY_GRID_GAP }) {
+      this.buildLibrarySearchItem()
+
       if (this.vm.isLoading && this.vm.albums.length === 0) {
         ListItem() {
           LoadingState({ message: this.vm.isSearchMode ? '正在搜索专辑…' : '正在获取专辑…' })
@@ -264,7 +283,7 @@ export struct LibraryPage {
       right: UiTokens.LIBRARY_PAGE_HORIZONTAL_PADDING
     })
     .backgroundColor(Color.Transparent)
-    .contentStartOffset(ImmersivePageOffsets.libraryListStartOffset(this.topInset))
+    .contentStartOffset(ImmersivePageOffsets.primaryContentTopPadding(this.topInset))
     .contentEndOffset(ImmersivePageOffsets.tabContentEnd(this.bottomInset, this.rootTabActive))
     .lanes(this.vm.albums.length > 0 ? this._gridColumns : 1, `${UiTokens.LIBRARY_GRID_GAP}vp`)
     .listDirection(Axis.Vertical)
@@ -303,21 +322,6 @@ export struct LibraryPage {
     }
   }
 
-  @Builder
-  private buildLibrarySearchHeader() {
-    GlassSearchBar({
-      keyword: this._searchKeyword,
-      onKeywordChange: (value: string) => {
-        this._searchKeyword = value;
-      },
-      placeholder: '搜索媒体库',
-      topPadding: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN,
-      onSubmit: () => {
-        this.submitSearch();
-      }
-    })
-  }
-
   @LocalBuilder
   buildBootingBody() {
     Column() {
@@ -341,7 +345,6 @@ export struct LibraryPage {
     SonarPageLayout({
       options: {
         role: SonarPageRole.TAB_ROOT,
-        headerType: FloatingHeaderType.NONE,
         barToneTabIndex: 0,
         scrollMode: SonarScrollMode.SCROLL
       },
@@ -354,7 +357,6 @@ export struct LibraryPage {
     SonarPageLayout({
       options: {
         role: SonarPageRole.TAB_ROOT,
-        headerType: FloatingHeaderType.NONE,
         barToneTabIndex: 0,
         scrollMode: SonarScrollMode.SCROLL
       },
@@ -364,14 +366,8 @@ export struct LibraryPage {
 
   @Builder
   private buildAuthenticatedScaffold() {
-    // List 含嵌套 @Builder，须在页面内直接调用，不可经 SonarPageLayout @BuilderParam 转发
     Column() {
-      Stack({ alignContent: Alignment.Top }) {
-        this.buildAlbumsList()
-        this.buildLibrarySearchHeader()
-      }
-      .width('100%')
-      .height('100%')
+      this.buildAlbumsList()
     }
     .width('100%')
     .height('100%')

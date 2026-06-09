@@ -6,6 +6,7 @@ import { BarToneStore } from '../../ui/color/BarToneStore';
 import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { MiniBarRowHost } from './MiniBarRowHost';
+import { TabScrollerBridge } from '../../ui/layout/TabScrollerBridge';
 import {
   HdsBarStyle,
   HdsBarWidthRangeOptions,
@@ -43,6 +44,7 @@ const COLLAPSE_LABEL_FONT_SIZE: number = 0.1;
  */
 @Component
 export struct HdsTabsShell {
+  @Consume('tabScrollerBridge') tabScrollerBridge: TabScrollerBridge = new TabScrollerBridge();
   @StorageLink('rootTabIndex') rootTabIndex: number = 0;
   @StorageProp('bottomRectHeight') @Watch('onLayoutDepsChange') bottomInset: number = 0;
   @StorageLink('barToneUseLightForeground') @Watch('onBarToneFlip') barToneUseLightForeground: boolean = false;
@@ -301,6 +303,7 @@ export struct HdsTabsShell {
     .barFloatingStyle(this.resolveBarFloatingStyle())
     .onChange((index: number) => {
       this.rootTabIndex = index;
+      this.tabScrollerBridge.setActiveTab(index);
     })
     .width('100%')
     .height('100%')

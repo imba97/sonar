@@ -5,10 +5,12 @@ import { BarToneCoordinator } from '../../ui/color/BarToneCoordinator';
 import { BarToneStore } from '../../ui/color/BarToneStore';
 import { BarToneSampler } from '../../ui/color/BarToneSampler';
 import { HdsTabsShell } from './HdsTabsShell';
+import { TabScrollerBridge } from '../../ui/layout/TabScrollerBridge';
 import deviceInfo from '@ohos.deviceInfo';
 
 @Component
 export struct FloatingTabBar {
+  @Consume('tabScrollerBridge') tabScrollerBridge: TabScrollerBridge = new TabScrollerBridge();
   @StorageLink('rootTabIndex') rootTabIndex: number = 0;
   @State private containerWidth: number = 360;
 
@@ -51,6 +53,7 @@ export struct FloatingTabBar {
     .animationDuration(0)
     .onChange((index: number) => {
       this.rootTabIndex = index;
+      this.tabScrollerBridge.setActiveTab(index);
       BarToneStore.resetBaseline(index, BarToneStore.isDarkMode());
     })
     .width('100%')

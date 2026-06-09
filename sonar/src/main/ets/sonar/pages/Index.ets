@@ -12,6 +12,8 @@ import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper'
 import { NavigationPlatform } from '../navigation/NavigationPlatform';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { HdsNavigation } from '@kit.UIDesignKit';
+import { HdsPageTitleBar } from '../ui/material/HdsPageTitleBar';
+import { TabScrollerBridge } from '../ui/layout/TabScrollerBridge';
 
 const DOMAIN = 0x0000;
 const TAG = 'Sonar.Index';
@@ -21,10 +23,12 @@ const BACK_PRESS_INTERVAL: number = 2000;
 @Component
 struct Index {
   @Provide('appPathStack') appPathStack: NavPathStack = new NavPathStack();
+  @Provide('tabScrollerBridge') tabScrollerBridge: TabScrollerBridge = new TabScrollerBridge();
   @StorageLink('screenProfile') @Watch('onScreenProfileChange') screenProfile: string = 'standard';
   @StorageLink('outerScreenPreview') @Watch('onScreenProfileChange') outerScreenPreview: boolean = false;
   @StorageLink('currentColorMode') currentColorMode: number = 0;
   @StorageLink('authPhase') authPhase: string = 'booting';
+  @StorageLink('rootTabIndex') rootTabIndex: number = 0;
   @State private lastBackPressTime: number = 0;
 
   async aboutToAppear(): Promise<void> {
@@ -32,6 +36,7 @@ struct Index {
     ImmersiveMaterialHelper.probeAndCache();
     await AuthSession.bootstrap();
     AppStorage.setOrCreate<number>('rootTabIndex', 0);
+    this.tabScrollerBridge.setActiveTab(0);
     ScreenProfileStore.refreshProfile();
     this.maybeRedirectToLogin();
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
@@ -118,7 +123,9 @@ struct Index {
       this.buildNavHome()
     }
     .navDestination(PageMap)
-    .hideTitleBar(true)
+    .hideTitleBar(this.appPathStack.size() > 0)
+    .titleBar(HdsPageTitleBar.buildPrimary())
+    .bindToScrollable([this.tabScrollerBridge.scrollerForTab(this.rootTabIndex)])
     .mode(NavigationMode.Stack)
     .ignoreLayoutSafeArea([LayoutSafeAreaType.SYSTEM], [LayoutSafeAreaEdge.TOP, LayoutSafeAreaEdge.BOTTOM])
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])

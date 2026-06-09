@@ -15,9 +15,9 @@ export enum FloatingHeaderType {
   FLOATING_TITLE = 1,
   /** 媒体库：搜索栏浮层 */
   FLOATING_SEARCH = 2,
-  /** @deprecated 已由 FLOATING_SECONDARY_BAR 替代 */
+  /** @deprecated 二级页已改用 HdsNavDestination 官方 titleBar */
   HDS_MINI_GRADIENT = 3,
-  /** 二级页：Stack 浮层返回+标题，scroll 驱动毛玻璃 */
+  /** @deprecated 二级页已改用 SecondaryHdsDestination + HdsSecondaryTitleBar */
   FLOATING_SECONDARY_BAR = 4,
   /** 预留：整栏毛玻璃背板 */
   FULL_GLASS_BAR = 10,

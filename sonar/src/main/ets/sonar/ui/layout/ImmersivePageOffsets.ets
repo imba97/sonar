@@ -1,4 +1,4 @@
-import { FloatingHeaderType, SonarPageLayoutOptions, SonarPageRole } from './SonarPageLayoutOptions';
+import { FloatingHeaderType, SonarPageLayoutOptions, SonarPageRole, SonarContentVariant } from './SonarPageLayoutOptions';
 import { UiTokens } from '../tokens/UiTokens';
 
 export class ImmersivePageOffsets {
@@ -25,6 +25,18 @@ export class ImmersivePageOffsets {
   /** 二级页底部安全区 */
   static secondaryContentEnd(bottomInset: number): number {
     return bottomInset + UiTokens.LIBRARY_LIST_EDGE_GAP;
+  }
+
+  /** 二级页头部占位：状态栏 + MINI 标题栏 + 底缘冗余 */
+  static secondaryHeaderOverlayHeight(topInset: number): number {
+    return topInset + UiTokens.SECONDARY_HEADER_OVERLAY_VP;
+  }
+
+  /** 二级页 Scroll 内容顶内边距（状态栏 + 头部占位 + 首行间距） */
+  static secondaryContentTopPadding(topInset: number, variant: SonarContentVariant = 'form'): number {
+    const firstLineGap: number = variant === 'hero' ?
+      UiTokens.CONTENT_TOP_GAP_HERO : UiTokens.CONTENT_TOP_GAP;
+    return ImmersivePageOffsets.secondaryHeaderOverlayHeight(topInset) + firstLineGap;
   }
 
   /** SonarPageLayout：Scroll 内容区顶部占位/内边距 */

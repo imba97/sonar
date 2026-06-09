@@ -67,20 +67,25 @@ export class UiTokens {
   static readonly CONTENT_TOP_GAP_HERO: number = 8;
   /** 页面内多卡片/段落间距 */
   static readonly SECTION_GAP: number = 12;
-  /** HdsNavigation MINI 标题栏占位高度 */
+  /** HdsNavDestination MINI 标题栏控件区高度（不含状态栏，官方 56vp） */
   static readonly HDS_TITLE_BAR_MINI_HEIGHT: number = 56;
-  /** 二级页内容顶距：MINI 标题栏 + form 首行间距 */
+  /** 二级页标题栏底缘冗余留白（不含状态栏，全局统一） */
+  static readonly SECONDARY_HEADER_BOTTOM_SLACK: number = 10;
+  /** 二级页头部占位（不含状态栏）：MINI 标题栏 + 底缘冗余 */
+  static readonly SECONDARY_HEADER_OVERLAY_VP: number =
+    UiTokens.HDS_TITLE_BAR_MINI_HEIGHT + UiTokens.SECONDARY_HEADER_BOTTOM_SLACK;
+  /** 二级页内容顶距（不含状态栏）：头部占位 + form 首行间距 */
   static readonly SECONDARY_CONTENT_PADDING_TOP_FORM: number =
-    UiTokens.HDS_TITLE_BAR_MINI_HEIGHT + UiTokens.CONTENT_TOP_GAP;
-  /** 二级页内容顶距：MINI 标题栏 + hero 首行间距 */
+    UiTokens.SECONDARY_HEADER_OVERLAY_VP + UiTokens.CONTENT_TOP_GAP;
+  /** 二级页内容顶距（不含状态栏）：头部占位 + hero 首行间距 */
   static readonly SECONDARY_CONTENT_PADDING_TOP_HERO: number =
-    UiTokens.HDS_TITLE_BAR_MINI_HEIGHT + UiTokens.CONTENT_TOP_GAP_HERO;
+    UiTokens.SECONDARY_HEADER_OVERLAY_VP + UiTokens.CONTENT_TOP_GAP_HERO;
   /** 二级页浮层头部：上滑多少 vp 后毛玻璃满强度 */
   static readonly SECONDARY_GLASS_REVEAL_SCROLL_VP: number = 24;
   /** 二级页标题栏内容区上内边距（对齐 HDS MINI 背板 8vp 上 padding） */
   static readonly HDS_TITLE_BAR_TOP_EXTRA: number = 8;
-  /** 标题栏 GRADIENT_BLUR 蒙层向下延伸（vp） */
-  static readonly HDS_TITLE_BAR_GRADIENT_MASK_EXTRA: number = 40;
+  /** 标题栏 GRADIENT_BLUR 模糊蒙层下延（vp，非标题控件高度；官方默认 32） */
+  static readonly HDS_TITLE_BAR_GRADIENT_MASK_EXTRA: number = 28;
   static readonly LIBRARY_SEARCH_TOP_MARGIN: number = 10;
   static readonly LIBRARY_SEARCH_HEIGHT: number = 48;
   static readonly LIBRARY_SEARCH_SIDE_PADDING: number = 18;

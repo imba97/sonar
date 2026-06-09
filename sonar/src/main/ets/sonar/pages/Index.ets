@@ -2,7 +2,6 @@ import { PageMap } from './PageMapBuilder';
 import { OuterScreenPlayerPage } from './OuterScreenPlayerPage';
 import { OuterScreenPreviewFrame } from '../components/debug/OuterScreenPreviewFrame';
 import { AuthSession } from '../auth/AuthSession';
-import { AuthStore } from '../auth/AuthStore';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { PlaybackService } from '../playback/PlaybackService';
 import { common } from '@kit.AbilityKit';
@@ -21,12 +20,13 @@ struct Index {
   @Provide('appPathStack') appPathStack: NavPathStack = new NavPathStack();
   @StorageLink('screenProfile') @Watch('onScreenProfileChange') screenProfile: string = 'standard';
   @StorageLink('outerScreenPreview') @Watch('onScreenProfileChange') outerScreenPreview: boolean = false;
+  @StorageLink('authPhase') authPhase: string = 'booting';
   @State private lastBackPressTime: number = 0;
 
   async aboutToAppear(): Promise<void> {
     ScreenProfileStore.ensureInitialized();
     ImmersiveMaterialHelper.probeAndCache();
-    await AuthSession.restoreFromStore();
+    await AuthSession.bootstrap();
     AppStorage.setOrCreate<number>('rootTabIndex', 0);
     ScreenProfileStore.refreshProfile();
     this.maybeRedirectToLogin();
@@ -42,9 +42,10 @@ struct Index {
     if (this.isOuterUiActive()) {
       return;
     }
-    if (!AuthStore.getInstance().isLoggedIn()) {
-      this.appPathStack.replacePathByName('LoginPage', null);
+    if (this.authPhase !== 'anonymous') {
+      return;
     }
+    this.appPathStack.replacePathByName('LoginPage', null);
   }
 
   private onScreenProfileChange(): void {

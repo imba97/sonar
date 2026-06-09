@@ -1,4 +1,3 @@
-import { AuthStore } from '../auth/AuthStore';
 import { LibraryViewModel } from '../viewmodel/LibraryViewModel';
 import { Album, AlbumDetailRouteParam } from '../api/SubsonicTypes';
 import { SuccessButton } from '../components/buttons/SuccessButton';
@@ -16,12 +15,12 @@ import { PlaybackService } from '../playback/PlaybackService';
 @Component
 export struct LibraryPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
+  @StorageLink('authPhase') @Watch('onAuthSnapshotChanged') authPhase: string = 'booting';
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State vm: LibraryViewModel = new LibraryViewModel();
-  @State private _isAuthenticated: boolean = false;
   @State private _searchKeyword: string = '';
   @State private _gridColumns: number = 1;
   @State private _playAllLoading: boolean = false;
@@ -290,13 +289,19 @@ export struct LibraryPage {
     })
   }
 
-  async aboutToAppear(): Promise<void> {
-    await AuthStore.getInstance().ensureReady();
-    if (!AuthStore.getInstance().isLoggedIn()) {
-      this.appPathStack.replacePathByName('LoginPage', null);
-      return;
+  aboutToAppear(): void {
+    this.onAuthSnapshotChanged();
+  }
+
+  private onAuthSnapshotChanged(): void {
+    if (this.authPhase === 'authenticated') {
+      this.activateLibrary();
+    } else if (this.authPhase === 'anonymous') {
+      this.vm.reset();
     }
-    this._isAuthenticated = true;
+  }
+
+  private activateLibrary(): void {
     this._searchKeyword = this.vm.searchQuery;
     if (this.vm.albums.length === 0) {
       if (this._searchKeyword.length > 0) {
@@ -307,39 +312,67 @@ export struct LibraryPage {
     }
   }
 
+  @Builder
+  private buildBootingScaffold() {
+    PageScaffold({
+      pageBackground: UiTokens.COLOR_PAGE_BG,
+      barToneTabIndex: 0
+    }) {
+      Column() {
+        LoadingState({ message: '正在恢复会话…' })
+      }
+      .width('100%')
+      .height('100%')
+      .justifyContent(FlexAlign.Center)
+    }
+  }
+
+  @Builder
+  private buildAnonymousScaffold() {
+    PageScaffold({
+      pageBackground: UiTokens.COLOR_PAGE_BG,
+      barToneTabIndex: 0
+    }) {
+      Column() {
+      }
+    }
+  }
+
+  @Builder
+  private buildAuthenticatedScaffold() {
+    PageScaffold({
+      pageBackground: UiTokens.COLOR_PAGE_BG,
+      topPadding: 0,
+      bottomPadding: 0,
+      applySystemInsets: false,
+      barToneTabIndex: 0
+    }) {
+      Stack({ alignContent: Alignment.Top }) {
+        this.buildAlbumsList()
+        GlassSearchBar({
+          keyword: this._searchKeyword,
+          onKeywordChange: (value: string) => {
+            this._searchKeyword = value;
+          },
+          placeholder: '搜索媒体库',
+          topPadding: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN,
+          onSubmit: () => {
+            this.submitSearch();
+          }
+        })
+      }
+      .width('100%')
+      .height('100%')
+    }
+  }
+
   build() {
-    if (!this._isAuthenticated || !this.isLoggedIn) {
-      PageScaffold({
-        pageBackground: UiTokens.COLOR_PAGE_BG
-      }) {
-        Column() {
-        }
-      }
+    if (this.authPhase === 'authenticated' && this.isLoggedIn) {
+      this.buildAuthenticatedScaffold()
+    } else if (this.authPhase === 'booting') {
+      this.buildBootingScaffold()
     } else {
-      PageScaffold({
-        pageBackground: UiTokens.COLOR_PAGE_BG,
-        topPadding: 0,
-        bottomPadding: 0,
-        applySystemInsets: false,
-        barToneTabIndex: 0
-      }) {
-        Stack({ alignContent: Alignment.Top }) {
-          this.buildAlbumsList()
-          GlassSearchBar({
-            keyword: this._searchKeyword,
-            onKeywordChange: (value: string) => {
-              this._searchKeyword = value;
-            },
-            placeholder: '搜索媒体库',
-            topPadding: this.topInset + UiTokens.LIBRARY_SEARCH_TOP_MARGIN,
-            onSubmit: () => {
-              this.submitSearch();
-            }
-          })
-        }
-        .width('100%')
-        .height('100%')
-      }
+      this.buildAnonymousScaffold()
     }
   }
 }

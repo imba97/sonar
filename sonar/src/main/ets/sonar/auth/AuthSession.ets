@@ -7,60 +7,95 @@ import { NetworkCoordinator } from '../network/coordinator/NetworkCoordinator';
 import { PlaybackService } from '../playback/PlaybackService';
 import { PlaybackPipeline } from '../playback/pipeline/PlaybackPipeline';
 
+export type AuthPhase = 'booting' | 'anonymous' | 'authenticated';
+
 export class AuthSession {
+  private static transitionChain: Promise<void> = Promise.resolve();
+  private static phase: AuthPhase = 'booting';
+
   static refreshNetworkType(): void {
     AppStorage.setOrCreate<string>('networkType', NetworkStatus.getNetworkType());
   }
 
-  static applyLoggedIn(auth: SavedAuth): void {
-    const activeServer: string = AuthStore.resolveEndpointUrl(auth, auth.activeEndpoint);
-    AppStorage.setOrCreate<boolean>('isLoggedIn', true);
-    AppStorage.setOrCreate<string>('loggedInServer', activeServer);
-    AppStorage.setOrCreate<string>('loggedInUser', auth.username);
-    AppStorage.setOrCreate<string>('loggedInEndpoint', auth.activeEndpoint);
+  static getPhase(): AuthPhase {
+    return AuthSession.phase;
   }
 
-  static applyLoggedOut(): void {
-    AppStorage.setOrCreate<boolean>('isLoggedIn', false);
+  static async bootstrap(): Promise<void> {
+    return AuthSession.enqueueTransition(async (): Promise<void> => {
+      AuthSession.publishSnapshot('booting');
+      await AuthStore.getInstance().ensureReady();
+      let creds: SavedAuth | null = AuthStore.getInstance().getCredentials();
+      if (creds === null) {
+        await AuthSession.exitAuthenticated();
+        creds = AuthStore.getInstance().getCredentials();
+        if (creds === null) {
+          AuthSession.publishSnapshot('anonymous');
+          return;
+        }
+      }
+      await AuthSession.enterAuthenticated(creds);
+      AuthSession.publishSnapshot('authenticated', creds);
+    });
+  }
+
+  static async signIn(auth: SavedAuth): Promise<void> {
+    return AuthSession.enqueueTransition(async (): Promise<void> => {
+      await AuthSession.enterAuthenticated(auth);
+      AuthSession.publishSnapshot('authenticated', auth);
+    });
+  }
+
+  static async signOut(): Promise<void> {
+    return AuthSession.enqueueTransition(async (): Promise<void> => {
+      await AuthStore.getInstance().clear();
+      await AuthSession.exitAuthenticated();
+      AuthSession.publishSnapshot('anonymous');
+    });
+  }
+
+  static async invalidateIfAuthError(err: Error): Promise<boolean> {
+    if (err instanceof SubsonicApiError && (err.code === 40 || err.code === 41)) {
+      await AuthSession.signOut();
+      return true;
+    }
+    return false;
+  }
+
+  private static enqueueTransition(work: () => Promise<void>): Promise<void> {
+    const run: Promise<void> = AuthSession.transitionChain.then(work);
+    AuthSession.transitionChain = run.catch(() => {
+    });
+    return run;
+  }
+
+  private static publishSnapshot(phase: AuthPhase, auth?: SavedAuth): void {
+    AuthSession.phase = phase;
+    AppStorage.setOrCreate<string>('authPhase', phase);
+    const loggedIn: boolean = phase === 'authenticated';
+    AppStorage.setOrCreate<boolean>('isLoggedIn', loggedIn);
+    if (loggedIn && auth !== undefined) {
+      const activeServer: string = AuthStore.resolveEndpointUrl(auth, auth.activeEndpoint);
+      AppStorage.setOrCreate<string>('loggedInServer', activeServer);
+      AppStorage.setOrCreate<string>('loggedInUser', auth.username);
+      AppStorage.setOrCreate<string>('loggedInEndpoint', auth.activeEndpoint);
+      return;
+    }
     AppStorage.setOrCreate<string>('loggedInServer', '');
     AppStorage.setOrCreate<string>('loggedInUser', '');
     AppStorage.setOrCreate<string>('loggedInEndpoint', 'remote');
   }
 
-  static onLoggedIn(auth: SavedAuth, _trigger: string = 'login'): void {
-    AuthSession.applyLoggedIn(auth);
+  private static async enterAuthenticated(auth: SavedAuth): Promise<void> {
     EndpointRouter.start();
     NetworkCoordinator.init();
     PlaybackPipeline.initialize();
     void EndpointRouter.bootstrap(auth);
   }
 
-  static async restoreFromStore(): Promise<void> {
-    await AuthStore.getInstance().ensureReady();
-    const creds: SavedAuth | null = AuthStore.getInstance().getCredentials();
-    if (creds === null) {
-      EndpointRouter.stop();
-      NetworkCoordinator.shutdown();
-      await PlaybackService.release();
-      AuthSession.applyLoggedOut();
-      return;
-    }
-    AuthSession.onLoggedIn(creds, 'startup');
-  }
-
-  static async logout(): Promise<void> {
+  private static async exitAuthenticated(): Promise<void> {
     EndpointRouter.stop();
     NetworkCoordinator.shutdown();
     await PlaybackService.release();
-    await AuthStore.getInstance().clear();
-    AuthSession.applyLoggedOut();
-  }
-
-  static async invalidateIfAuthError(err: Error): Promise<boolean> {
-    if (err instanceof SubsonicApiError && (err.code === 40 || err.code === 41)) {
-      await AuthSession.logout();
-      return true;
-    }
-    return false;
   }
 }

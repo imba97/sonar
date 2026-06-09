@@ -97,7 +97,7 @@ export class LoginViewModel {
         username,
         password
       });
-      AuthSession.onLoggedIn(loginAuth);
+      await AuthSession.signIn(loginAuth);
       onSuccess();
     } catch (err) {
       if (err instanceof SubsonicApiError) {

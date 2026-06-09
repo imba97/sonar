@@ -18,6 +18,17 @@ export class LibraryViewModel {
   errorMessage: string = '';
   authExpired: boolean = false;
 
+  reset(): void {
+    this.albums = [];
+    this.searchQuery = '';
+    this.isSearchMode = false;
+    this.isLoading = false;
+    this.isLoadingMore = false;
+    this.hasMore = true;
+    this.errorMessage = '';
+    this.authExpired = false;
+  }
+
   async loadNewest(): Promise<void> {
     if (this.isLoading) {
       return;

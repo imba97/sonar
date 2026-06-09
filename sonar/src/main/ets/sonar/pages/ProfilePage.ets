@@ -19,7 +19,7 @@ export struct ProfilePage {
   @StorageLink('songCacheUsedBytes') songCacheUsedBytes: number = 0;
 
   private async handleLogout(): Promise<void> {
-    await AuthSession.logout();
+    await AuthSession.signOut();
     AppStorage.setOrCreate<number>('rootTabIndex', LOGOUT_DESTINATION_TAB_INDEX);
   }
 

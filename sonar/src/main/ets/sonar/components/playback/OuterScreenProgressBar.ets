@@ -1,13 +1,19 @@
 import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
+import { OuterScreenPalette, OuterScreenTheme } from '../../ui/adaptation/OuterScreenTheme';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 @Component
 export struct OuterScreenProgressBar {
   @Prop barWidth: number = 200;
   @StorageLink('playback') @Watch('onPlaybackChanged') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageLink('currentColorMode') currentColorMode: number = 0;
   @State private dragRatio: number = 0;
   @State private isDragging: boolean = false;
+
+  private palette(): OuterScreenPalette {
+    return OuterScreenTheme.palette(OuterScreenTheme.isDarkUi(this.currentColorMode));
+  }
 
   private hasSeekableTrack(): boolean {
     return this.playback.showMiniPlayer &&
@@ -103,7 +109,7 @@ export struct OuterScreenProgressBar {
         Row()
           .width(this.trackWidthVp())
           .height(UiTokens.OUTER_SCREEN_PROGRESS_HEIGHT)
-          .backgroundColor(UiTokens.OUTER_SCREEN_PROGRESS_TRACK_COLOR)
+          .backgroundColor(this.palette().progressTrack)
           .borderRadius(UiTokens.OUTER_SCREEN_PROGRESS_HEIGHT)
           .position({
             x: 0,
@@ -114,7 +120,7 @@ export struct OuterScreenProgressBar {
           Row()
             .width(this.fillWidthVp(this.trackWidthVp(), this.activeRatio()))
             .height(UiTokens.OUTER_SCREEN_PROGRESS_HEIGHT)
-            .backgroundColor(UiTokens.OUTER_SCREEN_PROGRESS_FILL_COLOR)
+            .backgroundColor(this.palette().progressFill)
             .borderRadius(UiTokens.OUTER_SCREEN_PROGRESS_HEIGHT)
             .position({
               x: 0,
@@ -128,7 +134,7 @@ export struct OuterScreenProgressBar {
             .width(UiTokens.OUTER_SCREEN_PROGRESS_THUMB_SIZE)
             .height(UiTokens.OUTER_SCREEN_PROGRESS_THUMB_SIZE)
             .borderRadius(UiTokens.OUTER_SCREEN_PROGRESS_THUMB_SIZE / 2)
-            .backgroundColor(UiTokens.OUTER_SCREEN_PROGRESS_THUMB_COLOR)
+            .backgroundColor(this.palette().progressThumb)
             .shadow({
               radius: 6,
               color: '#66000000',

@@ -1,14 +1,21 @@
 import { OuterScreenPlayerPage } from '../../pages/OuterScreenPlayerPage';
+import { ScreenProfileStore } from '../../ui/adaptation/ScreenProfileStore';
+import { OuterScreenPalette, OuterScreenTheme } from '../../ui/adaptation/OuterScreenTheme';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 /**
- * 内屏「外屏预览」专用：深色机身留白 + 居中 1:1 方屏为外屏可视区。
+ * 内屏「外屏预览」专用：机身留白 + 居中 1:1 方屏为外屏可视区，主题跟随系统深浅色。
  * 真外屏全屏时不使用本壳层。
  */
 @Component
 export struct OuterScreenPreviewFrame {
+  @StorageLink('currentColorMode') currentColorMode: number = 0;
   @State private hostWidth: number = 360;
   @State private hostHeight: number = 780;
+
+  private palette(): OuterScreenPalette {
+    return OuterScreenTheme.palette(OuterScreenTheme.isDarkUi(this.currentColorMode));
+  }
 
   private viewportSize(): number {
     const minHost: number = Math.min(this.hostWidth, this.hostHeight);
@@ -24,7 +31,10 @@ export struct OuterScreenPreviewFrame {
       Column()
         .width('100%')
         .height('100%')
-        .backgroundColor(UiTokens.OUTER_SCREEN_BEZEL_COLOR)
+        .backgroundColor(this.palette().bezel)
+        .onClick(() => {
+          ScreenProfileStore.setPreviewEnabled(false);
+        })
 
       Column() {
         OuterScreenPlayerPage()
@@ -35,12 +45,12 @@ export struct OuterScreenPreviewFrame {
       .clip(true)
       .linearGradient({
         angle: 160,
-        colors: [[UiTokens.OUTER_SCREEN_BG_GRADIENT_TOP, 0], [UiTokens.OUTER_SCREEN_BG_GRADIENT_BOTTOM, 1]]
+        colors: [[this.palette().bgGradientTop, 0], [this.palette().bgGradientBottom, 1]]
       })
     }
     .width('100%')
     .height('100%')
-    .backgroundColor(UiTokens.OUTER_SCREEN_BEZEL_COLOR)
+    .backgroundColor(this.palette().bezel)
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     .onAreaChange((_oldValue, newValue) => {
       if (typeof newValue.width === 'number' && newValue.width > 0) {

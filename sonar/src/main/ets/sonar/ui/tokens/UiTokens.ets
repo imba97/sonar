@@ -97,14 +97,18 @@ export class UiTokens {
   static readonly OUTER_SCREEN_PROGRESS_WIDTH_RATIO: number = 0.85;
   static readonly OUTER_SCREEN_PROGRESS_TOUCH_HEIGHT: number = 28;
   static readonly OUTER_SCREEN_PROGRESS_THUMB_SIZE: number = 10;
-  static readonly OUTER_SCREEN_PROGRESS_TRACK_COLOR: string = '#18FFFFFF';
-  static readonly OUTER_SCREEN_PROGRESS_FILL_COLOR: string = '#59FFFFFF';
-  static readonly OUTER_SCREEN_PROGRESS_THUMB_COLOR: string = '#B3FFFFFF';
-  /** 外屏专用暗色背景（不随主题变浅，亦不用 #333） */
-  static readonly OUTER_SCREEN_BG_GRADIENT_TOP: string = '#1A1B22';
-  static readonly OUTER_SCREEN_BG_GRADIENT_BOTTOM: string = '#101116';
-  /** 内屏预览时机身/留白区，比视口背景更深 */
-  static readonly OUTER_SCREEN_BEZEL_COLOR: string = '#06070A';
+  static readonly OUTER_SCREEN_PROGRESS_TRACK_DARK: string = '#18FFFFFF';
+  static readonly OUTER_SCREEN_PROGRESS_FILL_DARK: string = '#59FFFFFF';
+  static readonly OUTER_SCREEN_PROGRESS_THUMB_DARK: string = '#B3FFFFFF';
+  static readonly OUTER_SCREEN_PROGRESS_TRACK_LIGHT: string = '#1A3C3F4A';
+  static readonly OUTER_SCREEN_PROGRESS_FILL_LIGHT: string = '#997B6BA8';
+  static readonly OUTER_SCREEN_PROGRESS_THUMB_LIGHT: string = '#CC7B6BA8';
+  static readonly OUTER_SCREEN_BG_GRADIENT_TOP_DARK: string = '#1A1B22';
+  static readonly OUTER_SCREEN_BG_GRADIENT_BOTTOM_DARK: string = '#101116';
+  static readonly OUTER_SCREEN_BEZEL_DARK: string = '#06070A';
+  static readonly OUTER_SCREEN_BG_GRADIENT_TOP_LIGHT: string = '#F7F9FC';
+  static readonly OUTER_SCREEN_BG_GRADIENT_BOTTOM_LIGHT: string = '#EEF2F7';
+  static readonly OUTER_SCREEN_BEZEL_LIGHT: string = '#D8DCE3';
 
   /**
    * Pura X 外屏官方规格（bpta-purax-guide「屏幕规格信息」）：

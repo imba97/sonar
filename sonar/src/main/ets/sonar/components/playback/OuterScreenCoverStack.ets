@@ -2,6 +2,7 @@ import { AuthStore } from '../../auth/AuthStore';
 import { ToastUtil } from '../../common/ToastUtil';
 import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
+import { OuterScreenPalette, OuterScreenTheme } from '../../ui/adaptation/OuterScreenTheme';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { PlaybackCoverDisc } from './PlaybackCoverDisc';
 
@@ -9,6 +10,11 @@ import { PlaybackCoverDisc } from './PlaybackCoverDisc';
 export struct OuterScreenCoverStack {
   @Prop discSize: number = 220;
   @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageLink('currentColorMode') currentColorMode: number = 0;
+
+  private palette(): OuterScreenPalette {
+    return OuterScreenTheme.palette(OuterScreenTheme.isDarkUi(this.currentColorMode));
+  }
 
   private coverArtId(): string {
     if (this.playback.track === null) {
@@ -71,7 +77,7 @@ export struct OuterScreenCoverStack {
         loading: this.playback.showMiniPlayer && this.playback.isCoverLoading(),
         spinning: this.playback.isPlaying(),
         showCover: this.playback.showMiniPlayer,
-        idleIconColor: UiTokens.COLOR_TAB_ICON_INACTIVE_ON_LIGHT_BG
+        idleIconColor: this.palette().idleCoverIcon
       })
 
       this.playPauseOverlay()

@@ -14,9 +14,7 @@ export struct OuterScreenPreviewEntry {
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
           .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-        Text(this.outerScreenPreview ?
-          '当前为外屏播放器。按返回键或下方按钮退出。' :
-          '预览外屏封面播放器（大封面 + 播放键 + 进度条），用于自测与录屏。')
+        Text('预览外屏播放器')
           .fontSize(12)
           .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
         Button(this.outerScreenPreview ? '退出外屏预览' : '进入外屏预览')

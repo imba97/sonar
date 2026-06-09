@@ -7,6 +7,7 @@ import { PlaybackService } from '../playback/PlaybackService';
 import { common } from '@kit.AbilityKit';
 import { FloatingTabBar } from '../components/navigation/FloatingTabBar';
 import { ScreenProfileStore } from '../ui/adaptation/ScreenProfileStore';
+import { OuterScreenPalette, OuterScreenTheme } from '../ui/adaptation/OuterScreenTheme';
 import { ImmersiveMaterialHelper } from '../ui/material/ImmersiveMaterialHelper';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
@@ -20,6 +21,7 @@ struct Index {
   @Provide('appPathStack') appPathStack: NavPathStack = new NavPathStack();
   @StorageLink('screenProfile') @Watch('onScreenProfileChange') screenProfile: string = 'standard';
   @StorageLink('outerScreenPreview') @Watch('onScreenProfileChange') outerScreenPreview: boolean = false;
+  @StorageLink('currentColorMode') currentColorMode: number = 0;
   @StorageLink('authPhase') authPhase: string = 'booting';
   @State private lastBackPressTime: number = 0;
 
@@ -60,10 +62,6 @@ struct Index {
   onBackPress(): boolean {
     if (this.outerScreenPreview) {
       ScreenProfileStore.setPreviewEnabled(false);
-      try {
-        this.getUIContext().getPromptAction().showToast({ message: '已退出外屏预览', duration: 1500 });
-      } catch (_err) {
-      }
       return true;
     }
     if (!this.isOuterUiActive() && this.appPathStack.size() > 0) {
@@ -108,6 +106,11 @@ struct Index {
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
   }
 
+  private outerScreenPalette(): OuterScreenPalette {
+    const isDark: boolean = OuterScreenTheme.isDarkUi(this.currentColorMode);
+    return OuterScreenTheme.palette(isDark);
+  }
+
   @Builder
   private buildOuterScreenApp() {
     if (this.outerScreenPreview) {
@@ -120,7 +123,7 @@ struct Index {
       .height('100%')
       .linearGradient({
         angle: 160,
-        colors: [[UiTokens.OUTER_SCREEN_BG_GRADIENT_TOP, 0], [UiTokens.OUTER_SCREEN_BG_GRADIENT_BOTTOM, 1]]
+        colors: [[this.outerScreenPalette().bgGradientTop, 0], [this.outerScreenPalette().bgGradientBottom, 1]]
       })
       .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
     }

@@ -17,21 +17,23 @@ export class ImmersivePageOffsets {
     return bottomInset + UiTokens.LIBRARY_LIST_EDGE_GAP;
   }
 
-  /** 头部占位：状态栏 + MINI 标题栏 + 底缘冗余 */
-  static headerOverlayHeight(topInset: number): number {
+  /** 二级页头部占位：状态栏 + MINI 标题栏 + 底缘冗余 */
+  static secondaryHeaderOverlayHeight(topInset: number): number {
     return topInset + UiTokens.SECONDARY_HEADER_OVERLAY_VP;
   }
 
-  /** Tab 根页 Scroll 内容顶内边距 */
+  /** Tab 根页：状态栏 + 首行间距（空标题栏无控件，不预留 MINI 56vp） */
   static primaryContentTopPadding(topInset: number, variant: SonarContentVariant = 'form'): number {
     const firstLineGap: number = variant === 'hero' ?
       UiTokens.CONTENT_TOP_GAP_HERO : UiTokens.CONTENT_TOP_GAP;
-    return ImmersivePageOffsets.headerOverlayHeight(topInset) + firstLineGap;
+    return topInset + firstLineGap;
   }
 
-  /** 二级页 Scroll 内容顶内边距 */
+  /** 二级页：状态栏 + 标题栏占位 + 首行间距 */
   static secondaryContentTopPadding(topInset: number, variant: SonarContentVariant = 'form'): number {
-    return ImmersivePageOffsets.primaryContentTopPadding(topInset, variant);
+    const firstLineGap: number = variant === 'hero' ?
+      UiTokens.CONTENT_TOP_GAP_HERO : UiTokens.CONTENT_TOP_GAP;
+    return ImmersivePageOffsets.secondaryHeaderOverlayHeight(topInset) + firstLineGap;
   }
 
 }

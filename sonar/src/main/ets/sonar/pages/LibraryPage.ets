@@ -192,8 +192,8 @@ export struct LibraryPage {
   }
 
   @Builder
-  private buildLibrarySearchItem() {
-    ListItem() {
+  private buildLibrarySearchHeader() {
+    Column() {
       GlassSearchBar({
         keyword: this._searchKeyword,
         onKeywordChange: (value: string) => {
@@ -206,13 +206,18 @@ export struct LibraryPage {
         }
       })
     }
+    .width('100%')
+    // ListItemGroup header 不参与 contentStartOffset，顶距须写在 header 内
+    .padding({
+      top: ImmersivePageOffsets.primaryContentTopPadding(this.topInset)
+    })
+    .margin({ bottom: UiTokens.SECTION_GAP })
   }
 
   @Builder
   private buildAlbumsList() {
     List({ scroller: this.tabScrollerBridge.scrollerForTab(0), space: UiTokens.LIBRARY_GRID_GAP }) {
-      this.buildLibrarySearchItem()
-
+      ListItemGroup({ header: this.buildLibrarySearchHeader }) {
       if (this.vm.isLoading && this.vm.albums.length === 0) {
         ListItem() {
           LoadingState({ message: this.vm.isSearchMode ? '正在搜索专辑…' : '正在获取专辑…' })
@@ -275,6 +280,7 @@ export struct LibraryPage {
           .padding({ top: 8, bottom: 8 })
         }
       }
+      }
     }
     .width('100%')
     .height('100%')
@@ -283,7 +289,6 @@ export struct LibraryPage {
       right: UiTokens.LIBRARY_PAGE_HORIZONTAL_PADDING
     })
     .backgroundColor(Color.Transparent)
-    .contentStartOffset(ImmersivePageOffsets.primaryContentTopPadding(this.topInset))
     .contentEndOffset(ImmersivePageOffsets.tabContentEnd(this.bottomInset, this.rootTabActive))
     .lanes(this.vm.albums.length > 0 ? this._gridColumns : 1, `${UiTokens.LIBRARY_GRID_GAP}vp`)
     .listDirection(Axis.Vertical)

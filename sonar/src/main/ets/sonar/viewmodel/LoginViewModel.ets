@@ -4,6 +4,7 @@ import { SubsonicUrlUtil } from '../network/api/SubsonicUrlUtil';
 import { EndpointRouter } from '../network/routing/EndpointRouter';
 import { AuthStore, SavedAuth } from '../auth/AuthStore';
 import { AuthSession } from '../auth/AuthSession';
+import { ConfigCodecError, SonarConfigCodec } from '../settings/SonarConfigCodec';
 
 @Observed
 export class LoginViewModel {
@@ -11,6 +12,8 @@ export class LoginViewModel {
   localServerUrl: string = '';
   username: string = '';
   password: string = '';
+  importBase64: string = '';
+  importPassword: string = '';
   isLoading: boolean = false;
   errorMessage: string = '';
   private rememberedLoaded: boolean = false;
@@ -101,6 +104,39 @@ export class LoginViewModel {
         this.errorMessage = LoginViewModel.describeError(err);
       } else {
         this.errorMessage = `网络错误: ${(err as Error).message}`;
+      }
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async importAndLogin(onTabSwitch: () => void, onSuccess: () => void): Promise<void> {
+    if (this.isLoading) {
+      return;
+    }
+    const base64Input: string = this.importBase64.trim();
+    if (base64Input.length === 0) {
+      this.errorMessage = '请输入配置内容';
+      return;
+    }
+    this.isLoading = true;
+    this.errorMessage = '';
+    try {
+      const payload = await SonarConfigCodec.importConfig(base64Input, this.importPassword);
+      this.serverUrl = payload.remoteServerUrl;
+      this.localServerUrl = payload.localServerUrl;
+      this.username = payload.username;
+      this.password = payload.password;
+      onTabSwitch();
+      this.isLoading = false;
+      await this.submit(onSuccess);
+    } catch (err) {
+      if (err instanceof ConfigCodecError) {
+        this.errorMessage = err.message;
+      } else if (err instanceof SubsonicApiError) {
+        this.errorMessage = LoginViewModel.describeError(err);
+      } else {
+        this.errorMessage = `导入失败: ${(err as Error).message}`;
       }
     } finally {
       this.isLoading = false;

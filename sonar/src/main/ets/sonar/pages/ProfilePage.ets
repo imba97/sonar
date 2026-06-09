@@ -79,6 +79,34 @@ export struct ProfilePage {
 
           Column() {
             CardContainer() {
+              Row() {
+                Column({ space: 4 }) {
+                  Text('导出配置')
+                    .fontSize(16)
+                    .fontWeight(FontWeight.Medium)
+                    .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+                  Text('导出服务器登录信息')
+                    .fontSize(12)
+                    .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+                }
+                .alignItems(HorizontalAlign.Start)
+                .layoutWeight(1)
+                Text('›')
+                  .fontSize(20)
+                  .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+              }
+              .width('100%')
+              .alignItems(VerticalAlign.Center)
+              .onClick(() => {
+                this.appPathStack.pushPathByName('ExportConfigPage', null);
+              })
+            }
+          }
+          .width('100%')
+          .padding({ left: 16, right: 16 })
+
+          Column() {
+            CardContainer() {
               Column({ space: 10 }) {
                 Text(this.isLoggedIn ? (this.loggedInUser.length > 0 ? this.loggedInUser : '已登录用户') : '未登录')
                   .fontSize(16)

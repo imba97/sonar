@@ -2,6 +2,7 @@ import { LoginPage } from './LoginPage';
 import { LibraryPage } from './LibraryPage';
 import { AlbumDetailPage } from './AlbumDetailPage';
 import { CacheSettingsPage } from './CacheSettingsPage';
+import { ExportConfigPage } from './ExportConfigPage';
 
 @Builder
 export function PageMap(name: string) {
@@ -23,6 +24,11 @@ export function PageMap(name: string) {
   } else if (name === 'CacheSettingsPage') {
     NavDestination() {
       CacheSettingsPage()
+    }
+    .hideTitleBar(true)
+  } else if (name === 'ExportConfigPage') {
+    NavDestination() {
+      ExportConfigPage()
     }
     .hideTitleBar(true)
   } else {

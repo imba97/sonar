@@ -1,7 +1,9 @@
-import { LibraryPage } from '../../pages/LibraryPage';
-import { ServerPage } from '../../pages/ServerPage';
-import { ProfilePage } from '../../pages/ProfilePage';
 import { BarToneCoordinator } from '../../ui/color/BarToneCoordinator';
+import {
+  buildLibraryTabPage,
+  buildProfileTabPage,
+  buildServerTabPage
+} from './RootTabPages';
 import { BarToneStore } from '../../ui/color/BarToneStore';
 import { BarToneSampler } from '../../ui/color/BarToneSampler';
 import { HdsTabsShell } from './HdsTabsShell';
@@ -34,17 +36,17 @@ export struct FloatingTabBar {
   private buildFallbackTabs() {
     Tabs({ barPosition: BarPosition.End, index: this.rootTabIndex }) {
       TabContent() {
-        LibraryPage()
+        buildLibraryTabPage()
       }
       .tabBar($r('app.media.tab_library'))
 
       TabContent() {
-        ServerPage()
+        buildServerTabPage()
       }
       .tabBar($r('app.media.tab_server'))
 
       TabContent() {
-        ProfilePage()
+        buildProfileTabPage()
       }
       .tabBar($r('app.media.tab_profile'))
     }

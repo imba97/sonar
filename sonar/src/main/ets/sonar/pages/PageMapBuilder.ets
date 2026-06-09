@@ -1,5 +1,4 @@
 import { LoginPage } from './LoginPage';
-import { LibraryPage } from './LibraryPage';
 import { AlbumDetailPage } from './AlbumDetailPage';
 import { CacheSettingsPage } from './CacheSettingsPage';
 import { ExportConfigPage } from './ExportConfigPage';
@@ -53,11 +52,6 @@ export function PageMap(name: string) {
   if (name === 'LoginPage') {
     NavDestination() {
       LoginPage()
-    }
-    .hideTitleBar(true)
-  } else if (name === 'LibraryPage') {
-    NavDestination() {
-      LibraryPage()
     }
     .hideTitleBar(true)
   } else if (name === 'AlbumDetailPage') {

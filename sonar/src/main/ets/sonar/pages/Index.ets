@@ -122,9 +122,14 @@ struct Index {
     HdsNavigation(this.appPathStack) {
       this.buildNavHome()
     }
+    .id(`hds-nav-cm-${this.currentColorMode}`)
     .navDestination(PageMap)
     .hideTitleBar(this.appPathStack.size() > 0)
     .titleBar(HdsPageTitleBar.buildPrimary())
+    .systemBarStyle(
+      HdsPageTitleBar.buildSystemBarOriginalStyle(),
+      HdsPageTitleBar.buildSystemBarScrollStyle()
+    )
     .titleMode(HdsNavigationTitleMode.MINI)
     .hideBackButton(true)
     .bindToScrollable([this.tabScrollerBridge.scrollerForTab(this.rootTabIndex)])

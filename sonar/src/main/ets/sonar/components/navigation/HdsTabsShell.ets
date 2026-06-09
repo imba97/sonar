@@ -1,7 +1,9 @@
-import { LibraryPage } from '../../pages/LibraryPage';
-import { ServerPage } from '../../pages/ServerPage';
-import { ProfilePage } from '../../pages/ProfilePage';
 import { BarToneColorAnimator } from '../../ui/color/BarToneColorAnimator';
+import {
+  buildLibraryTabPage,
+  buildProfileTabPage,
+  buildServerTabPage
+} from './RootTabPages';
 import { BarToneStore } from '../../ui/color/BarToneStore';
 import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
 import { UiTokens } from '../../ui/tokens/UiTokens';
@@ -280,17 +282,17 @@ export struct HdsTabsShell {
   build() {
     HdsTabs({ controller: this.hdsTabsController, index: this.rootTabIndex }) {
       TabContent() {
-        LibraryPage()
+        buildLibraryTabPage()
       }
       .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[0]))
 
       TabContent() {
-        ServerPage()
+        buildServerTabPage()
       }
       .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[1]))
 
       TabContent() {
-        ProfilePage()
+        buildProfileTabPage()
       }
       .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[2]))
     }

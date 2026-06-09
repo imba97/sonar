@@ -16,16 +16,22 @@ function emptySecondaryFloatingLayer() {
 export struct SecondaryHdsDestination {
   @Prop title: string = '';
   @Prop contentVariant: SonarContentVariant = 'form';
+  @StorageLink('currentColorMode') currentColorMode: number = 0;
   private scroller: Scroller = new Scroller();
   @BuilderParam content: () => void = emptySecondaryContent;
   @BuilderParam floatingLayer: () => void = emptySecondaryFloatingLayer;
+
+  @LocalBuilder
+  invokeDestinationContent() {
+    this.content();
+  }
 
   @LocalBuilder
   buildScrollContent() {
     SonarScrollContent({
       role: SonarPageRole.NAV_STACK,
       variant: this.contentVariant,
-      content: this.content
+      content: this.invokeDestinationContent
     });
   }
 
@@ -45,11 +51,16 @@ export struct SecondaryHdsDestination {
       .width('100%')
       .height('100%')
     }
+    .id(`hds-dest-cm-${this.currentColorMode}`)
     .width('100%')
     .hideTitleBar(false)
     .hideBackButton(false)
     .titleMode(HdsNavDestinationTitleMode.MINI)
     .titleBar(HdsPageTitleBar.buildSecondary(this.title))
+    .systemBarStyle(
+      HdsPageTitleBar.buildSystemBarOriginalStyle(),
+      HdsPageTitleBar.buildSystemBarScrollStyle()
+    )
     .bindToScrollable([this.scroller])
     .backgroundColor(Color.Transparent)
     .systemTransition(NavigationSystemTransitionType.CONTENT)

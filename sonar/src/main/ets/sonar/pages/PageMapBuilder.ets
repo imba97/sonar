@@ -1,6 +1,7 @@
 import { LoginPage } from './LoginPage';
 import { LibraryPage } from './LibraryPage';
 import { AlbumDetailPage } from './AlbumDetailPage';
+import { CacheSettingsPage } from './CacheSettingsPage';
 
 @Builder
 export function PageMap(name: string) {
@@ -17,6 +18,11 @@ export function PageMap(name: string) {
   } else if (name === 'AlbumDetailPage') {
     NavDestination() {
       AlbumDetailPage()
+    }
+    .hideTitleBar(true)
+  } else if (name === 'CacheSettingsPage') {
+    NavDestination() {
+      CacheSettingsPage()
     }
     .hideTitleBar(true)
   } else {

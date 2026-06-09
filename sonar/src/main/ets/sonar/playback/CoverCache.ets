@@ -4,6 +4,7 @@ import { image } from '@kit.ImageKit';
 import { EndpointType } from '../auth/AuthStore';
 import { AuthContext } from '../network/auth/AuthContext';
 import { HttpTransport } from '../network/transport/HttpTransport';
+import { CacheFileUtil } from '../common/CacheFileUtil';
 import { Logger } from '../common/Logger';
 
 const COVER_SIZE: number = 320;
@@ -104,7 +105,7 @@ export class CoverCache {
 
   private static async loadInternal(coverArtId: string): Promise<image.PixelMap | null> {
     const localPath: string = CoverCache.localPath(coverArtId);
-    if (localPath.length > 0 && CoverCache.fileExists(localPath)) {
+    if (localPath.length > 0 && CacheFileUtil.fileExists(localPath)) {
       const pm: image.PixelMap | null = await CoverCache.decodeFile(localPath);
       if (pm !== null) {
         CoverCache.put(coverArtId, pm);
@@ -179,37 +180,18 @@ export class CoverCache {
     if (CoverCache.context === null) {
       return '';
     }
-    const safeId: string = coverArtId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeId: string = CacheFileUtil.sanitizeId(coverArtId);
     return `${CoverCache.context.cacheDir}/${COVER_DIR}/${safeId}.jpg`;
   }
 
-  private static fileExists(path: string): boolean {
-    try {
-      fileIo.statSync(path);
-      return true;
-    } catch (_err) {
-      return false;
-    }
-  }
-
   private static async downloadToFile(coverArtId: string, localPath: string): Promise<void> {
-    const dirEnd: number = localPath.lastIndexOf('/');
-    if (dirEnd > 0) {
-      const dir: string = localPath.substring(0, dirEnd);
-      try {
-        fileIo.mkdirSync(dir, true);
-      } catch (_err) {
-      }
-    }
+    CacheFileUtil.ensureParentDir(localPath);
     const content: ArrayBuffer = await HttpTransport.requestBufferWithFallback({
       buildUrl: (ep: EndpointType): string =>
         AuthContext.buildMediaUrl('getCoverArt', ['id', coverArtId, 'size', String(COVER_SIZE)], undefined, ep),
       profile: 'binarySmall'
     });
-      try {
-        fileIo.unlinkSync(localPath);
-      } catch (_err) {
-      }
+      CacheFileUtil.removeIfExists(localPath);
       try {
         const file = fileIo.openSync(localPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
         try {

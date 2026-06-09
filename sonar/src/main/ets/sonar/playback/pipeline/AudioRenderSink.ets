@@ -1,3 +1,4 @@
+import { fileIo } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
 import { Logger } from '../../common/Logger';
 
@@ -37,6 +38,7 @@ export class AudioRenderSink {
   private positionMs: number = 0;
   private durationMs: number = 0;
   private seekTimeoutTimerId: number = -1;
+  private localFile: fileIo.File | null = null;
 
   setListener(listener: AudioRenderSinkListener | null): void {
     this.listener = listener;
@@ -69,6 +71,7 @@ export class AudioRenderSink {
 
   async release(): Promise<void> {
     this.clearPendingOpen();
+    this.closeLocalFile();
     if (this.player !== null) {
       try {
         await this.player.release();
@@ -104,6 +107,38 @@ export class AudioRenderSink {
       return;
     }
     player.url = url;
+    this.activeOpenGen = generation;
+  }
+
+  /** 本地缓存文件播放（fdSrc） */
+  async openLocalFile(path: string, seekMs: number, autoPlay: boolean): Promise<void> {
+    await this.recyclePlayerIfBroken();
+    this.openGeneration++;
+    const generation: number = this.openGeneration;
+    let player: media.AVPlayer = await this.ensurePlayer();
+    this.clearPendingOpen();
+    this.pendingSeekMs = seekMs;
+    this.pendingAutoPlay = autoPlay;
+    this.seekAfterPlayStart = seekMs > 0;
+    this.autoPlayAfterSeek = false;
+    this.pendingOpenSeekComplete = seekMs > 0;
+    this.reopeningStream = true;
+    this.activeOpenGen = 0;
+    this.setPhase('loading');
+    player = await this.resetPlayerForNewUrl(player);
+    if (generation !== this.openGeneration) {
+      this.reopeningStream = false;
+      return;
+    }
+    this.closeLocalFile();
+    const file: fileIo.File = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY);
+    const stat = fileIo.statSync(path);
+    this.localFile = file;
+    player.fdSrc = {
+      fd: file.fd,
+      offset: 0,
+      length: stat.size
+    };
     this.activeOpenGen = generation;
   }
 
@@ -230,7 +265,19 @@ export class AudioRenderSink {
     }
   }
 
+  private closeLocalFile(): void {
+    if (this.localFile === null) {
+      return;
+    }
+    try {
+      fileIo.closeSync(this.localFile);
+    } catch (_err) {
+    }
+    this.localFile = null;
+  }
+
   private async resetPlayerForNewUrl(player: media.AVPlayer): Promise<media.AVPlayer> {
+    this.closeLocalFile();
     try {
       const state: string = player.state;
       if (state === 'playing') {

@@ -1,0 +1,428 @@
+import { common } from '@kit.AbilityKit';
+import { CacheFileUtil } from '../common/CacheFileUtil';
+import { NetworkStatus } from '../common/NetworkStatus';
+import { Logger } from '../common/Logger';
+import { SongCacheSettingsStore } from './SongCacheSettingsStore';
+import { SongCacheStore } from './SongCacheStore';
+import { SongCacheWriter } from './SongCacheWriter';
+import { SongCacheEntry, SongCacheIndex } from './SongCacheTypes';
+
+const AUDIO_DIR: string = 'sonar_audio';
+const INDEX_FILE: string = 'index.json';
+const DEFAULT_EXT: string = '.mp3';
+const MIN_COMPLETE_BYTES: number = 4096;
+const PERSIST_DEBOUNCE_MS: number = 2000;
+const MAX_DOWNLOAD_ATTEMPTS: number = 2;
+
+export class SongCache {
+  private static context: common.UIAbilityContext | null = null;
+  private static entryMap: Map<string, SongCacheEntry> = new Map<string, SongCacheEntry>();
+  private static pinnedSongId: string = '';
+  private static readonly writer: SongCacheWriter = new SongCacheWriter();
+  private static downloadQueue: string[] = [];
+  private static queueProcessing: boolean = false;
+  private static persistTimerId: number = -1;
+  private static persistDirty: boolean = false;
+  private static persistInFlight: Promise<void> | null = null;
+
+  static setContext(context: common.UIAbilityContext): void {
+    SongCache.context = context;
+  }
+
+  static async init(): Promise<void> {
+    if (SongCache.context === null) {
+      return;
+    }
+    await SongCacheSettingsStore.getInstance().init(SongCache.context);
+    SongCache.ensureAudioDir();
+    await SongCache.loadIndex();
+    SongCache.publishUsageState();
+    const settings: SongCacheSettingsStore = SongCacheSettingsStore.getInstance();
+    SongCacheStore.publishLimitGb(settings.getLimitGb());
+    SongCacheStore.publishAutoCacheMode(settings.getAutoCacheMode());
+  }
+
+  static isComplete(songId: string): boolean {
+    return SongCache.resolveLocalPath(songId) !== null;
+  }
+
+  static resolveLocalPath(songId: string): string | null {
+    const entry: SongCacheEntry | undefined = SongCache.entryMap.get(songId);
+    if (entry === undefined || entry.completedAt <= 0) {
+      return null;
+    }
+    const path: string = SongCache.entryPath(entry);
+    if (!CacheFileUtil.fileExists(path)) {
+      return null;
+    }
+    entry.lastAccessedAt = Date.now();
+    SongCache.schedulePersistIndex();
+    return path;
+  }
+
+  static getTotalSizeBytes(): number {
+    let total: number = 0;
+    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
+      if (entry.completedAt > 0) {
+        total += entry.sizeBytes;
+      }
+    });
+    return total;
+  }
+
+  static getLimitBytes(): number {
+    return SongCacheSettingsStore.getInstance().getLimitBytes();
+  }
+
+  static shouldAutoCacheNow(): boolean {
+    const mode = SongCacheSettingsStore.getInstance().getAutoCacheMode();
+    if (mode === 'off') {
+      return false;
+    }
+    if (mode === 'always') {
+      return true;
+    }
+    return NetworkStatus.isOnWifi();
+  }
+
+  static touch(songId: string): void {
+    const entry: SongCacheEntry | undefined = SongCache.entryMap.get(songId);
+    if (entry === undefined) {
+      return;
+    }
+    entry.lastAccessedAt = Date.now();
+    SongCache.schedulePersistIndex();
+  }
+
+  static pin(songId: string): void {
+    if (songId.length === 0) {
+      return;
+    }
+    SongCache.pinnedSongId = songId;
+    SongCache.touch(songId);
+  }
+
+  static unpin(): void {
+    SongCache.pinnedSongId = '';
+  }
+
+  static cancelActiveDownload(songId?: string): void {
+    SongCache.writer.cancel(songId);
+    if (songId !== undefined && songId.length > 0) {
+      const idx: number = SongCache.downloadQueue.indexOf(songId);
+      if (idx >= 0) {
+        SongCache.downloadQueue.splice(idx, 1);
+      }
+    }
+  }
+
+  static async enqueueDownload(songId: string): Promise<void> {
+    if (songId.length === 0) {
+      return;
+    }
+    if (SongCache.isComplete(songId)) {
+      return;
+    }
+    if (SongCache.downloadQueue.indexOf(songId) >= 0) {
+      return;
+    }
+    if (SongCache.writer.isBusy() && SongCache.writer.getActiveSongId() === songId) {
+      return;
+    }
+    SongCache.downloadQueue.push(songId);
+    void SongCache.processQueue();
+  }
+
+  static async removeEntry(songId: string, notifyUsage: boolean = true): Promise<void> {
+    const entry: SongCacheEntry | undefined = SongCache.entryMap.get(songId);
+    if (entry !== undefined) {
+      CacheFileUtil.removeIfExists(SongCache.entryPath(entry));
+      CacheFileUtil.removeIfExists(SongCache.partPathForEntry(entry));
+    }
+    SongCache.entryMap.delete(songId);
+    await SongCache.flushPersistIndex();
+    if (notifyUsage) {
+      SongCache.publishUsageState();
+    }
+  }
+
+  static async evictIfNeeded(): Promise<void> {
+    const limitBytes: number = SongCache.getLimitBytes();
+    let evicted: boolean = false;
+    while (SongCache.getTotalSizeBytes() > limitBytes) {
+      const victim: SongCacheEntry | null = SongCache.pickEvictionVictim();
+      if (victim === null) {
+        break;
+      }
+      await SongCache.removeEntry(victim.songId, false);
+      evicted = true;
+      Logger.info('SongCache', `evicted songId=${victim.songId}`);
+    }
+    if (evicted) {
+      SongCache.publishUsageState();
+    }
+  }
+
+  private static publishUsageState(): void {
+    SongCacheStore.publishUsedBytes(SongCache.getTotalSizeBytes());
+  }
+
+  private static schedulePersistIndex(): void {
+    SongCache.persistDirty = true;
+    if (SongCache.persistTimerId >= 0) {
+      return;
+    }
+    SongCache.persistTimerId = setTimeout((): void => {
+      SongCache.persistTimerId = -1;
+      if (!SongCache.persistDirty) {
+        return;
+      }
+      SongCache.persistDirty = false;
+      void SongCache.flushPersistIndex();
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
+  private static async flushPersistIndex(): Promise<void> {
+    while (true) {
+      if (SongCache.persistInFlight !== null) {
+        await SongCache.persistInFlight;
+        continue;
+      }
+      SongCache.persistDirty = false;
+      const task: Promise<void> = SongCache.writeIndexFile();
+      SongCache.persistInFlight = task;
+      try {
+        await task;
+      } finally {
+        SongCache.persistInFlight = null;
+      }
+      if (!SongCache.persistDirty) {
+        break;
+      }
+    }
+  }
+
+  private static async processQueue(): Promise<void> {
+    if (SongCache.queueProcessing) {
+      return;
+    }
+    SongCache.queueProcessing = true;
+    while (SongCache.downloadQueue.length > 0) {
+      const songId: string | undefined = SongCache.downloadQueue.shift();
+      if (songId === undefined || songId.length === 0) {
+        continue;
+      }
+      if (SongCache.isComplete(songId)) {
+        continue;
+      }
+      await SongCache.downloadOne(songId);
+    }
+    SongCache.queueProcessing = false;
+  }
+
+  private static async downloadOne(songId: string): Promise<void> {
+    let lastError: string = '';
+    for (let attempt: number = 1; attempt <= MAX_DOWNLOAD_ATTEMPTS; attempt++) {
+      if (SongCache.isComplete(songId)) {
+        return;
+      }
+      const safeId: string = CacheFileUtil.sanitizeId(songId);
+      const ext: string = DEFAULT_EXT;
+      const partPath: string = SongCache.buildPartPath(safeId, ext);
+      const finalPath: string = SongCache.buildFinalPath(safeId, ext);
+      let completedSize: number = 0;
+      try {
+        await SongCache.writer.streamToFile(songId, partPath, finalPath, {
+          onComplete: (sizeBytes: number): void => {
+            completedSize = sizeBytes;
+          },
+          onError: (message: string): void => {
+            lastError = message;
+          }
+        });
+        await SongCache.markComplete(songId, safeId, ext, completedSize);
+        return;
+      } catch (err) {
+        lastError = (err as Error).message;
+        Logger.warn('SongCache',
+          `download failed songId=${songId} attempt=${attempt}/${MAX_DOWNLOAD_ATTEMPTS}: ${lastError}`);
+      }
+    }
+    Logger.error('SongCache', `download exhausted songId=${songId}: ${lastError}`);
+  }
+
+  private static async markComplete(
+    songId: string,
+    safeId: string,
+    ext: string,
+    sizeBytes: number
+  ): Promise<void> {
+    const now: number = Date.now();
+    const fileName: string = `${safeId}${ext}`;
+    const entry: SongCacheEntry = SongCache.entryMap.get(songId) ?? {
+      songId: songId,
+      fileName: fileName,
+      sizeBytes: sizeBytes,
+      lastAccessedAt: now,
+      completedAt: now
+    };
+    entry.fileName = fileName;
+    entry.sizeBytes = sizeBytes;
+    entry.lastAccessedAt = now;
+    entry.completedAt = now;
+    SongCache.entryMap.set(songId, entry);
+    await SongCache.flushPersistIndex();
+    await SongCache.evictIfNeeded();
+    SongCache.publishUsageState();
+    Logger.debug('SongCache', `cached songId=${songId} size=${sizeBytes}`);
+  }
+
+  private static pickEvictionVictim(): SongCacheEntry | null {
+    let oldest: SongCacheEntry | null = null;
+    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
+      if (entry.completedAt <= 0) {
+        return;
+      }
+      if (entry.songId === SongCache.pinnedSongId) {
+        return;
+      }
+      if (oldest === null || entry.lastAccessedAt < oldest.lastAccessedAt) {
+        oldest = entry;
+      }
+    });
+    return oldest;
+  }
+
+  private static entryPath(entry: SongCacheEntry): string {
+    return `${SongCache.audioDir()}/${entry.fileName}`;
+  }
+
+  private static partPathForEntry(entry: SongCacheEntry): string {
+    return `${SongCache.entryPath(entry)}.part`;
+  }
+
+  private static buildPartPath(safeId: string, ext: string): string {
+    return `${SongCache.audioDir()}/${safeId}${ext}.part`;
+  }
+
+  private static buildFinalPath(safeId: string, ext: string): string {
+    return `${SongCache.audioDir()}/${safeId}${ext}`;
+  }
+
+  private static audioDir(): string {
+    if (SongCache.context === null) {
+      return '';
+    }
+    return `${SongCache.context.cacheDir}/${AUDIO_DIR}`;
+  }
+
+  private static indexPath(): string {
+    return `${SongCache.audioDir()}/${INDEX_FILE}`;
+  }
+
+  private static ensureAudioDir(): void {
+    CacheFileUtil.ensureDir(SongCache.audioDir());
+  }
+
+  private static async loadIndex(): Promise<void> {
+    const path: string = SongCache.indexPath();
+    const text: string | null = CacheFileUtil.readTextFile(path);
+    if (text === null) {
+      SongCache.entryMap.clear();
+      return;
+    }
+    try {
+      const parsed: SongCacheIndex = JSON.parse(text) as SongCacheIndex;
+      const rawEntries: SongCacheEntry[] = parsed.entries ?? [];
+      SongCache.entryMap.clear();
+      for (let i: number = 0; i < rawEntries.length; i++) {
+        const raw: SongCacheEntry = rawEntries[i] as SongCacheEntry;
+        if (raw.songId === undefined || raw.fileName === undefined) {
+          continue;
+        }
+        SongCache.entryMap.set(raw.songId, {
+          songId: raw.songId,
+          fileName: raw.fileName,
+          sizeBytes: raw.sizeBytes ?? 0,
+          lastAccessedAt: raw.lastAccessedAt ?? 0,
+          completedAt: raw.completedAt ?? 0
+        });
+      }
+    } catch (err) {
+      Logger.warn('SongCache', `loadIndex parse failed: ${(err as Error).message}`);
+      SongCache.entryMap.clear();
+    }
+    const reconciled: boolean = await SongCache.reconcileIndexWithDisk();
+    if (reconciled) {
+      await SongCache.flushPersistIndex();
+    }
+  }
+
+  /** 剔除索引中无对应文件的条目，并校正 sizeBytes */
+  private static async reconcileIndexWithDisk(): Promise<boolean> {
+    let changed: boolean = false;
+    const staleIds: string[] = [];
+    SongCache.entryMap.forEach((entry: SongCacheEntry, songId: string) => {
+      if (entry.completedAt <= 0) {
+        staleIds.push(songId);
+        return;
+      }
+      const path: string = SongCache.entryPath(entry);
+      if (!CacheFileUtil.fileExists(path)) {
+        staleIds.push(songId);
+        return;
+      }
+      const actualSize: number = CacheFileUtil.fileSize(path);
+      if (actualSize < MIN_COMPLETE_BYTES) {
+        CacheFileUtil.removeIfExists(path);
+        staleIds.push(songId);
+        return;
+      }
+      if (entry.sizeBytes !== actualSize) {
+        entry.sizeBytes = actualSize;
+        changed = true;
+      }
+    });
+    for (let i: number = 0; i < staleIds.length; i++) {
+      SongCache.entryMap.delete(staleIds[i]);
+      changed = true;
+      Logger.info('SongCache', `reconcile removed stale songId=${staleIds[i]}`);
+    }
+    return changed;
+  }
+
+  private static async writeIndexFile(): Promise<void> {
+    SongCache.ensureAudioDir();
+    const entries: SongCacheEntry[] = [];
+    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
+      entries.push(entry);
+    });
+    const text: string = JSON.stringify({ entries: entries });
+    try {
+      CacheFileUtil.writeTextAtomic(SongCache.indexPath(), text);
+    } catch (err) {
+      Logger.warn('SongCache', `writeIndex failed: ${(err as Error).message}`);
+    }
+  }
+
+  /** 本地文件损坏/缺失时才删缓存；播放器瞬时错误保留文件并回退 HTTP */
+  static shouldInvalidateLocalCache(localPath: string, err: Error): boolean {
+    if (!CacheFileUtil.fileExists(localPath)) {
+      return true;
+    }
+    const size: number = CacheFileUtil.fileSize(localPath);
+    if (size < MIN_COMPLETE_BYTES) {
+      return true;
+    }
+    const message: string = err.message.toLowerCase();
+    if (message.includes('no such file') ||
+      message.includes('not found') ||
+      message.includes('invalid fd') ||
+      message.includes('corrupt') ||
+      message.includes('unsupported') ||
+      message.includes('format')) {
+      return true;
+    }
+    return false;
+  }
+}

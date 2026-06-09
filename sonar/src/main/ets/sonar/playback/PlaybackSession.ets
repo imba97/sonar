@@ -12,6 +12,8 @@ import { PlaybackPipeline } from './pipeline/PlaybackPipeline';
 import { CancelToken } from '../network/transport/CancelToken';
 import { PrefetchWorker } from './pipeline/PrefetchWorker';
 import { BackgroundPlayback } from './BackgroundPlayback';
+import { SongCache } from '../cache/SongCache';
+import { SongCacheStore } from '../cache/SongCacheStore';
 import { CoverCache } from './CoverCache';
 import { MediaCenter, MediaCenterCommands } from './MediaCenter';
 import { resolveNextIndex, resolvePreviousIndex } from './PlaybackModeResolver';
@@ -168,6 +170,9 @@ export class PlaybackSession implements PlaybackSwitchHost {
   async initialize(context: common.UIAbilityContext): Promise<void> {
     this.context = context;
     CoverCache.setContext(context);
+    SongCacheStore.ensureInitialized();
+    SongCache.setContext(context);
+    await SongCache.init();
     BackgroundPlayback.setContext(context);
     this.mediaCenter.setContext(context);
     this.mediaCenter.setCommands(new SessionMediaCenterCommands(this));
@@ -386,6 +391,11 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async stopEngineAndClearBuffers(): Promise<void> {
+    const song: Song | null = this.getCurrentSong();
+    if (song !== null) {
+      SongCache.cancelActiveDownload(song.id);
+    }
+    SongCache.unpin();
     await this.orchestrator.cancel();
     this.releaseActiveStream();
     this.isBuffering = false;
@@ -401,6 +411,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   async loadCurrentSongStream(reportStart: boolean): Promise<void> {
     const song: Song | null = this.getCurrentSong();
     if (song === null) {
+      SongCache.unpin();
       await this.orchestrator.cancel();
       this.releaseCover();
       this.currentIndex = -1;
@@ -432,6 +443,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.publishSnapshot('error', true);
       Logger.error('PlaybackSession', `play failed: ${(err as Error).message}`);
       return;
+    }
+    SongCache.pin(song.id);
+    if (SongCache.shouldAutoCacheNow() && !SongCache.isComplete(song.id)) {
+      void SongCache.enqueueDownload(song.id);
     }
     await coverTask;
     this.schedulePrefetchNext();

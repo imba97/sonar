@@ -1,12 +1,15 @@
 import { common } from '@kit.AbilityKit';
 import { AuthStore, EndpointType } from '../../auth/AuthStore';
 import { AuthContext } from '../../network/auth/AuthContext';
+import { SongCache } from '../../cache/SongCache';
 import { Logger } from '../../common/Logger';
 import { HttpTransport } from '../../network/transport/HttpTransport';
 import { StreamResource } from '../../network/media/StreamResource';
 import { EndpointChangeEvent } from '../../network/routing/EndpointTypes';
 import { AudioRenderSink, AudioRenderSinkListener, PlaySinkPhase } from './AudioRenderSink';
 import { PipelineMetrics } from './PipelineMetrics';
+
+type PlaybackSource = 'local' | 'remote';
 
 export interface PipelineOrchestratorCallbacks {
   onEnterBuffering(frozenPositionMs: number): void;
@@ -37,8 +40,10 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   private replayRetryTimerId: number = -1;
   private replayRetryCount: number = 0;
   private lastReplayUrl: string = '';
+  private lastReplayLocalPath: string = '';
   private lastReplaySeekMs: number = 0;
   private lastReplayAutoPlay: boolean = false;
+  private playbackSource: PlaybackSource = 'remote';
   /** replayAt(seek>0)：等 onReplayReady 再 exitBuffering */
   private awaitReplayReady: boolean = false;
 
@@ -74,8 +79,7 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     await this.cancel(false);
     this.activeStreamResource = streamResource;
     this.durationMs = durationMs;
-    const url: string = streamResource.resolveRequest().url;
-    await this.replayAt(url, 0, autoPlay);
+    await this.replayAtCurrentTarget(0, autoPlay);
     PipelineMetrics.recordTrackStart();
   }
 
@@ -96,6 +100,9 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
 
   async migrateInPlace(frozenPositionMs: number, wasPlaying: boolean): Promise<void> {
     if (this.activeStreamResource === null || this.migrating) {
+      return;
+    }
+    if (this.playbackSource === 'local') {
       return;
     }
     this.migrating = true;
@@ -142,8 +149,7 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
       return;
     }
     const wasPlaying: boolean = this.callbacks?.getCurrentPhase() === 'playing';
-    const url: string = this.resolveStreamUrl();
-    await this.replayAt(url, positionMs, wasPlaying);
+    await this.replayAtCurrentTarget(positionMs, wasPlaying);
     PipelineMetrics.recordSeek();
   }
 
@@ -161,8 +167,7 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
       return;
     }
     const frozenMs: number = this.callbacks?.getAuthoritativePositionMs() ?? this.frozenPositionMs;
-    const url: string = this.resolveStreamUrl();
-    await this.replayAt(url, frozenMs > 0 ? frozenMs : this.audioSink.getPositionMs(), true);
+    await this.replayAtCurrentTarget(frozenMs > 0 ? frozenMs : this.audioSink.getPositionMs(), true);
   }
 
   async pause(): Promise<void> {
@@ -193,9 +198,25 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     return this.awaitReplayReady;
   }
 
+  private async replayAtCurrentTarget(seekMs: number, shouldResumeAfterLoad: boolean): Promise<void> {
+    if (this.activeStreamResource === null) {
+      return;
+    }
+    const localPath: string | null = SongCache.resolveLocalPath(this.activeStreamResource.songId);
+    if (localPath !== null) {
+      this.playbackSource = 'local';
+      await this.replayAtLocal(localPath, seekMs, shouldResumeAfterLoad);
+      return;
+    }
+    this.playbackSource = 'remote';
+    const url: string = this.resolveStreamUrl();
+    await this.replayAt(url, seekMs, shouldResumeAfterLoad);
+  }
+
   /** open → prepare → play → seek(切网) → 退出 buffering 后按需恢复播放 */
   private async replayAt(url: string, seekMs: number, shouldResumeAfterLoad: boolean): Promise<void> {
     this.lastReplayUrl = url;
+    this.lastReplayLocalPath = '';
     this.lastReplaySeekMs = seekMs;
     this.lastReplayAutoPlay = shouldResumeAfterLoad;
     this.awaitReplayReady = seekMs > 0;
@@ -209,6 +230,32 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     } catch (err) {
       Logger.warn('PipelineOrchestrator', `replayAt failed: ${(err as Error).message}`);
       this.callbacks?.onError((err as Error).message);
+    }
+  }
+
+  private async replayAtLocal(localPath: string, seekMs: number, shouldResumeAfterLoad: boolean): Promise<void> {
+    this.lastReplayLocalPath = localPath;
+    this.lastReplayUrl = '';
+    this.lastReplaySeekMs = seekMs;
+    this.lastReplayAutoPlay = shouldResumeAfterLoad;
+    this.awaitReplayReady = seekMs > 0;
+    if (seekMs > 0 && !this.bufferingActive) {
+      this.wasPlayingBeforeBuffer = shouldResumeAfterLoad;
+      this.enterBuffering(seekMs);
+    }
+    const autoPlayDuringLoad: boolean = seekMs === 0 && shouldResumeAfterLoad && !this.bufferingActive;
+    try {
+      await this.audioSink.openLocalFile(localPath, seekMs, autoPlayDuringLoad);
+    } catch (err) {
+      const error: Error = err as Error;
+      Logger.warn('PipelineOrchestrator', `replayAtLocal failed: ${error.message}`);
+      if (this.activeStreamResource !== null &&
+        SongCache.shouldInvalidateLocalCache(localPath, error)) {
+        await SongCache.removeEntry(this.activeStreamResource.songId);
+      }
+      this.playbackSource = 'remote';
+      const url: string = this.resolveStreamUrl();
+      await this.replayAt(url, seekMs, shouldResumeAfterLoad);
     }
   }
 
@@ -267,7 +314,8 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   private scheduleReplayRetry(): void {
-    if (!this.bufferingActive || this.lastReplayUrl.length === 0) {
+    if (!this.bufferingActive ||
+      (this.lastReplayUrl.length === 0 && this.lastReplayLocalPath.length === 0)) {
       return;
     }
     if (this.replayRetryCount >= MAX_REPLAY_RETRIES) {
@@ -281,7 +329,8 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     this.clearReplayRetry();
     this.replayRetryTimerId = setTimeout((): void => {
       this.replayRetryTimerId = -1;
-      if (!this.bufferingActive || this.lastReplayUrl.length === 0) {
+      if (!this.bufferingActive ||
+        (this.lastReplayUrl.length === 0 && this.lastReplayLocalPath.length === 0)) {
         return;
       }
       Logger.info('PipelineOrchestrator',
@@ -296,7 +345,7 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     }
     this.activeStreamResource.timeOffsetMs = 0;
     const seekMs: number = this.frozenPositionMs > 0 ? this.frozenPositionMs : this.lastReplaySeekMs;
-    void this.replayAt(this.resolveStreamUrl(), seekMs, this.lastReplayAutoPlay);
+    void this.replayAtCurrentTarget(seekMs, this.lastReplayAutoPlay);
   }
 
   onPhaseChanged(phase: PlaySinkPhase): void {

@@ -1,4 +1,5 @@
 import { AlbumDetailRouteParam, Song } from '../api/SubsonicTypes';
+import { SongCache } from '../cache/SongCache';
 import { AlbumDetailViewModel } from '../viewmodel/AlbumDetailViewModel';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ErrorState } from '../components/feedback/ErrorState';
@@ -65,7 +66,14 @@ export struct AlbumDetailPage {
       }
       this.showToast(`已加入下一首：${this.menuSongTitle}`);
     } else if (actionId === 'download') {
-      this.showToast(`开始下载：${this.menuSongTitle}`);
+      if (this.menuSong !== null) {
+        if (SongCache.isComplete(this.menuSong.id)) {
+          this.showToast(`已在缓存中：${this.menuSongTitle}`);
+        } else {
+          void SongCache.enqueueDownload(this.menuSong.id);
+          this.showToast(`已加入下载：${this.menuSongTitle}`);
+        }
+      }
     } else if (actionId === 'detail') {
       this.showToast(`跳转音乐详情：${this.menuSongTitle}`);
     }

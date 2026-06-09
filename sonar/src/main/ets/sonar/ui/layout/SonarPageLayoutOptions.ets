@@ -15,8 +15,10 @@ export enum FloatingHeaderType {
   FLOATING_TITLE = 1,
   /** 媒体库：搜索栏浮层 */
   FLOATING_SEARCH = 2,
-  /** 二级页：HDS MINI 返回+标题+滚动渐变毛玻璃（titleBar 由路由壳配置） */
+  /** @deprecated 已由 FLOATING_SECONDARY_BAR 替代 */
   HDS_MINI_GRADIENT = 3,
+  /** 二级页：Stack 浮层返回+标题，scroll 驱动毛玻璃 */
+  FLOATING_SECONDARY_BAR = 4,
   /** 预留：整栏毛玻璃背板 */
   FULL_GLASS_BAR = 10,
   /** 预留：按滚动阈值显隐毛玻璃 */

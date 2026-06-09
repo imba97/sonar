@@ -69,6 +69,14 @@ export class UiTokens {
   static readonly SECTION_GAP: number = 12;
   /** HdsNavigation MINI 标题栏占位高度 */
   static readonly HDS_TITLE_BAR_MINI_HEIGHT: number = 56;
+  /** 二级页内容顶距：MINI 标题栏 + form 首行间距 */
+  static readonly SECONDARY_CONTENT_PADDING_TOP_FORM: number =
+    UiTokens.HDS_TITLE_BAR_MINI_HEIGHT + UiTokens.CONTENT_TOP_GAP;
+  /** 二级页内容顶距：MINI 标题栏 + hero 首行间距 */
+  static readonly SECONDARY_CONTENT_PADDING_TOP_HERO: number =
+    UiTokens.HDS_TITLE_BAR_MINI_HEIGHT + UiTokens.CONTENT_TOP_GAP_HERO;
+  /** 二级页浮层头部：上滑多少 vp 后毛玻璃满强度 */
+  static readonly SECONDARY_GLASS_REVEAL_SCROLL_VP: number = 24;
   /** 二级页标题栏内容区上内边距（对齐 HDS MINI 背板 8vp 上 padding） */
   static readonly HDS_TITLE_BAR_TOP_EXTRA: number = 8;
   /** 标题栏 GRADIENT_BLUR 蒙层向下延伸（vp） */

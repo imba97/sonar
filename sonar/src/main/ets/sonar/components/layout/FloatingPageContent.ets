@@ -9,6 +9,8 @@ function emptyFloatingPageContent() {
 @Component
 export struct FloatingPageContent {
   @Prop variant: SonarContentVariant = 'form';
+  @Prop underMiniTitleBar: boolean = false;
+  @Prop headerSafeTopInset: number = 0;
   @Prop applyHorizontalPadding: boolean = true;
   @Prop applyTopGap: boolean = true;
   @Prop applySectionGap: boolean = true;
@@ -17,6 +19,11 @@ export struct FloatingPageContent {
   private topGap(): number {
     if (!this.applyTopGap) {
       return 0;
+    }
+    if (this.underMiniTitleBar) {
+      const contentGap: number = this.variant === 'hero' ?
+        UiTokens.SECONDARY_CONTENT_PADDING_TOP_HERO : UiTokens.SECONDARY_CONTENT_PADDING_TOP_FORM;
+      return this.headerSafeTopInset + contentGap;
     }
     if (this.variant === 'hero') {
       return UiTokens.CONTENT_TOP_GAP_HERO;

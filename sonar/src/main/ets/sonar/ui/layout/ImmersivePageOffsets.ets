@@ -22,11 +22,6 @@ export class ImmersivePageOffsets {
       UiTokens.LIBRARY_LIST_EDGE_GAP;
   }
 
-  /** 二级页 Scroll 穿透 MINI 标题栏（不含状态栏，由 titleBar 安全区处理） */
-  static secondaryScrollTopBlank(): number {
-    return UiTokens.HDS_TITLE_BAR_MINI_HEIGHT;
-  }
-
   /** 二级页底部安全区 */
   static secondaryContentEnd(bottomInset: number): number {
     return bottomInset + UiTokens.LIBRARY_LIST_EDGE_GAP;
@@ -35,7 +30,7 @@ export class ImmersivePageOffsets {
   /** SonarPageLayout：Scroll 内容区顶部占位/内边距 */
   static resolveScrollTopInset(options: SonarPageLayoutOptions, topInset: number): number {
     if (options.role === SonarPageRole.NAV_STACK) {
-      return ImmersivePageOffsets.secondaryScrollTopBlank();
+      return 0;
     }
     if (options.role === SonarPageRole.TAB_ROOT &&
       options.headerType === FloatingHeaderType.FLOATING_TITLE) {

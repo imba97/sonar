@@ -62,11 +62,7 @@ export struct ServerPage {
   @LocalBuilder
   buildServerBody() {
     Column({ space: UiTokens.SECTION_GAP }) {
-      Column() {
-        SonicApiEntryModule()
-      }
-      .width('100%')
-      .alignItems(HorizontalAlign.Center)
+      SonicApiEntryModule()
 
       CardContainer() {
         this.buildConnectionStatusCard()

@@ -67,10 +67,10 @@ export struct SonicApiEntryModule {
             .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
         }
         .width('100%')
-        .padding({ left: 4, top: 6 })
+        .padding({ left: 12, top: 6 })
       }
     }
-    .width('92%')
+    .width('100%')
     .margin({ bottom: 6 })
   }
 }

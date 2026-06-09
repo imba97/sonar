@@ -6,7 +6,7 @@ import { UiTokens } from '../../ui/tokens/UiTokens';
 function emptyPrimaryScrollContent() {
 }
 
-/** Tab 根页 Scroll 内容边距：沉浸式顶格，底距随 Tab 栏 */
+/** Tab 根页 Scroll 内容边距：顶距全局统一，底距随 Tab 栏 */
 @Component
 export struct PrimaryScrollContent {
   @Prop variant: SonarContentVariant = 'form';

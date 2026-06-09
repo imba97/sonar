@@ -1,22 +1,27 @@
 import { ImmersivePageOffsets } from '../../ui/layout/ImmersivePageOffsets';
-import { SonarContentVariant } from '../../ui/layout/SonarPageLayoutOptions';
+import { SonarContentVariant, SonarPageRole } from '../../ui/layout/SonarPageLayoutOptions';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 @Builder
-function emptyPrimaryScrollContent() {
+function emptySonarScrollContent() {
 }
 
-/** Tab 根页 Scroll 内容边距：顶距全局统一，底距随 Tab 栏 */
+/** 全站 Scroll 内容边距：Tab 根页 / 二级页共用，顶底距由 SonarPageRole 分发 */
 @Component
-export struct PrimaryScrollContent {
+export struct SonarScrollContent {
+  @Prop role: SonarPageRole = SonarPageRole.TAB_ROOT;
   @Prop variant: SonarContentVariant = 'form';
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
-  @BuilderParam content: () => void = emptyPrimaryScrollContent;
+  @BuilderParam content: () => void = emptySonarScrollContent;
 
   private topPadding(): number {
-    return ImmersivePageOffsets.primaryContentTopPadding(this.topInset, this.variant);
+    return ImmersivePageOffsets.contentTopPadding(this.role, this.topInset, this.variant);
+  }
+
+  private bottomPadding(): number {
+    return ImmersivePageOffsets.contentBottomPadding(this.role, this.bottomInset, this.rootTabActive);
   }
 
   build() {
@@ -29,7 +34,7 @@ export struct PrimaryScrollContent {
       left: UiTokens.PAGE_HORIZONTAL_PADDING,
       right: UiTokens.PAGE_HORIZONTAL_PADDING,
       top: this.topPadding(),
-      bottom: ImmersivePageOffsets.tabContentEnd(this.bottomInset, this.rootTabActive)
+      bottom: this.bottomPadding()
     })
     .linearGradient({
       angle: 160,

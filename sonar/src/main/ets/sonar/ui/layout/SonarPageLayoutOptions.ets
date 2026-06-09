@@ -4,6 +4,8 @@ export enum SonarPageRole {
   TAB_ROOT = 0,
   /** 独立全屏页（登录等） */
   STANDALONE = 1,
+  /** 导航栈二级页：避让 MINI 标题栏 */
+  NAV_STACK = 2,
 }
 
 export type SonarContentVariant = 'form' | 'hero' | 'login';

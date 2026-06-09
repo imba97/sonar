@@ -1,7 +1,7 @@
 import { HdsNavDestination, HdsNavDestinationTitleMode } from '@kit.UIDesignKit';
-import { SecondaryScrollContent } from '../layout/SecondaryScrollContent';
+import { SonarScrollContent } from '../layout/SonarScrollContent';
 import { HdsPageTitleBar } from '../../ui/material/HdsPageTitleBar';
-import { SonarContentVariant } from '../../ui/layout/SonarPageLayoutOptions';
+import { SonarContentVariant, SonarPageRole } from '../../ui/layout/SonarPageLayoutOptions';
 
 @Builder
 function emptySecondaryContent() {
@@ -22,7 +22,8 @@ export struct SecondaryHdsDestination {
 
   @LocalBuilder
   buildScrollContent() {
-    SecondaryScrollContent({
+    SonarScrollContent({
+      role: SonarPageRole.NAV_STACK,
       variant: this.contentVariant,
       content: this.content
     });

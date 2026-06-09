@@ -1,5 +1,5 @@
 import { FloatingPageContent } from './FloatingPageContent';
-import { PrimaryScrollContent } from './PrimaryScrollContent';
+import { SonarScrollContent } from './SonarScrollContent';
 import {
   SonarContentVariant,
   SonarPageLayoutOptions,
@@ -69,7 +69,8 @@ export struct SonarPageLayout {
         content: this.invokePageContent
       });
     } else {
-      PrimaryScrollContent({
+      SonarScrollContent({
+        role: SonarPageRole.TAB_ROOT,
         variant: this.contentVariant(),
         content: this.invokePageContent
       });

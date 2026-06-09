@@ -23,9 +23,10 @@ export class HdsPageTitleBar {
     };
   }
 
-  /** 二级页：返回 + 标题 */
+  /** 二级页：返回 + 标题（ignoreLayoutSafeArea 下须避让状态栏） */
   static buildSecondary(mainTitle: string): HdsNavigationTitleBarOptions {
     return {
+      avoidLayoutSafeArea: true,
       style: HdsPageTitleBar.buildTitleBarStyle(),
       content: {
         title: {

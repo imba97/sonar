@@ -1,4 +1,4 @@
-import { SonarContentVariant } from './SonarPageLayoutOptions';
+import { SonarContentVariant, SonarPageRole } from './SonarPageLayoutOptions';
 import { UiTokens } from '../tokens/UiTokens';
 
 export class ImmersivePageOffsets {
@@ -20,6 +20,23 @@ export class ImmersivePageOffsets {
   /** 二级页头部占位：状态栏 + MINI 标题栏 + 底缘冗余 */
   static secondaryHeaderOverlayHeight(topInset: number): number {
     return topInset + UiTokens.SECONDARY_HEADER_OVERLAY_VP;
+  }
+
+  /** 全站 Scroll 顶距入口：按页面角色分发 */
+  static contentTopPadding(role: SonarPageRole, topInset: number,
+    variant: SonarContentVariant = 'form'): number {
+    if (role === SonarPageRole.NAV_STACK) {
+      return ImmersivePageOffsets.secondaryContentTopPadding(topInset, variant);
+    }
+    return ImmersivePageOffsets.primaryContentTopPadding(topInset, variant);
+  }
+
+  /** 全站 Scroll 底距入口：按页面角色分发 */
+  static contentBottomPadding(role: SonarPageRole, bottomInset: number, rootTabActive: boolean): number {
+    if (role === SonarPageRole.NAV_STACK) {
+      return ImmersivePageOffsets.secondaryContentEnd(bottomInset);
+    }
+    return ImmersivePageOffsets.tabContentEnd(bottomInset, rootTabActive);
   }
 
   /** Tab 根页：状态栏 + 首行间距（空标题栏不预留 MINI 56vp） */

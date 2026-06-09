@@ -208,7 +208,7 @@ export struct LibraryPage {
     }
     .width('100%')
     .padding({
-      top: ImmersivePageOffsets.primaryContentTopPadding(this.topInset)
+      top: ImmersivePageOffsets.contentTopPadding(SonarPageRole.TAB_ROOT, this.topInset)
     })
     .margin({ bottom: UiTokens.SECTION_GAP })
   }

@@ -3,9 +3,8 @@ import { SongCache } from '../cache/SongCache';
 import { AlbumDetailViewModel } from '../viewmodel/AlbumDetailViewModel';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ErrorState } from '../components/feedback/ErrorState';
-import { TagButton } from '../components/buttons/TagButton';
+import { TagButton, TagButtonMenuItem } from '../components/buttons/TagButton';
 import { CardContainer } from '../components/layout/CardContainer';
-import { DropdownActionItem, DropdownActionMenu } from '../components/overlays/DropdownActionMenu';
 import { SecondaryHdsDestination } from '../components/navigation/SecondaryHdsDestination';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
@@ -18,65 +17,38 @@ export struct AlbumDetailPage {
   @State vm: AlbumDetailViewModel = new AlbumDetailViewModel();
   @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
   @State private albumId: string = '';
-  @State private menuVisible: boolean = false;
-  @State private menuSongTitle: string = '';
-  @State private menuSong: Song | null = null;
-  private readonly menuActions: DropdownActionItem[] = [
-    {
-      id: 'play-next',
-      label: '下一首播放',
-      backgroundColor: UiTokens.COLOR_SUCCESS_SOFT_BG,
-      fontColor: UiTokens.COLOR_SUCCESS
-    },
-    {
-      id: 'download',
-      label: '下载',
-      backgroundColor: UiTokens.COLOR_WARNING_SOFT_BG,
-      fontColor: UiTokens.COLOR_WARNING
-    },
-    {
-      id: 'detail',
-      label: '详情',
-      backgroundColor: UiTokens.COLOR_INFO_SOFT_BG,
-      fontColor: UiTokens.COLOR_INFO
-    }
-  ];
 
   private showToast(message: string): void {
     ToastUtil.show(this, message, 1600);
   }
 
-  private openMoreMenu(song: Song): void {
-    this.menuSong = song;
-    this.menuSongTitle = song.title;
-    this.menuVisible = true;
-  }
-
-  private closeMoreMenu(): void {
-    this.menuSong = null;
-    this.menuVisible = false;
-    this.menuSongTitle = '';
-  }
-
-  private onMenuSelect(actionId: string): void {
-    if (actionId === 'play-next') {
-      if (this.menuSong !== null) {
-        void PlaybackService.enqueueNext(this.menuSong);
-      }
-      this.showToast(`已加入下一首：${this.menuSongTitle}`);
-    } else if (actionId === 'download') {
-      if (this.menuSong !== null) {
-        if (SongCache.isComplete(this.menuSong.id)) {
-          this.showToast(`已在缓存中：${this.menuSongTitle}`);
-        } else {
-          void SongCache.enqueueDownload(this.menuSong.id);
-          this.showToast(`已加入下载：${this.menuSongTitle}`);
+  private buildSongMenuItems(song: Song): TagButtonMenuItem[] {
+    return [
+      {
+        value: '下一首播放',
+        action: (): void => {
+          void PlaybackService.enqueueNext(song);
+          this.showToast(`已加入下一首：${song.title}`);
+        }
+      },
+      {
+        value: '下载',
+        action: (): void => {
+          if (SongCache.isComplete(song.id)) {
+            this.showToast(`已在缓存中：${song.title}`);
+          } else {
+            void SongCache.enqueueDownload(song.id);
+            this.showToast(`已加入下载：${song.title}`);
+          }
+        }
+      },
+      {
+        value: '详情',
+        action: (): void => {
+          this.showToast(`跳转音乐详情：${song.title}`);
         }
       }
-    } else if (actionId === 'detail') {
-      this.showToast(`跳转音乐详情：${this.menuSongTitle}`);
-    }
-    this.closeMoreMenu();
+    ];
   }
 
   private playSong(index: number, song: Song): void {
@@ -166,9 +138,7 @@ export struct AlbumDetailPage {
 
             TagButton({
               text: '更多',
-              onPressed: () => {
-                this.openMoreMenu(song);
-              }
+              menuItems: this.buildSongMenuItems(song)
             })
           }
           .width('100%')
@@ -200,38 +170,15 @@ export struct AlbumDetailPage {
   }
 
   @LocalBuilder
-  buildMenuOverlay() {
-    if (this.menuVisible) {
-      DropdownActionMenu({
-        isVisible: this.menuVisible,
-        title: this.menuSongTitle,
-        actions: this.menuActions,
-        closeMenu: () => {
-          this.closeMoreMenu();
-        },
-        selectAction: (id: string) => {
-          this.onMenuSelect(id);
-        }
-      })
-    }
-  }
-
-  @LocalBuilder
   buildDestinationContent() {
     this.buildPageContent()
-  }
-
-  @LocalBuilder
-  buildDestinationFloatingLayer() {
-    this.buildMenuOverlay()
   }
 
   build() {
     SecondaryHdsDestination({
       title: '专辑',
       contentVariant: 'hero',
-      content: this.buildDestinationContent,
-      floatingLayer: this.buildDestinationFloatingLayer
+      content: this.buildDestinationContent
     })
   }
 }

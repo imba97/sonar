@@ -9,6 +9,7 @@ import { AutoMarqueeText } from '../components/layout/AutoMarqueeText';
 import { GlassSearchBar } from '../components/forms/GlassSearchBar';
 import { SonarPageLayout } from '../components/layout/SonarPageLayout';
 import { ImmersivePageOffsets } from '../ui/layout/ImmersivePageOffsets';
+import { LibraryGridLayout } from '../ui/layout/LibraryGridLayout';
 import { TabScrollerBridge } from '../ui/layout/TabScrollerBridge';
 import {
   SonarPageRole,
@@ -17,25 +18,6 @@ import {
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
 import { PlaybackService } from '../playback/PlaybackService';
-
-function resolveVpLength(context: UIContext, value: Length): number {
-  if (typeof value === 'number') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    if (value.endsWith('vp')) {
-      return Number.parseFloat(value);
-    }
-    if (value.endsWith('px')) {
-      return context.px2vp(Number.parseFloat(value));
-    }
-    const parsed: number = Number.parseFloat(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return 0;
-}
 
 @Component
 export struct LibraryPage {
@@ -48,17 +30,11 @@ export struct LibraryPage {
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State vm: LibraryViewModel = new LibraryViewModel();
   @State private _searchKeyword: string = '';
-  @State private _gridColumns: number = 1;
+  @State private _gridColumns: number = UiTokens.LIBRARY_GRID_MIN_COLUMNS;
   @State private _playAllLoading: boolean = false;
 
-
   private updateGridColumnsByWidth(widthVp: number): void {
-    const safeWidthVp: number = Math.max(0, widthVp);
-    const columnsByWidth: number = Math.floor(
-      (safeWidthVp + UiTokens.LIBRARY_GRID_GAP) /
-      (UiTokens.LIBRARY_CARD_MIN_WIDTH + UiTokens.LIBRARY_GRID_GAP)
-    );
-    const nextColumns: number = Math.max(1, Math.min(3, columnsByWidth));
+    const nextColumns: number = LibraryGridLayout.resolveColumns(widthVp);
     if (nextColumns !== this._gridColumns) {
       this._gridColumns = nextColumns;
     }
@@ -156,7 +132,7 @@ export struct LibraryPage {
       ])
     }
     .width('100%')
-    .height(UiTokens.LIBRARY_CARD_COVER_HEIGHT)
+    .aspectRatio(1)
     .borderRadius(10)
     .clip(true)
   }
@@ -215,7 +191,7 @@ export struct LibraryPage {
 
   @Builder
   private buildAlbumsList() {
-    List({ scroller: this.tabScrollerBridge.scrollerForTab(0), space: UiTokens.LIBRARY_GRID_GAP }) {
+    List({ scroller: this.tabScrollerBridge.scrollerForTab(0) }) {
       ListItemGroup({ header: this.buildLibrarySearchHeader }) {
       if (this.vm.isLoading && this.vm.albums.length === 0) {
         ListItem() {
@@ -255,6 +231,7 @@ export struct LibraryPage {
           ListItem() {
             this.buildAlbumCard(album)
           }
+          .margin({ bottom: LibraryGridLayout.mainAxisItemGap() })
           .onClick(() => {
             const routeParam: AlbumDetailRouteParam = { albumId: album.id };
             this.appPathStack.pushPathByName('AlbumDetailPage', routeParam);
@@ -289,13 +266,13 @@ export struct LibraryPage {
     })
     .backgroundColor(Color.Transparent)
     .contentEndOffset(ImmersivePageOffsets.tabContentEnd(this.bottomInset, this.rootTabActive))
-    .lanes(this.vm.albums.length > 0 ? this._gridColumns : 1, `${UiTokens.LIBRARY_GRID_GAP}vp`)
+    .lanes(this.vm.albums.length > 0 ? this._gridColumns : 1, LibraryGridLayout.lanesGap())
     .listDirection(Axis.Vertical)
     .scrollBar(BarState.Off)
     .edgeEffect(EdgeEffect.Spring)
     .onAreaChange((_oldValue, newValue) => {
-      const widthVp: number = resolveVpLength(this.getUIContext(), newValue.width) -
-        UiTokens.LIBRARY_PAGE_HORIZONTAL_PADDING * 2;
+      const widthVp: number = LibraryGridLayout.contentWidthFromListArea(
+        this.getUIContext(), newValue.width);
       this.updateGridColumnsByWidth(widthVp);
     })
     .onReachEnd(() => {

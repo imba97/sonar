@@ -103,8 +103,9 @@ export class UiTokens {
   static readonly LIBRARY_PAGE_HORIZONTAL_PADDING: number = 14;
   static readonly LIBRARY_LIST_EDGE_GAP: number = 8;
   static readonly LIBRARY_GRID_GAP: number = 12;
-  static readonly LIBRARY_CARD_MIN_WIDTH: number = 180;
-  static readonly LIBRARY_CARD_COVER_HEIGHT: number = 146;
+  static readonly LIBRARY_GRID_MIN_COLUMNS: number = 2;
+  static readonly LIBRARY_GRID_MAX_COLUMNS: number = 3;
+  static readonly LIBRARY_CARD_MIN_WIDTH: number = 158;
   static readonly LIBRARY_CARD_TITLE_HEIGHT: number = 22;
 
   /** Pura X 外屏：1:1 方形判定容差 */

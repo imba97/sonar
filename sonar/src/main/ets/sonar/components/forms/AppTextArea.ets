@@ -1,6 +1,9 @@
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { GlassSurfaceHelper } from '../../ui/material/GlassSurfaceHelper';
 
+/** 只读预览区字号，略小于默认可编辑 TextArea */
+const READ_ONLY_FONT_SIZE: number = 14;
+
 @Component
 export struct AppTextArea {
   @Prop text: string = '';
@@ -17,10 +20,15 @@ export struct AppTextArea {
         .borderRadius(12)
         .backgroundColor(Color.Transparent)
         .padding({ left: 14, right: 14, top: 10, bottom: 10 })
-        .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+        .fontSize(this.readOnly ? READ_ONLY_FONT_SIZE : 16)
+        .fontColor(this.readOnly ? UiTokens.COLOR_TEXT_SECONDARY : UiTokens.COLOR_TEXT_PRIMARY)
         .placeholderColor(UiTokens.COLOR_TEXT_SECONDARY)
         .caretColor(UiTokens.COLOR_PRIMARY)
-        .enabled(!this.readOnly)
+        .focusable(!this.readOnly)
+        .enableKeyboardOnFocus(!this.readOnly)
+        .selectionMenuHidden(this.readOnly)
+        .copyOption(this.readOnly ? CopyOptions.None : CopyOptions.LocalDevice)
+        .barState(this.readOnly ? BarState.Auto : BarState.Off)
         .onChange((value: string) => {
           if (!this.readOnly && this.onValueChange !== undefined) {
             this.onValueChange(value);

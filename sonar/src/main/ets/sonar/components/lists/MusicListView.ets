@@ -168,7 +168,7 @@ export struct MusicListView {
       secondaryText: this.showArtist ?
         (song.artist.length > 0 ? song.artist : '未知歌手') : '',
       secondaryFontSize: MusicListView.ARTIST_FONT_SIZE,
-      secondaryFontColor: UiTokens.COLOR_TEXT_TERTIARY,
+      secondaryFontColor: UiTokens.COLOR_MUSIC_ARTIST,
       secondaryGapVp: 6
     })
       .layoutWeight(1)

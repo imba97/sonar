@@ -177,7 +177,7 @@ export struct LibraryPage {
 
           Text(album.artist.length > 0 ? album.artist : '未知歌手')
             .fontSize(13)
-            .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+            .fontColor(UiTokens.COLOR_MUSIC_ARTIST)
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
         }

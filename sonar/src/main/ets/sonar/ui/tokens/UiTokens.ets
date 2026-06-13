@@ -16,6 +16,8 @@ export class UiTokens {
   static readonly COLOR_TEXT_PRIMARY: ResourceColor = $r('app.color.sonar_text_primary');
   static readonly COLOR_TEXT_SECONDARY: ResourceColor = $r('app.color.sonar_text_secondary');
   static readonly COLOR_TEXT_TERTIARY: ResourceColor = $r('app.color.sonar_text_tertiary');
+  /** 歌手名（列表 / 播放列表等页面内统一；miniBar 见 COLOR_BAR_FG_SECONDARY_*） */
+  static readonly COLOR_MUSIC_ARTIST: ResourceColor = $r('app.color.sonar_text_tertiary');
 
   static readonly COLOR_CARD_BG: ResourceColor = $r('app.color.sonar_card_bg');
   static readonly COLOR_CARD_BORDER: ResourceColor = $r('app.color.sonar_card_border');
@@ -89,6 +91,14 @@ export class UiTokens {
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE: number = 294;
   static readonly DOCK_COVER_ROTATION_DURATION: number = 9000;
   static readonly MINI_BAR_BALL_COVER_INSET: number = 6;
+  static readonly MINI_BAR_TITLE_FONT_SIZE: number = 14;
+  static readonly MINI_BAR_ARTIST_FONT_SIZE: number = 12;
+  static readonly MINI_BAR_TITLE_LINE_HEIGHT: number = 18;
+  static readonly MINI_BAR_TEXT_LINE_GAP: number = 4;
+  static readonly MINI_BAR_COVER_PLAY_ICON_SIZE: number = 18;
+  static readonly MINI_BAR_COVER_CONTROL_HIDE_DELAY_MS: number = 2000;
+  static readonly MINI_BAR_COVER_CONTROL_FADE_MS: number = 300;
+  static readonly MINI_BAR_SWIPE_UP_THRESHOLD_VP: number = 40;
   /** miniBar 操作区与胶囊右缘内边距（与左侧封面球视觉留白对齐） */
   static readonly MINI_BAR_HORIZONTAL_INSET: number = 10;
   static readonly MINI_PLAYER_CAPSULE_CONTENT_GAP: number = 10;

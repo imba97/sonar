@@ -3,6 +3,8 @@ import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
 import { PlaylistSheetOpener } from '../playlist/PlaylistSheetOpener';
 import { BarToneColorAnimator } from '../../ui/color/BarToneColorAnimator';
 import { UiTokens } from '../../ui/tokens/UiTokens';
+import { AutoMarqueeText } from '../layout/AutoMarqueeText';
+import { MINI_BAR_COMPACT_KEY } from './MiniBarStateKeys';
 import { MiniBarCoverDisc } from './MiniBarCoverDisc';
 
 const BAR_TONE_COLOR_ANIM_MS: number = 280;
@@ -11,27 +13,80 @@ const TONE_COLOR_ANIM_CURVE: Curve = Curve.EaseInOut;
 /**
  * 官方 miniBar 模型：单一 Row + width('100%') + clip(true)。
  * 目标色经 AppStorage 注入；BarToneColorAnimator 280ms 插值 + .animation 平滑。
+ * 收起态不拦截点击/手势，交由 HDS 展开 miniBar；展开态才启用播放/暂停与上滑打开列表。
  */
 @Component
 export struct MiniBarRow {
   @Prop @Watch('onToneTargetChange') targetInactive: string = '#282A32';
   @Prop @Watch('onToneTargetChange') targetPrimary: string = '#1B1D23';
   @Prop @Watch('onToneTargetChange') targetSecondary: string = '#3C3F4A';
-  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageLink('playback') @Watch('onPlaybackSync') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageProp(MINI_BAR_COMPACT_KEY) miniBarCompact: boolean = false;
 
   @State private displayInactive: string = '#282A32';
   @State private displayPrimary: string = '#1B1D23';
   @State private displaySecondary: string = '#3C3F4A';
   @State private toneAnimReady: boolean = false;
+  @State private coverControlOpacity: number = 0;
 
   private colorAnimator: BarToneColorAnimator = new BarToneColorAnimator();
+  private hideOverlayTimerId: number = -1;
+  private lastSyncedTrackId: string = '';
 
   aboutToAppear(): void {
+    this.lastSyncedTrackId = this.playback.track !== null ? this.playback.track.id : '';
     this.applyDisplayColors(false);
   }
 
   aboutToDisappear(): void {
     this.colorAnimator.stop();
+    this.clearHideOverlayTimer();
+  }
+
+  private onPlaybackSync(): void {
+    const trackId: string = this.playback.track !== null ? this.playback.track.id : '';
+    if (trackId !== this.lastSyncedTrackId) {
+      this.lastSyncedTrackId = trackId;
+      this.clearHideOverlayTimer();
+      this.coverControlOpacity = 0;
+      return;
+    }
+    if (this.playback.isCoverLoading()) {
+      this.clearHideOverlayTimer();
+      this.coverControlOpacity = 0;
+    }
+  }
+
+  private clearHideOverlayTimer(): void {
+    if (this.hideOverlayTimerId >= 0) {
+      clearTimeout(this.hideOverlayTimerId);
+      this.hideOverlayTimerId = -1;
+    }
+  }
+
+  private scheduleCoverControlHide(): void {
+    this.clearHideOverlayTimer();
+    this.hideOverlayTimerId = setTimeout(() => {
+      this.hideOverlayTimerId = -1;
+      this.getUIContext()?.animateTo(
+        {
+          duration: UiTokens.MINI_BAR_COVER_CONTROL_FADE_MS,
+          curve: Curve.EaseOut
+        },
+        () => {
+          this.coverControlOpacity = 0;
+        }
+      );
+    }, UiTokens.MINI_BAR_COVER_CONTROL_HIDE_DELAY_MS);
+  }
+
+  /** 点击封面：立即展示控件；暂停→播放时 2s 后渐隐，播放→暂停时保持当前透明度。 */
+  private revealCoverControl(autoHideAfterDelay: boolean): void {
+    this.clearHideOverlayTimer();
+    this.coverControlOpacity = 1;
+    if (autoHideAfterDelay) {
+      this.scheduleCoverControlHide();
+    }
   }
 
   private onToneTargetChange(): void {
@@ -68,6 +123,14 @@ export struct MiniBarRow {
     return this.playback.showMiniPlayer;
   }
 
+  private isMiniBarExpanded(): boolean {
+    return !this.miniBarCompact;
+  }
+
+  private canTogglePlayback(): boolean {
+    return this.isMiniBarExpanded() && this.hasActiveTrack() && !this.playback.isCoverLoading();
+  }
+
   private coverOuterSize(): number {
     return UiTokens.FLOATING_TAB_BAR_HEIGHT;
   }
@@ -76,8 +139,109 @@ export struct MiniBarRow {
     return UiTokens.MINI_BAR_BALL_COVER_INSET;
   }
 
+  private coverInnerSize(): number {
+    return Math.max(0, this.coverOuterSize() - this.coverInset() * 2);
+  }
+
+  private onCoverTap(): void {
+    if (!this.canTogglePlayback()) {
+      return;
+    }
+    const wasPlaying: boolean = this.playback.isPlaying();
+    this.revealCoverControl(!wasPlaying);
+    void PlaybackService.toggle();
+  }
+
+  private onSwipeUpEnd(event: GestureEvent): void {
+    if (event.offsetY <= -UiTokens.MINI_BAR_SWIPE_UP_THRESHOLD_VP) {
+      PlaylistSheetOpener.requestOpen();
+    }
+  }
+
+  private titleText(): string {
+    if (!this.hasActiveTrack()) {
+      return '当前未播放音乐';
+    }
+    if (this.playback.track !== null && this.playback.track.title.length > 0) {
+      return this.playback.track.title;
+    }
+    return '未知曲目';
+  }
+
+  private artistText(): string {
+    if (this.playback.track !== null && this.playback.track.artist.length > 0) {
+      return this.playback.track.artist;
+    }
+    return '未知歌手';
+  }
+
   @Builder
-  private actionIcon(icon: Resource, iconSize: number, onTap: () => void) {
+  private coverPlayPauseOverlay() {
+    if (this.canTogglePlayback()) {
+      Stack({ alignContent: Alignment.Center }) {
+        Column()
+          .width(this.coverInnerSize())
+          .height(this.coverInnerSize())
+          .borderRadius(this.coverInnerSize() / 2)
+          .backgroundColor(UiTokens.COLOR_OVERLAY_SCRIM)
+        if (this.playback.isPlaying()) {
+          Image($r('app.media.cb_pause'))
+            .width(UiTokens.MINI_BAR_COVER_PLAY_ICON_SIZE)
+            .height(UiTokens.MINI_BAR_COVER_PLAY_ICON_SIZE)
+            .fillColor(UiTokens.COLOR_TEXT_ON_BRAND)
+        } else {
+          Image($r('app.media.cb_play'))
+            .width(UiTokens.MINI_BAR_COVER_PLAY_ICON_SIZE)
+            .height(UiTokens.MINI_BAR_COVER_PLAY_ICON_SIZE)
+            .fillColor(UiTokens.COLOR_TEXT_ON_BRAND)
+        }
+      }
+      .opacity(this.coverControlOpacity)
+      .animation({
+        duration: UiTokens.MINI_BAR_COVER_CONTROL_FADE_MS,
+        curve: Curve.EaseOut
+      })
+      .hitTestBehavior(HitTestMode.None)
+    }
+  }
+
+  @Builder
+  private coverDisc() {
+    MiniBarCoverDisc({
+      outerSize: this.coverOuterSize(),
+      coverInset: this.coverInset(),
+      idleIconColor: this.displayInactive
+    })
+  }
+
+  @Builder
+  private coverCollapsed() {
+    Stack({ alignContent: Alignment.Center }) {
+      this.coverDisc()
+    }
+    .width(this.coverOuterSize())
+    .height(this.coverOuterSize())
+    .flexShrink(0)
+  }
+
+  @Builder
+  private coverExpanded() {
+    Stack({ alignContent: Alignment.Center }) {
+      this.coverDisc()
+      this.coverPlayPauseOverlay()
+    }
+    .width(this.coverOuterSize())
+    .height(this.coverOuterSize())
+    .flexShrink(0)
+    .accessibilityText(this.canTogglePlayback() ?
+      (this.playback.isPlaying() ? '暂停' : '播放') : '')
+    .onClick(() => {
+      this.onCoverTap();
+    })
+  }
+
+  @Builder
+  private actionIcon(icon: Resource, iconSize: number, a11yLabel: string, onTap: () => void) {
     Column() {
       Image(icon)
         .width(iconSize)
@@ -89,139 +253,80 @@ export struct MiniBarRow {
     .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
     .justifyContent(FlexAlign.Center)
     .alignItems(HorizontalAlign.Center)
+    .accessibilityText(a11yLabel)
     .onClick(() => {
       onTap();
     })
   }
 
   @Builder
-  private queueButton(iconSize: number) {
-    Column() {
-      Image($r('app.media.cb_queue'))
-        .width(iconSize)
-        .height(iconSize)
-        .fillColor(this.displayPrimary)
-        .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
+  private miniBarContent() {
+    if (this.isMiniBarExpanded()) {
+      this.coverExpanded()
+    } else {
+      this.coverCollapsed()
     }
-    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
-    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .accessibilityText('播放列表')
-    .onClick(() => {
-      PlaylistSheetOpener.requestOpen();
-    })
-  }
 
-  @Builder
-  private playPauseButton(iconSize: number) {
-    Column() {
-      if (this.playback.isPlaying()) {
-        Image($r('app.media.cb_pause'))
-          .width(iconSize)
-          .height(iconSize)
-          .fillColor(this.displayPrimary)
-          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-      } else {
-        Image($r('app.media.cb_play'))
-          .width(iconSize)
-          .height(iconSize)
-          .fillColor(this.displayPrimary)
-          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-      }
-    }
-    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
-    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .onClick(() => {
-      void PlaybackService.toggle();
-    })
-  }
-
-  @Builder
-  private playbackModeButton(iconSize: number) {
-    Column() {
-      if (this.playback.mode === 'singleLoop') {
-        Image($r('app.media.cb_mode_loop'))
-          .width(iconSize)
-          .height(iconSize)
-          .fillColor(this.displayPrimary)
-          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-      } else if (this.playback.mode === 'random') {
-        Image($r('app.media.cb_mode_shuffle'))
-          .width(iconSize)
-          .height(iconSize)
-          .fillColor(this.displayPrimary)
-          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-      } else {
-        Image($r('app.media.cb_mode_list'))
-          .width(iconSize)
-          .height(iconSize)
-          .fillColor(this.displayPrimary)
-          .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-      }
-    }
-    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
-    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
-    .justifyContent(FlexAlign.Center)
-    .alignItems(HorizontalAlign.Center)
-    .onClick(() => {
-      PlaybackService.togglePlaybackMode();
-    })
-  }
-
-  build() {
-    Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
-      MiniBarCoverDisc({
-        outerSize: this.coverOuterSize(),
-        coverInset: this.coverInset(),
-        idleIconColor: this.displayInactive
+    Column({ space: UiTokens.MINI_BAR_TEXT_LINE_GAP }) {
+      AutoMarqueeText({
+        text: this.titleText(),
+        fontSize: UiTokens.MINI_BAR_TITLE_FONT_SIZE,
+        fontWeight: FontWeight.Medium,
+        fontColor: this.hasActiveTrack() ? this.displayPrimary : this.displayInactive
       })
-        .flexShrink(0)
-
-      Column({ space: 2 }) {
-        Text(this.hasActiveTrack() ?
-          (this.playback.track !== null && this.playback.track.title.length > 0 ?
-            this.playback.track.title : '未知曲目') : '当前未播放音乐')
-          .fontSize(14)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(this.hasActiveTrack() ? this.displayPrimary : this.displayInactive)
+        .width('100%')
+        .height(UiTokens.MINI_BAR_TITLE_LINE_HEIGHT)
+        .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
+      if (this.hasActiveTrack()) {
+        Text(this.artistText())
+          .fontSize(UiTokens.MINI_BAR_ARTIST_FONT_SIZE)
+          .fontColor(this.displaySecondary)
           .maxLines(1)
           .textOverflow({ overflow: TextOverflow.Ellipsis })
           .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-        if (this.hasActiveTrack()) {
-          Text(this.playback.track !== null && this.playback.track.artist.length > 0 ?
-            this.playback.track.artist : '未知歌手')
-            .fontSize(12)
-            .fontColor(this.displaySecondary)
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
-        }
       }
-      .layoutWeight(1)
-      .flexShrink(1)
-      .alignItems(HorizontalAlign.Start)
-      .justifyContent(FlexAlign.Center)
+    }
+    .layoutWeight(1)
+    .flexShrink(1)
+    .alignItems(HorizontalAlign.Start)
+    .justifyContent(FlexAlign.Center)
 
+    if (this.isMiniBarExpanded() && this.hasActiveTrack()) {
       Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
-        if (this.hasActiveTrack()) {
-          this.playPauseButton(22)
-          this.actionIcon($r('app.media.cb_next'), 22, () => {
-            void PlaybackService.playNext(true);
-          })
-          this.playbackModeButton(20)
-        }
-        this.queueButton(20)
+        this.actionIcon($r('app.media.cb_next'), 22, '下一首', () => {
+          void PlaybackService.playNext(true);
+        })
       }
       .flexShrink(0)
       .padding({ right: UiTokens.MINI_BAR_HORIZONTAL_INSET })
     }
-    .width('100%')
-    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-    .alignItems(VerticalAlign.Center)
-    .justifyContent(FlexAlign.Start)
-    .clip(true)
+  }
+
+  build() {
+    if (this.isMiniBarExpanded()) {
+      Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
+        this.miniBarContent()
+      }
+      .width('100%')
+      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+      .alignItems(VerticalAlign.Center)
+      .justifyContent(FlexAlign.Start)
+      .clip(true)
+      .priorityGesture(
+        PanGesture({ direction: PanDirection.Up, distance: 1 })
+          .onActionEnd((event: GestureEvent) => {
+            this.onSwipeUpEnd(event);
+          })
+      )
+    } else {
+      Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
+        this.miniBarContent()
+      }
+      .width('100%')
+      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+      .alignItems(VerticalAlign.Center)
+      .justifyContent(FlexAlign.Start)
+      .clip(true)
+    }
   }
 }

@@ -8,6 +8,7 @@ import { BarToneStore } from '../../ui/color/BarToneStore';
 import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { MiniBarRowHost } from './MiniBarRowHost';
+import { MINI_BAR_COMPACT_KEY } from './MiniBarStateKeys';
 import { TabScrollerBridge } from '../../ui/layout/TabScrollerBridge';
 import {
   HdsBarStyle,
@@ -72,6 +73,7 @@ export struct HdsTabsShell {
   };
 
   aboutToAppear(): void {
+    AppStorage.setOrCreate<boolean>(MINI_BAR_COMPACT_KEY, false);
     this.applyTabTone(false);
     this.refreshFloatingStyle(true);
   }
@@ -138,12 +140,14 @@ export struct HdsTabsShell {
   }
 
   private onBarStyleChange(
-    _miniBarStyle: HdsBarStyle,
+    miniBarStyle: HdsBarStyle,
     tabBarStyle: HdsBarStyle,
     _miniBarWidth: number,
     _tabBarWidth: number,
     _mode: HdsTabsBarChangeMode
   ): void {
+    AppStorage.setOrCreate<boolean>(MINI_BAR_COMPACT_KEY, miniBarStyle === HdsBarStyle.COLLAPSE);
+
     const compact: boolean = tabBarStyle === HdsBarStyle.COLLAPSE;
     if (compact === this.tabBarCompact) {
       return;

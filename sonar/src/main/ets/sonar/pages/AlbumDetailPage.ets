@@ -138,7 +138,7 @@ export struct AlbumDetailPage {
           .textOverflow({ overflow: TextOverflow.Ellipsis })
         Text(`${this.vm.album.artist} · ${this.vm.songs.length} 首`)
           .fontSize(13)
-          .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+          .fontColor(UiTokens.COLOR_MUSIC_ARTIST)
           .margin({ top: 6 })
       }
     }

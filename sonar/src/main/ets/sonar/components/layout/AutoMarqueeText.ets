@@ -1,15 +1,16 @@
 @Component
 export struct AutoMarqueeText {
-  @Prop text: string = '';
+  @Prop @Watch('onMarqueeContentChange') text: string = '';
   @Prop fontSize: number = 15;
   @Prop fontColor: ResourceColor = Color.Black;
   @Prop fontWeight: FontWeight = FontWeight.Regular;
-  @Prop secondaryText: string = '';
+  @Prop @Watch('onMarqueeContentChange') secondaryText: string = '';
   @Prop secondaryFontSize: number = 11;
   @Prop secondaryFontColor: ResourceColor = Color.Black;
   @Prop secondaryFontWeight: FontWeight = FontWeight.Regular;
   @Prop secondaryGapVp: number = 6;
   @Prop edgeFadeRatio: number = 0.08;
+  @Prop enableEdgeFade: boolean = true;
   @State private _contentWidthVp: number = 0;
   @State private _enableEdgeFade: boolean = false;
 
@@ -87,6 +88,10 @@ export struct AutoMarqueeText {
     this.updateEdgeFade();
   }
 
+  private onMarqueeContentChange(): void {
+    this.updateEdgeFade();
+  }
+
   @Builder
   private buildMarqueeText() {
     if (this.hasSecondaryText()) {
@@ -123,7 +128,7 @@ export struct AutoMarqueeText {
     Stack({ alignContent: Alignment.Center }) {
       this.buildMarqueeText()
 
-      if (this._enableEdgeFade) {
+      if (this.enableEdgeFade && this._enableEdgeFade) {
         Row()
           .width('100%')
           .height('100%')

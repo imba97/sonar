@@ -1,35 +1,35 @@
 import { common } from '@kit.AbilityKit';
-import { SongCacheStore } from './SongCacheStore';
+import { CoverCacheStore } from './CoverCacheStore';
 import { CacheSettingsPreferences, CacheSettingsPublishHooks } from './CacheSettingsPreferences';
 import { AutoCacheMode, CacheLimitGb } from './SongCacheTypes';
 
-class SongCachePublishHooks implements CacheSettingsPublishHooks {
+class CoverCachePublishHooks implements CacheSettingsPublishHooks {
   publishLimitGb(limitGb: CacheLimitGb): void {
-    SongCacheStore.publishLimitGb(limitGb);
+    CoverCacheStore.publishLimitGb(limitGb);
   }
 
   publishAutoCacheMode(mode: AutoCacheMode): void {
-    SongCacheStore.publishAutoCacheMode(mode);
+    CoverCacheStore.publishAutoCacheMode(mode);
   }
 }
 
-export class SongCacheSettingsStore {
-  private static instance: SongCacheSettingsStore | null = null;
+export class CoverCacheSettingsStore {
+  private static instance: CoverCacheSettingsStore | null = null;
   private readonly prefs: CacheSettingsPreferences;
 
   private constructor() {
     this.prefs = new CacheSettingsPreferences(
-      'sonar_song_cache',
-      'SongCacheSettingsStore',
-      new SongCachePublishHooks()
+      'sonar_cover_cache',
+      'CoverCacheSettingsStore',
+      new CoverCachePublishHooks()
     );
   }
 
-  static getInstance(): SongCacheSettingsStore {
-    if (SongCacheSettingsStore.instance === null) {
-      SongCacheSettingsStore.instance = new SongCacheSettingsStore();
+  static getInstance(): CoverCacheSettingsStore {
+    if (CoverCacheSettingsStore.instance === null) {
+      CoverCacheSettingsStore.instance = new CoverCacheSettingsStore();
     }
-    return SongCacheSettingsStore.instance;
+    return CoverCacheSettingsStore.instance;
   }
 
   async init(context: common.UIAbilityContext): Promise<void> {

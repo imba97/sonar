@@ -1,7 +1,10 @@
 import { common } from '@kit.AbilityKit';
 import { CacheFileUtil } from '../common/CacheFileUtil';
-import { NetworkStatus } from '../common/NetworkStatus';
 import { Logger } from '../common/Logger';
+import { CacheAutoModeUtil } from './CacheAutoModeUtil';
+import { CacheDownloadQueue } from './CacheDownloadQueue';
+import { CacheEvictionUtil } from './CacheEvictionUtil';
+import { CachePersistScheduler } from './CachePersistScheduler';
 import { SongCacheSettingsStore } from './SongCacheSettingsStore';
 import { SongCacheStore } from './SongCacheStore';
 import { SongCacheWriter } from './SongCacheWriter';
@@ -11,7 +14,6 @@ const AUDIO_DIR: string = 'sonar_audio';
 const INDEX_FILE: string = 'index.json';
 const DEFAULT_EXT: string = '.mp3';
 const MIN_COMPLETE_BYTES: number = 4096;
-const PERSIST_DEBOUNCE_MS: number = 2000;
 const MAX_DOWNLOAD_ATTEMPTS: number = 2;
 
 export class SongCache {
@@ -19,11 +21,8 @@ export class SongCache {
   private static entryMap: Map<string, SongCacheEntry> = new Map<string, SongCacheEntry>();
   private static pinnedSongId: string = '';
   private static readonly writer: SongCacheWriter = new SongCacheWriter();
-  private static downloadQueue: string[] = [];
-  private static queueProcessing: boolean = false;
-  private static persistTimerId: number = -1;
-  private static persistDirty: boolean = false;
-  private static persistInFlight: Promise<void> | null = null;
+  private static readonly downloadQueue: CacheDownloadQueue = new CacheDownloadQueue();
+  private static readonly persistScheduler: CachePersistScheduler = new CachePersistScheduler();
 
   static setContext(context: common.UIAbilityContext): void {
     SongCache.context = context;
@@ -61,13 +60,7 @@ export class SongCache {
   }
 
   static getTotalSizeBytes(): number {
-    let total: number = 0;
-    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
-      if (entry.completedAt > 0) {
-        total += entry.sizeBytes;
-      }
-    });
-    return total;
+    return CacheEvictionUtil.sumCompletedSizeBytes(SongCache.entryMap);
   }
 
   static getLimitBytes(): number {
@@ -75,14 +68,9 @@ export class SongCache {
   }
 
   static shouldAutoCacheNow(): boolean {
-    const mode = SongCacheSettingsStore.getInstance().getAutoCacheMode();
-    if (mode === 'off') {
-      return false;
-    }
-    if (mode === 'always') {
-      return true;
-    }
-    return NetworkStatus.isOnWifi();
+    return CacheAutoModeUtil.shouldAutoCacheNow(
+      SongCacheSettingsStore.getInstance().getAutoCacheMode()
+    );
   }
 
   static touch(songId: string): void {
@@ -109,10 +97,7 @@ export class SongCache {
   static cancelActiveDownload(songId?: string): void {
     SongCache.writer.cancel(songId);
     if (songId !== undefined && songId.length > 0) {
-      const idx: number = SongCache.downloadQueue.indexOf(songId);
-      if (idx >= 0) {
-        SongCache.downloadQueue.splice(idx, 1);
-      }
+      SongCache.downloadQueue.remove(songId);
     }
   }
 
@@ -123,13 +108,12 @@ export class SongCache {
     if (SongCache.isComplete(songId)) {
       return;
     }
-    if (SongCache.downloadQueue.indexOf(songId) >= 0) {
-      return;
-    }
     if (SongCache.writer.isBusy() && SongCache.writer.getActiveSongId() === songId) {
       return;
     }
-    SongCache.downloadQueue.push(songId);
+    if (!SongCache.downloadQueue.enqueue(songId)) {
+      return;
+    }
     void SongCache.processQueue();
   }
 
@@ -150,7 +134,11 @@ export class SongCache {
     const limitBytes: number = SongCache.getLimitBytes();
     let evicted: boolean = false;
     while (SongCache.getTotalSizeBytes() > limitBytes) {
-      const victim: SongCacheEntry | null = SongCache.pickEvictionVictim();
+      const victim: SongCacheEntry | null = CacheEvictionUtil.pickOldestVictim(
+        SongCache.entryMap,
+        SongCache.pinnedSongId,
+        (entry: SongCacheEntry): string => entry.songId
+      );
       if (victim === null) {
         break;
       }
@@ -168,56 +156,20 @@ export class SongCache {
   }
 
   private static schedulePersistIndex(): void {
-    SongCache.persistDirty = true;
-    if (SongCache.persistTimerId >= 0) {
-      return;
-    }
-    SongCache.persistTimerId = setTimeout((): void => {
-      SongCache.persistTimerId = -1;
-      if (!SongCache.persistDirty) {
-        return;
-      }
-      SongCache.persistDirty = false;
-      void SongCache.flushPersistIndex();
-    }, PERSIST_DEBOUNCE_MS);
+    SongCache.persistScheduler.schedulePersist((): Promise<void> => SongCache.writeIndexFile());
   }
 
   private static async flushPersistIndex(): Promise<void> {
-    while (true) {
-      if (SongCache.persistInFlight !== null) {
-        await SongCache.persistInFlight;
-        continue;
-      }
-      SongCache.persistDirty = false;
-      const task: Promise<void> = SongCache.writeIndexFile();
-      SongCache.persistInFlight = task;
-      try {
-        await task;
-      } finally {
-        SongCache.persistInFlight = null;
-      }
-      if (!SongCache.persistDirty) {
-        break;
-      }
-    }
+    await SongCache.persistScheduler.flushPersist((): Promise<void> => SongCache.writeIndexFile());
   }
 
   private static async processQueue(): Promise<void> {
-    if (SongCache.queueProcessing) {
-      return;
-    }
-    SongCache.queueProcessing = true;
-    while (SongCache.downloadQueue.length > 0) {
-      const songId: string | undefined = SongCache.downloadQueue.shift();
-      if (songId === undefined || songId.length === 0) {
-        continue;
-      }
+    await SongCache.downloadQueue.process(async (songId: string): Promise<void> => {
       if (SongCache.isComplete(songId)) {
-        continue;
+        return;
       }
       await SongCache.downloadOne(songId);
-    }
-    SongCache.queueProcessing = false;
+    });
   }
 
   private static async downloadOne(songId: string): Promise<void> {
@@ -275,22 +227,6 @@ export class SongCache {
     await SongCache.evictIfNeeded();
     SongCache.publishUsageState();
     Logger.debug('SongCache', `cached songId=${songId} size=${sizeBytes}`);
-  }
-
-  private static pickEvictionVictim(): SongCacheEntry | null {
-    let oldest: SongCacheEntry | null = null;
-    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
-      if (entry.completedAt <= 0) {
-        return;
-      }
-      if (entry.songId === SongCache.pinnedSongId) {
-        return;
-      }
-      if (oldest === null || entry.lastAccessedAt < oldest.lastAccessedAt) {
-        oldest = entry;
-      }
-    });
-    return oldest;
   }
 
   private static entryPath(entry: SongCacheEntry): string {

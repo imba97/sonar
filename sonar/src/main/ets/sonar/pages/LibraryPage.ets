@@ -1,5 +1,6 @@
 import { LibraryViewModel } from '../viewmodel/LibraryViewModel';
 import { Album, AlbumDetailRouteParam } from '../api/SubsonicTypes';
+import { CoverDisplayResolver } from '../cache/CoverDisplayResolver';
 import { SuccessButton } from '../components/buttons/SuccessButton';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { EmptyState } from '../components/feedback/EmptyState';
@@ -26,6 +27,8 @@ export struct LibraryPage {
   @StorageLink('authPhase') @Watch('onAuthSnapshotChanged') authPhase: string = 'booting';
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
+  /** 封面落盘后 bump，触发页面重建以切换本地 file URI */
+  @StorageLink('coverCacheRevision') coverCacheRevision: number = 0;
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State vm: LibraryViewModel = new LibraryViewModel();
@@ -112,6 +115,11 @@ export struct LibraryPage {
           .height('100%')
           .objectFit(ImageFit.Cover)
           .alt('#E5E5EA')
+          .onVisibleAreaChange([0.0, 1.0], (visible: boolean, ratio: number) => {
+            if (visible && ratio >= 1.0) {
+              CoverDisplayResolver.enqueueWhenVisible(album.coverArt);
+            }
+          })
       } else {
         Column() {
           Text('♪')

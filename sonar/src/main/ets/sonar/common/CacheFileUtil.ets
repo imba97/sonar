@@ -109,6 +109,35 @@ export class CacheFileUtil {
     }
   }
 
+  /** 二进制原子写入：.part → rename */
+  static writeBufferAtomic(targetPath: string, content: ArrayBuffer): void {
+    CacheFileUtil.ensureParentDir(targetPath);
+    const tempPath: string = `${targetPath}.part`;
+    CacheFileUtil.removeIfExists(tempPath);
+    let file: fileIo.File | null = null;
+    try {
+      file = fileIo.openSync(tempPath, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE);
+    } catch (_err) {
+      CacheFileUtil.removeIfExists(tempPath);
+      throw new Error('open temp cover file failed');
+    }
+    try {
+      fileIo.writeSync(file.fd, content, { offset: 0, length: content.byteLength });
+    } catch (err) {
+      CacheFileUtil.closeFileQuietly(file);
+      CacheFileUtil.removeIfExists(tempPath);
+      throw new Error(`write temp cover file failed: ${(err as Error).message}`);
+    }
+    CacheFileUtil.closeFileQuietly(file);
+    CacheFileUtil.removeIfExists(targetPath);
+    try {
+      fileIo.renameSync(tempPath, targetPath);
+    } catch (err) {
+      CacheFileUtil.removeIfExists(tempPath);
+      throw new Error(`rename cover file failed: ${(err as Error).message}`);
+    }
+  }
+
   static bufferToUtf8(buf: ArrayBuffer): string {
     const bytes: Uint8Array = new Uint8Array(buf);
     let result: string = '';

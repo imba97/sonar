@@ -1,6 +1,7 @@
 import { MusicListKind, Song } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { AuthSession } from '../auth/AuthSession';
+import { CoverDisplayResolver } from '../cache/CoverDisplayResolver';
 import { MusicTabSettingsStore } from '../settings/MusicTabSettingsStore';
 
 export const RANDOM_SONGS_SIZE: number = 100;
@@ -220,6 +221,6 @@ export class MusicViewModel {
     if (coverArt === undefined || coverArt.length === 0) {
       return undefined;
     }
-    return SubsonicClient.getInstance().getCoverArtUrl(coverArt, 120);
+    return CoverDisplayResolver.resolve(coverArt, 120);
   }
 }

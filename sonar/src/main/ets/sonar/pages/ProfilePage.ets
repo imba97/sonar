@@ -1,4 +1,5 @@
 import { AuthSession } from '../auth/AuthSession';
+import { CoverCacheStore } from '../cache/CoverCacheStore';
 import { SongCacheStore } from '../cache/SongCacheStore';
 import { DangerButton } from '../components/buttons/DangerButton';
 import { OuterScreenPreviewEntry } from '../components/debug/OuterScreenPreviewEntry';
@@ -20,6 +21,7 @@ export struct ProfilePage {
   @StorageLink('loggedInUser') loggedInUser: string = '';
   @StorageLink('loggedInServer') loggedInServer: string = '';
   @StorageLink('songCacheUsedBytes') songCacheUsedBytes: number = 0;
+  @StorageLink('coverCacheUsedBytes') coverCacheUsedBytes: number = 0;
 
   private layoutOptions(): SonarPageLayoutOptions {
     return {
@@ -72,7 +74,7 @@ export struct ProfilePage {
             .fontSize(16)
             .fontWeight(FontWeight.Medium)
             .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-          Text(`已用 ${SongCacheStore.formatBytes(this.songCacheUsedBytes)}`)
+          Text(`音乐 ${SongCacheStore.formatBytes(this.songCacheUsedBytes)} · 封面 ${CoverCacheStore.formatBytes(this.coverCacheUsedBytes)}`)
             .fontSize(12)
             .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
         }

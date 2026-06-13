@@ -1,6 +1,7 @@
 import { AlbumDetailContainer, Song } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { AuthSession } from '../auth/AuthSession';
+import { CoverDisplayResolver } from '../cache/CoverDisplayResolver';
 
 @Observed
 export class AlbumDetailViewModel {
@@ -40,6 +41,6 @@ export class AlbumDetailViewModel {
     if (coverArt === undefined || coverArt.length === 0) {
       return undefined;
     }
-    return SubsonicClient.getInstance().getCoverArtUrl(coverArt, 480);
+    return CoverDisplayResolver.resolve(coverArt, 480);
   }
 }

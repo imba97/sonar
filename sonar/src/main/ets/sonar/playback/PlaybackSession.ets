@@ -12,6 +12,7 @@ import { PlaybackPipeline } from './pipeline/PlaybackPipeline';
 import { CancelToken } from '../network/transport/CancelToken';
 import { PrefetchWorker } from './pipeline/PrefetchWorker';
 import { BackgroundPlayback } from './BackgroundPlayback';
+import { CoverCacheStore } from '../cache/CoverCacheStore';
 import { SongCache } from '../cache/SongCache';
 import { SongCacheStore } from '../cache/SongCacheStore';
 import { CoverCache } from './CoverCache';
@@ -178,9 +179,13 @@ export class PlaybackSession implements PlaybackSwitchHost {
   async initialize(context: common.UIAbilityContext): Promise<void> {
     this.context = context;
     CoverCache.setContext(context);
+    CoverCacheStore.ensureInitialized();
     SongCacheStore.ensureInitialized();
     SongCache.setContext(context);
-    await SongCache.init();
+    await Promise.all([
+      SongCache.init(),
+      CoverCache.init()
+    ]);
     BackgroundPlayback.setContext(context);
     this.mediaCenter.setContext(context);
     this.mediaCenter.setCommands(new SessionMediaCenterCommands(this));

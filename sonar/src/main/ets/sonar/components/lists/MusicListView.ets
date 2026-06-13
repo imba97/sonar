@@ -1,5 +1,5 @@
 import { Song } from '../../api/SubsonicTypes';
-import { SubsonicClient } from '../../api/SubsonicClient';
+import { CoverDisplayResolver } from '../../cache/CoverDisplayResolver';
 import { SongCache } from '../../cache/SongCache';
 import { TagButtonMenuItem } from '../buttons/TagButton';
 import { MoreMenuIconButton } from '../buttons/MoreMenuIconButton';
@@ -10,6 +10,46 @@ import { PlaybackPhase } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 export type MusicListVariant = 'album' | 'browse';
+
+const MUSIC_LIST_COVER_SIZE: number = 44;
+const MUSIC_LIST_COVER_RADIUS: number = 8;
+
+@Component
+struct MusicListCoverThumb {
+  @Prop coverArtId: string = '';
+  @StorageLink('coverCacheRevision') coverCacheRevision: number = 0;
+
+  build() {
+    if (this.coverArtId.length === 0) {
+      Column() {
+        Text('♪')
+          .fontSize(18)
+          .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+      }
+      .width(MUSIC_LIST_COVER_SIZE)
+      .height(MUSIC_LIST_COVER_SIZE)
+      .borderRadius(MUSIC_LIST_COVER_RADIUS)
+      .backgroundColor(UiTokens.COLOR_CARD_BORDER)
+      .justifyContent(FlexAlign.Center)
+      .alignItems(HorizontalAlign.Center)
+      .flexShrink(0)
+      .margin({ right: 12 })
+    } else {
+      Image(CoverDisplayResolver.resolve(this.coverArtId, 120) ?? '')
+        .width(MUSIC_LIST_COVER_SIZE)
+        .height(MUSIC_LIST_COVER_SIZE)
+        .borderRadius(MUSIC_LIST_COVER_RADIUS)
+        .objectFit(ImageFit.Cover)
+        .flexShrink(0)
+        .margin({ right: 12 })
+        .onVisibleAreaChange([0.0, 1.0], (visible: boolean, ratio: number) => {
+          if (visible && ratio >= 1.0) {
+            CoverDisplayResolver.enqueueWhenVisible(this.coverArtId);
+          }
+        })
+    }
+  }
+}
 
 @Reusable
 @Component
@@ -154,8 +194,8 @@ export struct MusicListView {
   @Prop showAlbumCover: boolean = false;
   @Prop albumCoverArtId: string = '';
 
-  private static readonly COVER_SIZE: number = 44;
-  private static readonly COVER_RADIUS: number = 8;
+  private static readonly COVER_SIZE: number = MUSIC_LIST_COVER_SIZE;
+  private static readonly COVER_RADIUS: number = MUSIC_LIST_COVER_RADIUS;
   private static readonly ARTIST_FONT_SIZE: number = 11;
   private static readonly META_FONT_SIZE: number = 11;
 
@@ -255,14 +295,6 @@ export struct MusicListView {
     return this.albumCoverArtId;
   }
 
-  private coverUrlFor(song: Song): string | undefined {
-    const coverArt: string = this.resolveCoverArtId(song);
-    if (coverArt.length === 0) {
-      return undefined;
-    }
-    return SubsonicClient.getInstance().getCoverArtUrl(coverArt, 120);
-  }
-
   private handleItemClick(index: number, song: Song): void {
     if (this.listVariant === 'album' || this.listVariant === 'browse') {
       const coverArt: string = this.listVariant === 'browse' ?
@@ -286,29 +318,7 @@ export struct MusicListView {
   @Builder
   private buildAlbumCoverThumb(song: Song) {
     if (this.showAlbumCover || this.listVariant === 'browse') {
-      if (this.coverUrlFor(song) !== undefined) {
-        Image(this.coverUrlFor(song))
-          .width(MusicListView.COVER_SIZE)
-          .height(MusicListView.COVER_SIZE)
-          .borderRadius(MusicListView.COVER_RADIUS)
-          .objectFit(ImageFit.Cover)
-          .flexShrink(0)
-          .margin({ right: 12 })
-      } else {
-        Column() {
-          Text('♪')
-            .fontSize(18)
-            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
-        }
-        .width(MusicListView.COVER_SIZE)
-        .height(MusicListView.COVER_SIZE)
-        .borderRadius(MusicListView.COVER_RADIUS)
-        .backgroundColor(UiTokens.COLOR_CARD_BORDER)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
-        .flexShrink(0)
-        .margin({ right: 12 })
-      }
+      MusicListCoverThumb({ coverArtId: this.resolveCoverArtId(song) })
     }
   }
 

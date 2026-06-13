@@ -1,6 +1,7 @@
 import { Album } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { AuthSession } from '../auth/AuthSession';
+import { CoverDisplayResolver } from '../cache/CoverDisplayResolver';
 
 export type LibraryTab = 'newest' | 'artists' | 'random';
 
@@ -146,6 +147,6 @@ export class LibraryViewModel {
     if (coverArt === undefined || coverArt.length === 0) {
       return undefined;
     }
-    return SubsonicClient.getInstance().getCoverArtUrl(coverArt, 300);
+    return CoverDisplayResolver.resolve(coverArt, 300);
   }
 }

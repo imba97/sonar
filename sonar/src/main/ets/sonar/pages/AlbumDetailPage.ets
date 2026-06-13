@@ -1,5 +1,6 @@
 import { AlbumDetailRouteParam } from '../api/SubsonicTypes';
 import { AlbumDetailViewModel } from '../viewmodel/AlbumDetailViewModel';
+import { CoverDisplayResolver } from '../cache/CoverDisplayResolver';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ErrorState } from '../components/feedback/ErrorState';
 import { MoreMenuIconButton } from '../components/buttons/MoreMenuIconButton';
@@ -15,6 +16,8 @@ export struct AlbumDetailPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
   @State vm: AlbumDetailViewModel = new AlbumDetailViewModel();
   @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  /** 封面落盘后 bump，触发页面重建以切换本地 file URI */
+  @StorageLink('coverCacheRevision') coverCacheRevision: number = 0;
   @State private albumId: string = '';
   @State private _playAllLoading: boolean = false;
 
@@ -110,6 +113,11 @@ export struct AlbumDetailPage {
             .borderRadius(18)
             .objectFit(ImageFit.Cover)
             .alt('#E5E5EA')
+            .onVisibleAreaChange([0.0, 1.0], (visible: boolean, ratio: number) => {
+              if (visible && ratio >= 1.0 && this.vm.album !== null) {
+                CoverDisplayResolver.enqueueWhenVisible(this.vm.album.coverArt);
+              }
+            })
         } else {
           Column() {
             Text('♪')

@@ -152,6 +152,8 @@ export struct AlbumDetailPage {
     MusicListView({
       songs: this.vm.songs,
       highlightSongId: this.playback.track !== null ? this.playback.track.id : '',
+      playingTrackId: this.playback.track !== null ? this.playback.track.id : '',
+      playbackPhase: this.playback.phase,
       listVariant: 'album',
       showArtist: false,
       albumCoverArtId: this.vm.album?.coverArt ?? ''

@@ -129,6 +129,10 @@ export interface AlbumDetailResponse extends SubsonicEnvelope {
   album: AlbumDetailContainer;
 }
 
+export interface SongDetailResponse extends SubsonicEnvelope {
+  song: Song;
+}
+
 export interface SearchContainer {
   artist?: Artist[];
   album?: Album[];

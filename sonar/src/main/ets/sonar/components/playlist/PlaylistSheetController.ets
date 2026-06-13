@@ -1,8 +1,10 @@
 import { ComponentContent, UIContext } from '@kit.ArkUI';
 import { PlaylistSheet } from './PlaylistSheet';
+import { UiTokens } from '../../ui/tokens/UiTokens';
 
 export const PLAYLIST_SHEET_HEIGHT_MEDIUM_VP: number = 480;
 export const PLAYLIST_SHEET_HEIGHT_LARGE_VP: number = 720;
+export const PLAYLIST_SHEET_SCROLL_SEQ_KEY: string = 'playlistSheetScrollSeq';
 
 type PlaylistSheetDetents = [number, number];
 
@@ -44,6 +46,7 @@ export class PlaylistSheetController {
   attach(uiContext: UIContext): void {
     this.uiContext = uiContext;
     this.ensureContent();
+    AppStorage.setOrCreate<number>(PLAYLIST_SHEET_SCROLL_SEQ_KEY, 0);
   }
 
   detach(): void {
@@ -101,6 +104,7 @@ export class PlaylistSheetController {
     }
     if (this.sheetOpen) {
       this.applyHeight(detentVp);
+      this.requestScrollToCurrent();
       return;
     }
     this.openAtHeight(detentVp);
@@ -120,6 +124,11 @@ export class PlaylistSheetController {
     }
   }
 
+  private requestScrollToCurrent(): void {
+    const current: number = AppStorage.get<number>(PLAYLIST_SHEET_SCROLL_SEQ_KEY) ?? 0;
+    AppStorage.setOrCreate<number>(PLAYLIST_SHEET_SCROLL_SEQ_KEY, current + 1);
+  }
+
   private ensureContent(): void {
     if (this.uiContext === null || this.sheetContent !== null) {
       return;
@@ -135,7 +144,7 @@ export class PlaylistSheetController {
       preferType: SheetType.BOTTOM,
       scrollSizeMode: ScrollSizeMode.CONTINUOUS,
       dragBar: true,
-      backgroundColor: '#F1F3F5',
+      backgroundColor: UiTokens.COLOR_PAGE_BG,
       onHeightDidChange: (heightPx: number): void => {
         if (ctx !== null) {
           this.currentHeightVp = ctx.px2vp(heightPx);
@@ -159,6 +168,7 @@ export class PlaylistSheetController {
     this.sheetOpen = true;
     try {
       void this.uiContext.openBindSheet(this.sheetContent, this.buildSheetOptions(h));
+      this.requestScrollToCurrent();
     } catch (_err) {
       this.sheetOpen = false;
       this.currentHeightVp = 0;

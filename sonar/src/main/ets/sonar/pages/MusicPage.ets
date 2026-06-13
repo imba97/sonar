@@ -1,6 +1,5 @@
 import { MusicListKind } from '../api/SubsonicTypes';
 import { SuccessButton } from '../components/buttons/SuccessButton';
-import { GlassSearchBar } from '../components/forms/GlassSearchBar';
 import {
   MUSIC_KIND_INDEX_RANDOM,
   MusicKindSegment,
@@ -29,7 +28,6 @@ export struct MusicPage {
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State vm: MusicViewModel = new MusicViewModel();
-  @State private _searchKeyword: string = '';
   @State private refreshSpinDeg: number = 0;
   @State private randomRefreshing: boolean = false;
 
@@ -47,35 +45,15 @@ export struct MusicPage {
 
   private async activateMusic(): Promise<void> {
     await this.vm.restoreKindFromStore();
-    this._searchKeyword = this.vm.searchQuery;
+    if (this.vm.isSearchMode) {
+      this.vm.clearSearchMode();
+    }
     if (this.vm.songs.length === 0) {
-      if (this._searchKeyword.length > 0) {
-        await this.vm.searchSongs(this._searchKeyword);
-      } else {
-        await this.vm.loadCurrentKind();
-      }
+      await this.vm.loadCurrentKind();
     }
-  }
-
-  private submitSearch(): void {
-    const keyword: string = this._searchKeyword.trim();
-    if (keyword.length === 0) {
-      if (this.vm.isSearchMode || this.vm.searchQuery.length > 0) {
-        void this.vm.loadCurrentKind();
-      }
-      return;
-    }
-    if (this.vm.isSearchMode && keyword === this.vm.searchQuery) {
-      return;
-    }
-    void this.vm.searchSongs(keyword);
   }
 
   private retryLoad(): void {
-    if (this.vm.isSearchMode) {
-      void this.vm.searchSongs(this.vm.searchQuery);
-      return;
-    }
     void this.vm.loadCurrentKind();
   }
 
@@ -90,16 +68,6 @@ export struct MusicPage {
 
   private async handleKindSelect(index: number): Promise<void> {
     const nextKind: MusicListKind = musicKindFromIndex(index);
-    if (this.vm.isSearchMode && index === MUSIC_KIND_INDEX_RANDOM) {
-      this._searchKeyword = '';
-      this.vm.clearSearchMode();
-      await this.vm.setKind('random');
-      return;
-    }
-    if (this.vm.isSearchMode) {
-      await this.vm.setKind(nextKind);
-      return;
-    }
     if (index === MUSIC_KIND_INDEX_RANDOM &&
       musicKindToIndex(this.vm.kind) === MUSIC_KIND_INDEX_RANDOM) {
       if (this.randomRefreshing || this.vm.isLoading) {
@@ -117,25 +85,11 @@ export struct MusicPage {
   @Builder
   private buildMusicListHeader() {
     Column({ space: UiTokens.SECTION_GAP }) {
-      if (!this.vm.isSearchMode) {
-        MusicKindSegment({
-          selectedIndex: musicKindToIndex(this.vm.kind),
-          refreshSpinDeg: this.refreshSpinDeg,
-          onSelect: (index: number) => {
-            void this.handleKindSelect(index);
-          }
-        })
-      }
-
-      GlassSearchBar({
-        keyword: this._searchKeyword,
-        onKeywordChange: (value: string) => {
-          this._searchKeyword = value;
-        },
-        placeholder: '搜索歌曲',
-        sidePadding: 0,
-        onSubmit: () => {
-          this.submitSearch();
+      MusicKindSegment({
+        selectedIndex: musicKindToIndex(this.vm.kind),
+        refreshSpinDeg: this.refreshSpinDeg,
+        onSelect: (index: number) => {
+          void this.handleKindSelect(index);
         }
       })
     }
@@ -154,7 +108,7 @@ export struct MusicPage {
       ListItemGroup({ header: this.buildMusicListHeader }) {
         if (this.vm.isLoading && this.vm.songs.length === 0) {
           ListItem() {
-            LoadingState({ message: this.vm.isSearchMode ? '正在搜索歌曲…' : '正在加载歌曲…' })
+            LoadingState({ message: '正在加载歌曲…' })
           }
         } else if (this.vm.errorMessage.length > 0 && this.vm.songs.length === 0) {
           ListItem() {
@@ -181,9 +135,8 @@ export struct MusicPage {
         } else if (this.vm.songs.length === 0) {
           ListItem() {
             EmptyState({
-              title: this.vm.isSearchMode ? '未找到结果' : '暂无歌曲',
-              subtitle: this.vm.isSearchMode ? '试试更换关键词后再回车搜索' :
-                (this.isLoggedIn ? '还没有可展示的曲目' : '请在我的 > 服务器完成登录')
+              title: '暂无歌曲',
+              subtitle: this.isLoggedIn ? '还没有可展示的曲目' : '请在我的 > 服务器完成登录'
             })
           }
         } else {
@@ -191,6 +144,8 @@ export struct MusicPage {
             MusicListView({
               songs: this.vm.songs,
               highlightSongId: this.playback.track !== null ? this.playback.track.id : '',
+              playingTrackId: this.playback.track !== null ? this.playback.track.id : '',
+              playbackPhase: this.playback.phase,
               listVariant: 'browse',
               showArtist: true,
               showAlbumCover: true

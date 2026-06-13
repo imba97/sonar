@@ -72,6 +72,10 @@ export class SubsonicClient {
     return await SubsonicApi.getAlbum(id);
   }
 
+  async getSong(id: string): Promise<Song> {
+    return await SubsonicApi.getSong(id);
+  }
+
   async search3(query: string, artistCount: number = 20,
     albumCount: number = 20, songCount: number = 20): Promise<SearchResponse> {
     return await SubsonicApi.search3(query, artistCount, albumCount, songCount);

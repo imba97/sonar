@@ -50,6 +50,10 @@ export class PlaybackService {
     await PlaybackService.session().release();
   }
 
+  static async flushPersistence(): Promise<void> {
+    await PlaybackService.session().flushPersistence();
+  }
+
   static async playAlbumAll(album: Album): Promise<void> {
     await PlaybackService.session().playAlbumAll(album);
   }

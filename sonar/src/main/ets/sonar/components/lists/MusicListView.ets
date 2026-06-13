@@ -6,24 +6,156 @@ import { MoreMenuIconButton } from '../buttons/MoreMenuIconButton';
 import { AutoMarqueeText } from '../layout/AutoMarqueeText';
 import { ToastUtil } from '../../common/ToastUtil';
 import { PlaybackService } from '../../playback/PlaybackService';
-import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
+import { PlaybackPhase } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
-export type MusicListVariant = 'playlist' | 'album' | 'browse';
+export type MusicListVariant = 'album' | 'browse';
+
+@Reusable
+@Component
+export struct MusicListRow {
+  @Prop song: Song = MusicListRow.emptySong();
+  @Prop index: number = 0;
+  @Prop highlightSongId: string = '';
+  @Prop playingTrackId: string = '';
+  @Prop playbackPhase: PlaybackPhase = 'idle';
+  @Prop showArtist: boolean = false;
+  @Prop isLast: boolean = false;
+
+  private static emptySong(): Song {
+    return {
+      id: '',
+      parent: '',
+      isDir: false,
+      title: '',
+      album: '',
+      artist: '',
+      size: 0,
+      duration: 0
+    };
+  }
+
+  private isHighlighted(): boolean {
+    return this.highlightSongId.length > 0 && this.song.id === this.highlightSongId;
+  }
+
+  private isNowPlaying(): boolean {
+    return this.playingTrackId.length > 0 &&
+      this.song.id === this.playingTrackId &&
+      this.playbackPhase === 'playing';
+  }
+
+  private formatDurationSeconds(seconds: number): string {
+    if (seconds <= 0) {
+      return '--:--';
+    }
+    const totalSeconds: number = Math.floor(seconds);
+    const hours: number = Math.floor(totalSeconds / 3600);
+    const minutes: number = Math.floor((totalSeconds % 3600) / 60);
+    const remainSeconds: number = totalSeconds % 60;
+    const paddedMinutes: string = minutes < 10 ? `0${minutes}` : `${minutes}`;
+    const paddedSeconds: string = remainSeconds < 10 ? `0${remainSeconds}` : `${remainSeconds}`;
+    if (hours > 0) {
+      return `${hours}:${paddedMinutes}:${paddedSeconds}`;
+    }
+    return `${minutes}:${paddedSeconds}`;
+  }
+
+  private trailingMetaText(): string {
+    if (this.isNowPlaying()) {
+      return '正在播放';
+    }
+    return this.formatDurationSeconds(this.song.duration);
+  }
+
+  @Builder
+  private buildDivider() {
+    Row()
+      .width('100%')
+      .height(1)
+      .backgroundColor(UiTokens.COLOR_CARD_BORDER)
+      .opacity(0.45)
+  }
+
+  @Builder
+  private buildSwipeDelete() {
+    Row() {
+      Text('删除')
+        .fontSize(14)
+        .fontColor(Color.White)
+    }
+    .width(72)
+    .height('100%')
+    .justifyContent(FlexAlign.Center)
+    .alignItems(VerticalAlign.Center)
+    .backgroundColor(UiTokens.COLOR_DANGER)
+    .onClick(() => {
+      void PlaybackService.removeFromPlaylist(this.index);
+    })
+  }
+
+  build() {
+    ListItem() {
+      Column() {
+        Row() {
+          AutoMarqueeText({
+            text: this.song.title,
+            fontSize: 14,
+            fontWeight: this.isHighlighted() ? FontWeight.Bold : FontWeight.Medium,
+            fontColor: this.isHighlighted() ? UiTokens.COLOR_PRIMARY : UiTokens.COLOR_TEXT_PRIMARY,
+            secondaryText: this.showArtist ?
+              (this.song.artist.length > 0 ? this.song.artist : '未知歌手') : '',
+            secondaryFontSize: 11,
+            secondaryFontColor: UiTokens.COLOR_MUSIC_ARTIST,
+            secondaryGapVp: 6
+          })
+            .layoutWeight(1)
+            .height(UiTokens.MUSIC_LIST_TITLE_HEIGHT)
+            .flexShrink(1)
+            .margin({ right: UiTokens.MUSIC_LIST_TEXT_TRAILING_GAP })
+
+          Text(this.trailingMetaText())
+            .fontSize(11)
+            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+            .maxLines(1)
+            .flexShrink(0)
+        }
+        .width('100%')
+        .padding({ top: 14, bottom: 14 })
+        .alignItems(VerticalAlign.Center)
+        .onClick(() => {
+          void PlaybackService.playFromPlaylistIndex(this.index);
+        })
+
+        if (!this.isLast) {
+          this.buildDivider()
+        }
+      }
+      .width('100%')
+    }
+    .swipeAction({
+      end: {
+        builder: (): void => {
+          this.buildSwipeDelete();
+        }
+      }
+    })
+  }
+}
 
 @Component
 export struct MusicListView {
-  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
   @Prop songs: Song[] = [];
   @Prop highlightSongId: string = '';
-  @Prop listVariant: MusicListVariant = 'playlist';
+  @Prop playingTrackId: string = '';
+  @Prop playbackPhase: PlaybackPhase = 'idle';
+  @Prop listVariant: MusicListVariant = 'album';
   @Prop showArtist: boolean = false;
   @Prop showAlbumCover: boolean = false;
   @Prop albumCoverArtId: string = '';
 
   private static readonly COVER_SIZE: number = 44;
   private static readonly COVER_RADIUS: number = 8;
-
   private static readonly ARTIST_FONT_SIZE: number = 11;
   private static readonly META_FONT_SIZE: number = 11;
 
@@ -32,9 +164,9 @@ export struct MusicListView {
   }
 
   private isNowPlaying(song: Song): boolean {
-    return this.playback.track !== null &&
-      this.playback.track.id === song.id &&
-      this.playback.isPlaying();
+    return this.playingTrackId.length > 0 &&
+      song.id === this.playingTrackId &&
+      this.playbackPhase === 'playing';
   }
 
   private formatDurationSeconds(seconds: number): string {
@@ -62,27 +194,6 @@ export struct MusicListView {
 
   private showToast(message: string): void {
     ToastUtil.show(this, message, 1600);
-  }
-
-  private buildPlaylistMenuItems(song: Song): TagButtonMenuItem[] {
-    return [
-      {
-        value: '移除',
-        action: (): void => {
-          const snapshot = PlaybackService.getPlaylistSnapshot();
-          let removeIndex: number = -1;
-          for (let i: number = 0; i < snapshot.items.length; i++) {
-            if (snapshot.items[i].id === song.id) {
-              removeIndex = i;
-              break;
-            }
-          }
-          if (removeIndex >= 0) {
-            void PlaybackService.removeFromPlaylist(removeIndex);
-          }
-        }
-      }
-    ];
   }
 
   private buildAlbumMenuItems(song: Song): TagButtonMenuItem[] {
@@ -130,15 +241,11 @@ export struct MusicListView {
   }
 
   private menuItemsFor(song: Song): TagButtonMenuItem[] {
-    if (this.listVariant === 'album' || this.listVariant === 'browse') {
-      return this.buildAlbumMenuItems(song);
-    }
-    return this.buildPlaylistMenuItems(song);
+    return this.buildAlbumMenuItems(song);
   }
 
   private hasMoreMenu(): boolean {
-    return this.listVariant === 'playlist' || this.listVariant === 'album' ||
-      this.listVariant === 'browse';
+    return this.listVariant === 'album' || this.listVariant === 'browse';
   }
 
   private resolveCoverArtId(song: Song): string {
@@ -157,10 +264,6 @@ export struct MusicListView {
   }
 
   private handleItemClick(index: number, song: Song): void {
-    if (this.listVariant === 'playlist') {
-      void PlaybackService.playFromPlaylistIndex(index);
-      return;
-    }
     if (this.listVariant === 'album' || this.listVariant === 'browse') {
       const coverArt: string = this.listVariant === 'browse' ?
         this.resolveCoverArtId(song) : this.albumCoverArtId;
@@ -264,7 +367,7 @@ export struct MusicListView {
           }
         }
         .width('100%')
-      }, (song: Song) => song.id)
+      }, (song: Song, index: number) => `${index}_${song.id}`)
     }
     .width('100%')
   }

@@ -307,6 +307,9 @@ export struct HdsTabsShell {
     .scrollable(false)
     .animationDuration(0)
     .barFloatingStyle(this.resolveBarFloatingStyle())
+    .onTabBarClick((index: number) => {
+      this.tabScrollerBridge.handleTabBarClick(index, this.rootTabIndex);
+    })
     .onChange((index: number) => {
       this.rootTabIndex = index;
       this.tabScrollerBridge.setActiveTab(index);

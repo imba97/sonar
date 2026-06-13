@@ -54,6 +54,9 @@ export struct FloatingTabBar {
     .barOverlap(true)
     .scrollable(false)
     .animationDuration(0)
+    .onTabBarClick((index: number) => {
+      this.tabScrollerBridge.handleTabBarClick(index, this.rootTabIndex);
+    })
     .onChange((index: number) => {
       this.rootTabIndex = index;
       this.tabScrollerBridge.setActiveTab(index);

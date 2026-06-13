@@ -8,6 +8,7 @@ import {
   RandomSongsResponse,
   SearchResponse,
   Song,
+  SongDetailResponse,
   SubsonicApiError,
   SubsonicEnvelope
 } from '../../api/SubsonicTypes';
@@ -154,6 +155,12 @@ export class SubsonicApi {
     const rawSongs: Song[] | Song | undefined = resp.album.song as Song[] | Song | undefined;
     resp.album.song = SubsonicApi.toArray<Song>(rawSongs);
     return resp;
+  }
+
+  static async getSong(id: string): Promise<Song> {
+    const resp: SongDetailResponse =
+      await SubsonicApi.requestEnvelope<SongDetailResponse>('getSong.view', ['id', id]);
+    return resp.song;
   }
 
   static async search3(query: string, artistCount: number = 20,

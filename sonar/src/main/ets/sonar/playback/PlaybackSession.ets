@@ -29,6 +29,7 @@ import { PlaylistStore } from './PlaylistStore';
 import { PlaybackStore } from './PlaybackStore';
 import { ShuffleController } from './ShuffleController';
 import { PlaybackSwitch, PlaybackSwitchHost } from './PlaybackSwitch';
+import { PlaylistPersistence } from './PlaylistPersistence';
 
 const HEARTBEAT_INTERVAL_MS: number = 15_000;
 const MIN_SCROBBLE_TRACK_LENGTH_MS: number = 30_000;
@@ -135,6 +136,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private shuffleOrder: number[] = [];
   private shuffleCursor: number = 0;
   private playlistRevision: number = 0;
+  private cachedPublishedItems: Song[] = [];
   private coverRevision: number = 0;
   private currentCover: image.PixelMap | null = null;
   private currentCoverId: string = '';
@@ -189,7 +191,9 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     PlaybackStore.init(PlaybackSnapshot.idle());
     PlaylistStore.init(PlaylistSnapshot.empty());
+    await PlaylistPersistence.getInstance().init(context);
     await this.orchestrator.initialize();
+    await this.restorePersistedPlaylist();
     PlaybackPipeline.setNetworkPathChangedHandler((event: EndpointChangeEvent) => {
       return this.handleNetworkPathChanged(event);
     });
@@ -198,6 +202,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
 
   setContext(context: common.UIAbilityContext): void {
     void this.initialize(context);
+  }
+
+  async flushPersistence(): Promise<void> {
+    await PlaylistPersistence.getInstance().flushPending();
   }
 
   async release(): Promise<void> {
@@ -212,6 +220,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.releaseCover();
     this.displayQueue = [];
     this.currentIndex = -1;
+    this.cachedPublishedItems = [];
     this.shuffleOrder = [];
     this.shuffleCursor = 0;
     this.previewTrack = null;
@@ -219,7 +228,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.initialized = false;
     this.snapshot = PlaybackSnapshot.idle();
     PlaybackStore.publish(this.snapshot);
-    this.publishPlaylist();
+    this.publishPlaylist(true);
+    void PlaylistPersistence.getInstance().clear();
   }
 
   setPlaybackMode(mode: PlaybackMode): PlaybackMode {
@@ -255,10 +265,30 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.publishSnapshot(this.snapshot.phase, true);
   }
 
-  private publishPlaylist(): void {
+  private publishPlaylist(structureChanged: boolean = true): void {
+    this.playlistRevision += 1;
+    if (structureChanged) {
+      this.cachedPublishedItems = this.displayQueue.map((item: Song) => item);
+    }
+    PlaylistStore.publish(new PlaylistSnapshot(
+      this.cachedPublishedItems,
+      this.currentIndex,
+      this.playlistRevision
+    ));
+    PlaylistPersistence.getInstance().scheduleSave(this.displayQueue, this.currentIndex);
+  }
+
+  private async restorePersistedPlaylist(): Promise<void> {
+    const restored = await PlaylistPersistence.getInstance().load();
+    if (restored === null || restored.songs.length === 0) {
+      return;
+    }
+    this.displayQueue = restored.songs.map((item: Song) => item);
+    this.currentIndex = restored.currentIndex;
+    this.cachedPublishedItems = this.displayQueue.map((item: Song) => item);
     this.playlistRevision += 1;
     PlaylistStore.publish(new PlaylistSnapshot(
-      this.displayQueue.map((item: Song) => item),
+      this.cachedPublishedItems,
       this.currentIndex,
       this.playlistRevision
     ));
@@ -278,7 +308,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.shuffleOrder = [];
     this.shuffleCursor = 0;
     await PlaybackSwitch.commitSwitch(this, true);
-    this.publishPlaylist();
+    this.publishPlaylist(true);
   }
 
   async playAlbumAll(album: Album): Promise<void> {
@@ -307,7 +337,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       const previewTrack: NowPlayingTrack = buildNowPlayingTrack(song, this.albumCoverFallbackId);
       await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
       await PlaybackSwitch.commitSwitch(this, true);
-      this.publishPlaylist();
+      this.publishPlaylist(true);
       return;
     }
     const nextInsertIndex: number = this.currentIndex + 1;
@@ -321,7 +351,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
         this.shuffleCursor
       );
     }
-    this.publishPlaylist();
+    this.publishPlaylist(true);
   }
 
   async appendToPlaylist(songs: Song[]): Promise<number> {
@@ -349,7 +379,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
         this.shuffleOrder.push(startIndex + i);
       }
     }
-    this.publishPlaylist();
+    this.publishPlaylist(true);
     return toAdd.length;
   }
 
@@ -377,7 +407,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       }
     }
     await PlaybackSwitch.commitSwitch(this, true);
-    this.publishPlaylist();
+    this.publishPlaylist(false);
   }
 
   async removeFromPlaylist(index: number): Promise<void> {
@@ -398,7 +428,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
         this.clearPreview();
         this.pipelinePhase = 'idle';
         this.publishSnapshot('idle', true);
-        this.publishPlaylist();
+        this.publishPlaylist(true);
         await BackgroundPlayback.stop();
         PlaybackPipeline.onTrackStopped();
       } else if (this.currentIndex >= this.displayQueue.length) {
@@ -417,7 +447,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
         this.shuffleCursor = cursor;
       }
     }
-    this.publishPlaylist();
+    this.publishPlaylist(true);
   }
 
   async toggle(): Promise<void> {
@@ -471,7 +501,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.currentIndex = nav.index;
     await PlaybackSwitch.commitSwitch(this, true);
     this.schedulePrefetchNext();
-    this.publishPlaylist();
+    this.publishPlaylist(false);
   }
 
   async playPrevious(): Promise<void> {
@@ -492,7 +522,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.currentIndex = nav.index;
     await PlaybackSwitch.commitSwitch(this, true);
     this.schedulePrefetchNext();
-    this.publishPlaylist();
+    this.publishPlaylist(false);
   }
 
   async seekTo(positionMs: number): Promise<void> {
@@ -589,7 +619,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.isBuffering = false;
       this.pipelinePhase = 'idle';
       this.publishSnapshot('idle', true);
-      this.publishPlaylist();
+      this.publishPlaylist(true);
       await BackgroundPlayback.stop();
       PlaybackPipeline.onTrackStopped();
       return;
@@ -936,7 +966,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await PlaybackSwitch.commitSwitch(this, true);
     this.schedulePrefetchNext();
     this.handlingCompletion = false;
-    this.publishPlaylist();
+    this.publishPlaylist(true);
   }
 
   private schedulePrefetchNext(): void {

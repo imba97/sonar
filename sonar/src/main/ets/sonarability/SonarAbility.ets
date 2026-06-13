@@ -125,7 +125,7 @@ export default class SonarAbility extends UIAbility {
   }
 
   onBackground(): void {
-    // Ability has back to background
+    void PlaybackService.flushPersistence();
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onBackground');
   }
 }

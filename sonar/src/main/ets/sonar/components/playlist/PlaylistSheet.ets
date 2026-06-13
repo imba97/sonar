@@ -1,12 +1,17 @@
-import { MusicListView } from '../lists/MusicListView';
-import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
+import { PlaylistListView } from './PlaylistListView';
+import { PlaybackPhase } from '../../playback/PlaybackSnapshot';
 import { PlaylistSnapshot } from '../../playback/PlaylistSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 @Component
 export struct PlaylistSheet {
-  @StorageLink('playlist') playlist: PlaylistSnapshot = PlaylistSnapshot.empty();
-  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageLink('playlist') @Watch('onPlaylistChanged') playlist: PlaylistSnapshot = PlaylistSnapshot.empty();
+  @StorageProp('playbackTrackId') playingTrackId: string = '';
+  @StorageProp('playbackPhase') playbackPhase: PlaybackPhase = 'idle';
+
+  private onPlaylistChanged(): void {
+    // PlaylistListView 内部通过 @Prop playlist 同步数据源
+  }
 
   build() {
     Column() {
@@ -40,25 +45,15 @@ export struct PlaylistSheet {
         .alignItems(HorizontalAlign.Center)
         .padding({ left: 24, right: 24 })
       } else {
-        Scroll() {
-          Column() {
-            MusicListView({
-              songs: this.playlist.items,
-              highlightSongId: this.playback.track !== null ? this.playback.track.id : '',
-              listVariant: 'playlist',
-              showArtist: true
-            })
-          }
+        PlaylistListView({
+          playlist: this.playlist,
+          highlightSongId: this.playingTrackId,
+          playingTrackId: this.playingTrackId,
+          playbackPhase: this.playbackPhase
+        })
           .width('100%')
-          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
           .padding({ left: 16, right: 16, bottom: 24 })
-        }
-        .width('100%')
-        .height('100%')
-        .layoutWeight(1)
-        .align(Alignment.Top)
-        .scrollBar(BarState.Off)
-        .edgeEffect(EdgeEffect.Spring)
       }
     }
     .width('100%')

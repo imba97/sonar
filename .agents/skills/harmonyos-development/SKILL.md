@@ -1,56 +1,33 @@
 ---
 name: harmonyos-development
 description: >
-  HarmonyOS 6.1 / 6.1.1 / NEXT (鸿蒙) comprehensive development knowledge — ArkTS, ArkUI,
-  Stage model, 60+ Kit APIs, UI components, state management, navigation, animation,
-  networking, data persistence, media, concurrency, testing, security, performance
-  optimization, third-party libraries. 4200+ lines, 237 sections, 105+ code examples.
-
-  Trigger: HarmonyOS, ArkTS, ArkUI, .ets, DevEco Studio, Stage model, UIAbility,
-  @State, @Prop, @Link, @Provide, @Observed, @ObjectLink, @ComponentV2, @ObservedV2,
-  @Trace, @Monitor, StateStore, NavPathStack, LazyForEach, @Reusable, animateTo,
-  keyframeAnimateTo, geometryTransition, TaskPool, Worker, @Concurrent, @Sendable,
-  module.json5, oh-package.json5, OHPM, sys.symbol, HAP, HSP, Tabs, TabContent,
-  Swiper, WaterFlow, Grid, TextInput, TextArea, AlertDialog, openCustomDialog,
-  openBindSheet, bindContentCover, Refresh, swipeAction, ListItemGroup,
-  relationalStore, preferences, fileIo, DocumentViewPicker, photoAccessHelper,
-  notificationManager, backgroundTaskManager, abilityAccessCtrl, pasteboard,
-  WebSocket, connection, request.agent, startAbilityByType, expandSafeArea,
-  KeyboardAvoidMode, setPreferredOrientation, colorMode, registerFont,
-  hitTestBehavior, priorityGesture, onVisibleAreaChange, EventHub,
-  arkxtest, BlurStyle, systemMaterialEffect, ArkGuard, 代码混淆,
-  CameraKit, cameraPicker, AudioRenderer, AudioKit, AVPlayer, AVRecorder,
-  ImageKit, PixelMap, ScanKit, scanBarcode, customScan, AccountKit, PaymentKit,
-  PushKit, MapKit, ShareKit, systemShare, AppLinking, domainVerify,
-  CoreVisionKit, textRecognition, AVSessionKit, FormKit, FormExtensionAbility,
-  WeatherServiceKit, weatherService, PenKit, HandwriteController,
-  AppStorageV2, PersistenceV2, @Local, @Param, @Event, @Once, @Provider, @Consumer,
-  axios, @ohos/axios, pulltorefresh, lottie, imageknife, dayjs,
-  API 22, API 23, API 24, HarmonyOS 6.1, HarmonyOS 6.1.1, Follow the Person, anchorPosition,
-  continuable, onContinue, 应用接续, 扫码, 深链接, 分享, 剪贴板, 天气, 手写笔,
-  鸿蒙, 鸿蒙开发, 鸿蒙NEXT, 方舟语言, 状态管理, 导航路由, 懒加载, 组件复用,
-  鸿蒙权限, 鸿蒙测试, 液态玻璃, 沉浸光感, 折叠屏, 鸿蒙入门, 沉浸式, 深色模式,
-  下拉刷新, 上拉加载, 左滑删除, 瀑布流, 轮播图, 底部导航, 软键盘, 横竖屏,
-  自定义字体, 桌面快捷方式, 手势冲突, 文件选择, 网络请求, 后台下载, 弹窗
+  Use when developing, reviewing, debugging, or migrating HarmonyOS NEXT native apps
+  with ArkTS, ArkUI, DevEco Studio, Stage model, UIAbility, .ets, module.json5,
+  oh-package.json5, HAP/HSP/HAR, API 22-24, API 26 Beta1, HarmonyOS 6.1,
+  HarmonyOS 6.1.1 Release, HarmonyOS 7 preview, HarmonyOS 26.0.0 Beta1,
+  state management decorators, Navigation/NavPathStack, ArkTS concurrency,
+  permissions, persistence, networking, media, Camera Kit, Scan Kit, Map Kit,
+  Push Kit, Payment Kit, App Linking, Share Kit, Weather Service Kit, ArkGuard,
+  testing, performance, or common 鸿蒙开发 workflows.
 ---
 
 # HarmonyOS (鸿蒙) Development
 
-Covers HarmonyOS 6.1 (API 23, stable) / 6.1.1 (API 24, beta) / NEXT native app development — the Huawei mobile OS family that runs independently of Android (AOSP-free since HarmonyOS NEXT, released 2024). Primary language is **ArkTS** (a strict, statically-checked superset of TypeScript) and the primary UI framework is **ArkUI** (declarative, state-driven). HarmonyOS 6.0+ adds system-level "Immersive Light Perception" visual effects (液态玻璃/沉浸光感视效); HarmonyOS 6.1.1 introduces "Follow the Person" camera tracking and AI super frame.
+Covers HarmonyOS 6.1 (API 23, stable) / 6.1.1 (API 24, Release) / HarmonyOS 7 developer preview (API 26 Beta1) / NEXT native app development — the Huawei mobile OS family that runs independently of Android (AOSP-free since HarmonyOS NEXT, released 2024). Primary language is **ArkTS** (a strict, statically-checked superset of TypeScript) and the primary UI framework is **ArkUI** (declarative, state-driven). Use API 24 Release as the default production baseline; use API 26 Beta1 only for preview, adaptation, and early compatibility work.
 
 ## Platform snapshot
 
 | Item | Value |
 |---|---|
-| OS | **HarmonyOS 6.1** (stable, released 2026/04/20, API 23). **HarmonyOS 6.1.1 (API 24)** in developer beta. Pure HarmonyOS, AOSP-free |
+| OS | **HarmonyOS 6.1** (stable, released 2026/04/20, API 23). **HarmonyOS 6.1.1** (Release, released 2026/05/26, API 24). **HarmonyOS 7 / 26.0.0 Beta1** (developer preview, released 2026/06/12, API 26). Pure HarmonyOS, AOSP-free |
 | Language | **ArkTS** (primary), **Cangjie** (beta), C/C++ via NAPI |
 | UI framework | **ArkUI** declarative (ArkUI-X for cross-platform) |
 | Compiler | **ArkCompiler** — AOT to native machine code; LiteActor concurrency |
 | Package manager | **ohpm** — `oh-package.json5`; registry at DevEco Service (OHPM Central) |
-| IDE | **DevEco Studio 6.1+** (supports API 23/24, Hvigor 6.22+, IntelliJ-based) |
+| IDE | **DevEco Studio 6.1.1 Release** (6.1.1.280; API 24 production). **DevEco Studio 26.0.0 Beta1** (26.0.0.461; API 26 preview) |
 | App model | **Stage model** (FA model is legacy — don't use in new apps) |
 | Packaging | HAP (entry/feature), HSP (shared package), HAR (static archive), atomic .app |
-| Recommended API | **API 22+ (use API 23 for new projects; API 24 for camera/AI-heavy apps)** |
+| Recommended API | **Use API 24 Release for production. Use API 26 Beta1 only for HarmonyOS 7 preview/adaptation.** |
 | Sample catalog | https://developer.huawei.com/consumer/cn/samples/ |
 
 **Release timeline (recent):**
@@ -58,7 +35,9 @@ Covers HarmonyOS 6.1 (API 23, stable) / 6.1.1 (API 24, beta) / NEXT native app d
 - HarmonyOS 6.0.2(22) — 2026/01/23 (incremental update)
 - HarmonyOS 6.0.0.328 Pollen Beta(23) — 2026/02/28 (closed beta, 25 models)
 - HarmonyOS 6.1(23) — 2026/04/20 (stable general release)
-- HarmonyOS 6.1.1(24) Beta 1 — 2026/05 (developer beta, camera/AI focus)
+- HarmonyOS 6.1.1(24) Beta 1 — 2026/04/30 (developer beta)
+- HarmonyOS 6.1.1(24) Release — 2026/05/26 (API 24 Release; DevEco Studio 6.1.1.280)
+- HarmonyOS 7 / 26.0.0 Beta1 — 2026/06/12 (API 26 developer preview; DevEco Studio 26.0.0.461)
 
 ### What's new in API 23 (HarmonyOS 6.1)
 
@@ -81,16 +60,96 @@ Covers HarmonyOS 6.1 (API 23, stable) / 6.1.1 (API 24, beta) / NEXT native app d
 
 **ArkWeb:** further capability enhancements (intercept/cookies)
 
-### What's new in API 24 (HarmonyOS 6.1.1 Beta)
+### What's new in API 24 (HarmonyOS 6.1.1 Release)
 
+**Version baseline:** API 24 is now a Release SDK (not only Beta). Use DevEco Studio 6.1.1 Release (6.1.1.280), HarmonyOS SDK 6.1.1 Release, Hvigor 6.24.2, ohpm 6.1.2.268, and Node.js 18.20.1 for API 24 projects.
+
+**Release additions over Beta1:**
+- **Ability Kit** — `AbilityStage` adds callbacks before the first Ability is created and when a process starts from an application snapshot.
+- **ArkTS** — adds `enableLocalHandleDetection` to keep EventHandler/libuv tasks inside the intended scope and avoid leaks; XML parsing adds `XmlSAXHandler` callbacks for SAX-style parsing.
+- **ArkWeb** — download completion callbacks can retrieve the original URL and referrer URL.
+- **Call Service Kit** — enterprise call service lookup for incoming/outgoing phone numbers.
+- **Camera Kit professional controls** — flash-state event subscribe/unsubscribe; OIS query/set; lens focal length/equivalent focal length/min focus distance/distortion/intrinsic calibration/sensor size/pixel array/color-filter data; logical camera composition; auto/manual exposure; manual focus; ISO; physical aperture.
+- **CANN Kit** — large-language-model inference acceleration APIs on PC devices.
+- **MDM Kit** — manage hidden settings entries for the current user.
+
+**Beta1 additions still relevant in API 24 Release:**
 - **Camera Kit "Follow the Person"** — automatic camera tracking API that keeps a person centered in frame via real-time crop/zoom. Useful for video calls, workout recording, vlogging:
   ```ts
   // Conceptual API — full signature in official docs
   cameraSession.enableSubjectTracking(camera.TrackingMode.PERSON);
   ```
-- **Delayed preview output** — add preview directly to data stream instead of standard preview path
-- **DevEco Studio** supports API 24 projects, C++ code/resource file modifications, expanded AppFreeze log parsing
-- **ComMemory template** — new template for memory management in camera/AI apps
+- **Delayed preview output** — add delayed preview directly to the stream pipeline instead of normal preview output, and configure its Surface separately.
+- **ArkTS VM diagnostics** — heap information per VM thread, heap-warning callbacks after GC, and `taskpool.execute()` timeout settings.
+- **ArkUI** — parallel-window state query, custom component migration across Ability instances, dynamic layout container, root node lookup for `UIContext`, async drag-drop decisions, `onNeedSoftkeyboard`, Canvas/OffscreenCanvas `antialias`, Tabs nested scrolling, multiline ellipsis modes (`MULTILINE_START`, `MULTILINE_CENTER`).
+- **ArkWeb** — User-Agent Client Hints, default context-menu switch, URL whitelist and load/jump security controls.
+- **Audio Kit** — independent audio session strategy/behavior for capture/rendering, plus OH_MIDI C APIs for USB/BLE MIDI devices.
+- **New/expanded Kits** — Content Embed Kit, Enterprise Threat Protection Kit, FAST Kit, NearLink Kit, Network Boost Kit, Screen Time Guard Kit, Device Security Kit, Desktop Extension Kit.
+- **DevEco Studio** — API 24 projects, Hot Reload for C++ and resource edits, expanded AppFreeze parsing, ComMemory UI memory analysis, `strictCheckerOnly` for faster strict syntax checks.
+
+### HarmonyOS 7 / API 26 Beta1 preview (2026/06/12)
+
+**Status:** developer Beta, not the default production baseline. Mention API 26 features only when the user asks about HarmonyOS 7, API 26, HDC 2026, preview adaptation, or Beta1 capabilities. For production code, prefer API 24 Release unless the project explicitly targets API 26 preview.
+
+**Developer kit baseline:** HarmonyOS SDK **26.0.0 Beta1** (OpenHarmony SDK `Ohos_sdk_public 26.0.0.23`, API Version 26.0.0 Beta1) and DevEco Studio **26.0.0 Beta1 (26.0.0.461)**. Toolchain: HarmonyOS Emulator **26.0.0.200**, Hvigor/hvigorw **6.26.1**, ohpm **26.0.0.410**, Node.js **24.14.1**, hstack **6.0.0**, `compileSdkVersion: "26.0.0"`, `targetSdkVersion: "4.0.0(10)~26.0.0"`.
+
+**Version-number rule:** Starting with API **26.0.0**, HarmonyOS developer kit API versions use SemVer (`X.Y.Z`) instead of the legacy `X.Y.Z(N)` format. `X` means a major version with substantial capabilities or adaptation-impacting changes, `Y` means a minor version with new capabilities, and `Z` means compatible fixes/small improvements.
+
+**High-value API 26 Beta1 changes:**
+- **Ability Kit** — AgentCard support; ArkTS script-based app Skill development; package-name + clone-index app name lookup; ArkTS APIs for script management; C APIs for `ModularObjectExtensionAbility`.
+- **Accessibility Kit** — system care mode integration for elder-friendly app experiences.
+- **Accessory Kit** — new Kit for accessory wake-up, system service linkage, on-demand scheduling, and secure trust management.
+- **Account Kit** — `LoginWithHuaweiIDButton` supports custom multilingual text and loading animation.
+- **AR Engine** — C API camera flash control; ArkTS preview stream image access; 3D Gaussian model loading; ArkTS/C APIs for external camera and sensor data.
+- **ArkUI / UI Design** — system material configuration for Toggle, Tips, Toast, dialogs, menus, popups, custom dialogs, half modals, and Popup; component-level immersive light perception; global reuse pools for `@Reusable` / `@ReusableV2`; standard floating windows; title-area customization updates.
+- **ArkWeb** — Chromium kernel upgraded from 132 to 144; new security configuration options.
+- **AVCodec Kit** — H.265 hardware encoder CBRHQ mode; Audio Vivid encoding and C APIs.
+- **AVSession Kit** — new extra-key enum values for scenario-specific AVSession metadata.
+- **Background Tasks Kit** — reminder countdown instances add `repeatInterval` and `repeatCount`.
+- **Core File Kit** — `UNCACHE` open option, recursive `listFileExt`, mmap-based file mapping, and sharing an app sandbox directory as system-visible.
+- **Core Vision Kit** — image super-resolution and semantic text search over images.
+- **Data Augmentation Kit** — mail intelligence handler for classification, summarization, and todo extraction.
+- **Device Security Kit** — enhanced Star Shield confidential risk-control engine, unified risk-control credentials, privacy policy controls for camera/microphone/location, and file-event subscription/filtering.
+- **Driver Development Kit** — query external USB hubs and develop user-mode drivers.
+- **Enterprise Data Guard Kit** — file classification policy APIs `getPolicy` and `isKia`.
+- **Enterprise Space Kit** — query dual-space state and determine whether the workspace is enterprise space.
+- **FAST Kit** — real-number FFT and inverse FFT; intelligent sequence prediction.
+- **Graphics Accelerate Kit** — game prelaunch feature to improve startup experience.
+- **Image Kit** — metadata classes for GIF/JFIF/TIFF/PNG/AVIS plus XMP metadata.
+- **Input Kit** — keyboard and mouse input event injection.
+- **Live View Kit** — auxiliary-area template with percentage progress ring.
+- **NDK / JSVM** — create `ArrayBuffer` from external memory.
+- **NearLink Kit** — `startScan` scans all discoverable nearby NearLink devices.
+- **Network Boost Kit** — `netBoost.setDataFlowDesc` sets flow descriptions from five-tuple data.
+- **Notification Kit** — stronger notification management/display, including half-modal notification settings entry.
+- **Online Authentication Kit** — DID (Decentralized Identifier) key generation, credential import/query/delete, and data signing.
+- **PDF Kit** — convert specified regions across multiple pages into one image.
+- **Performance Analysis Kit** — gray release fault-log collection and HiAppEvent app-freeze warning subscriptions.
+- **Preview Kit** — file acceleration scanning, preload strategy customization, availability query, and file-operation event reporting.
+- **Push Kit** — Live View push messages support Wearable devices.
+- **Remote Communication Kit** — `HttpVersionSelectCallback` for HTTP version selection, `HMS_Rcp_SetRequestGetDataCallback()` for streaming upload, `HMS_Rcp_SetFormOrder()` for ordered forms, and QUIC C API.
+- **Scenario Fusion Kit** — scenario sharing Button supports image, video, and text.
+- **Share Kit** — phone-to-PC/2in1/tablet tap sharing can expose tap position on the receiving side.
+- **Spatial Recon Kit** — 3DGS gaussian editing and spatial photo generation from a single photo.
+- **Scan Kit** — query support for default/custom scan UI on the current device.
+
+**API 26 behavior and UX changes to watch during adaptation:**
+- **Ability Kit** — public package-change common events (`COMMON_EVENT_PACKAGE_ADDED`, `REMOVED`, `CHANGED`, `CACHE_CLEARED`) add controls for In-House apps when `targetSdkVersion >= 26.0.0`; In-House apps must configure `allowListenBundleChangedEvent` in `app.json5` for third-party listeners.
+- **ArkTS / JSVM** — Chromium/V8 core upgrades 132 → 144; async function type detection is fixed; Wasm jitless default behavior changes; `fastConvertToJSObject` now preserves sibling text nodes when parsing XML.
+- **ArkUI** — `NodeAdapter.onAttachToNode`, mouse `rawDeltaX/rawDeltaY`, `LayoutPolicy.matchParent`, `EmbeddedComponent` focus, `WithTheme`, `queryNavDestinationInfo`, `NODE_SWIPER_EVENT_ON_CONTENT_DID_SCROLL`, and shadow blur radius behavior have adaptation-impacting changes.
+- **Permissions** — `ohos.permission.READ_IMAGEVIDEO`, `getUidRxBytes`, `getUidTxBytes`, and general permission policy behavior change under API 26 rules.
+- **UX** — form controls minimum touch target changes from 28vp to 32vp for Button/Button-style Toggle/Select/Chip/ChipGroup; built-in text line breaking and small-language line height are optimized; Dialog, Toast, AlphabetIndexer, and text selection menu enable immersive system material by default. Disable globally with `metadata` name `ohos.arkui.UIMaterial.state` value `disable`, or per component with `uiMaterial.Material.empty`.
+
+**DevEco Studio 26.0.0 Beta1 additions:**
+- AI coding: custom Agent token usage display, conversation rollback, built-in Inline Chat commands such as File Comments and Parameter Validation, `UI Verification` tool, and custom Commands.
+- Editing/debugging: API 26.0.0 projects, Load/Unload Modules, ArkUI state-variable relation viewer, Code Scanner resource-leak checks, custom Clang-Tidy, ACL permission requests, 8-breakpoint preview, Car multi-screen emulator, scenario simulation, remote emulator control, Native debug startup acceleration, device projection, SQL-highlight database debugging, dump-file stack parsing, HiLog tag filtering, AppAnalyzer report diagnosis, and diagnostics for OOM/app-freeze/resource leaks.
+- Build/release: `apiCompatibilityCheck`, `tsImportSoCheck`, module `nativeLib.enableSoDirCollection`, `syncNative`, Hvigor `getAllDependencyInfo`, AppGallery package re-signing, Linux emulator support, and ohpmrc `auto_skip_install`, `metadata_cache_effective`, `metadata_cache`, plus exact-version metadata queries.
+- Compatibility changes: DevEco Studio and Command Line Tools upgrade Node.js from 18 to **24**; custom Hvigor/ohpm/ohpm-repo plugins need Node.js 24 adaptation. `ohpm-repo 5.5.1` no longer depends on `node-fetch`; plugins that relied on that bundled dependency must replace it or install `node-fetch@2.7.0` themselves.
+
+**DevEco Testing 26.0.0 Beta1:**
+- Stability testing can target specified entry points to trigger stability issues and expands memory-leak detection coverage.
+- UX testing supports multi-device layout comparison across straight-screen and foldable devices.
+- Test-service matrix includes local app listing precheck, performance baseline/monitoring, stability baseline, memory-leak testing, UX baseline and multi-device layout comparison, security baseline, power baseline, functional-experience baseline, exploratory testing, regression testing, device projection, UIViewer, app graph management, performance report auto-analysis, and report comparison.
 
 ## Project layout (Stage model)
 
@@ -931,6 +990,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 | App Linking Kit | `AppLinkingKit` | Deep links, deferred deep links |
 | Calendar Kit | `CalendarKit` | Calendar events, reminders |
 | Contacts Kit | `ContactsKit` | Contact read/write/search |
+| Content Embed Kit | `ContentEmbedKit` | Cross-app document embedding and collaborative editing |
 | IAP Kit | `IAPKit` | In-app purchases (consumable, non-consumable, subscription) |
 | Live View Kit | `LiveViewKit` | Live activities on lock screen / notification center |
 | Location Kit | `LocationKit` | geoLocationManager, geofencing, geocoding |
@@ -940,6 +1000,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 | Push Kit | `PushKit` | Push notification delivery service |
 | Scan Kit | `ScanKit` | QR/barcode scanning |
 | Share Kit | `ShareKit` | Cross-app content sharing |
+| Call Service Kit | `CallServiceKit` | Enterprise call identification and service lookup |
 | Weather Service Kit | `WeatherServiceKit` | Weather data (current/daily/hourly/alerts/indices/tides) |
 | Pen Kit | `Penkit` | Stylus / handwriting component (M-Pencil devices) |
 | Wear Engine | `WearEngine` | Phone↔watch communication, device discovery |
@@ -953,7 +1014,13 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 | Basic Services Kit | `BasicServicesKit` | Battery, vibration, thermal, brightness, clipboard |
 | Connectivity Kit | `ConnectivityKit` | Bluetooth, Wi-Fi, NFC, USB, hotspot |
 | Crypto Architecture Kit | `CryptoArchitectureKit` | Encryption, key management, certificates |
+| Device Security Kit | `DeviceSecurityKit` | Code-signature queries, digital shield, security events |
 | Distributed Service Kit | `DistributedServiceKit` | deviceManager, cross-device discovery |
+| Enterprise Threat Protection Kit | `EnterpriseThreatProtectionKit` | Enterprise file threat scan, isolation, restore, delete |
+| MDM Kit | `MDMKit` | Enterprise device, app, and settings management |
+| Network Boost Kit | `NetworkBoostKit` | Network transfer optimization and low-power transfer mode |
+| NearLink Kit | `NearLinkKit` | NearLink device capability and partner device management |
+| Screen Time Guard Kit | `ScreenTimeGuardKit` | Screen-time authorization and app-control policy |
 
 **媒体 Media**
 
@@ -982,6 +1049,8 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 |---|---|---|
 | Core Speech Kit | `CoreSpeechKit` | On-device ASR / TTS engine |
 | Core Vision Kit | `CoreVisionKit` | OCR, face detection, image segmentation, super-resolution |
+| CANN Kit | `CANNKit` | AI compute acceleration; API 24 adds PC LLM inference support |
+| FAST Kit | `FASTKit` | Concurrent hash tables, vector operations, filters |
 | Intents Kit | `IntentsKit` | Intent recognition (30+ domains, 60+ built-in intents) |
 | MindSpore Lite | `MindSporeLiteKit` | Edge model inference (Caffe/TF/ONNX/MindIR) |
 | Natural Language Kit | `NaturalLanguageKit` | Word segmentation, NER, keyword extraction |
@@ -1188,6 +1257,17 @@ Find valid names: https://developer.huawei.com/consumer/cn/design/harmonyos-symb
 
 DevEco Studio 6.x requires **additional Hvigor infrastructure files**. Without them the IDE shows "工程结构及配置需要升级".
 
+**Current API 24 Release toolchain (HarmonyOS 6.1.1, 2026/05/26):**
+- DevEco Studio: **6.1.1 Release (6.1.1.280)**
+- HarmonyOS SDK: **6.1.1 Release** (OpenHarmony SDK `Ohos_sdk_public 6.1.1.125`, API 24 Release)
+- Hvigor / hvigorw: **6.24.2**
+- ohpm: **6.1.2.268**
+- Node.js: **18.20.1**
+- `compileSdkVersion`: **6.1.1(24)**
+- `targetSdkVersion`: **4.0.0(10) ~ 6.1.1(24)**
+
+**Recommended workflow:** Always let DevEco Studio generate the scaffold (`新建项目` → Empty Ability), then copy your source files in. This avoids stale Hvigor wrapper/plugin versions.
+
 ### hvigorfile.ts (root + each module)
 
 ```ts
@@ -1204,9 +1284,12 @@ export default { system: hapTasks, plugins:[] }
 
 ```json5
 {
-  "hvigorVersion": "5.0.0",
+  // Use the exact version generated by DevEco Studio for your SDK.
+  // API 24 Release uses Hvigor 6.24.2.
+  "hvigorVersion": "6.24.2",
   "dependencies": {
-    "@ohos/hvigor-ohos-plugin": "5.0.0"
+    // Keep this aligned with the DevEco-generated scaffold.
+    "@ohos/hvigor-ohos-plugin": "<generated-by-deveco>"
   }
 }
 ```
@@ -1215,7 +1298,22 @@ export default { system: hapTasks, plugins:[] }
 
 SDK versions go in **one place only** — either under `app` OR inside each `product`, not both. Mixing them causes "Sync Failed".
 
-**Recommended workflow:** Always let DevEco Studio generate the scaffold (`新建项目` → Empty Ability), then copy your source files in.
+API 24 DevEco Studio adds `strictCheckerOnly` under project-level `build-profile.json5` `strictMode` for running only strict syntax checks on `.ets` files, reducing end-to-end compile time during checks:
+
+```json5
+{
+  "app": {
+    "compileSdkVersion": "6.1.1(24)",
+    "compatibleSdkVersion": "4.0.0(10)",
+    "targetSdkVersion": "6.1.1(24)",
+    "strictMode": {
+      "strictCheckerOnly": true
+    }
+  }
+}
+```
+
+API 24 also adds project-level `oh-package.json5` `properties` for multi-environment dependency management. Use it for environment-specific dependency values instead of duplicating package files.
 
 ## ArkTS strict-mode compiler errors (SDK 6.0.1)
 

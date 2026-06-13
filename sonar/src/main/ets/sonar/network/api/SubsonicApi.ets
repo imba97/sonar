@@ -5,6 +5,7 @@ import {
   Artist,
   ArtistIndex,
   ArtistsResponse,
+  RandomSongsResponse,
   SearchResponse,
   Song,
   SubsonicApiError,
@@ -94,6 +95,57 @@ export class SubsonicApi {
     const rawAlbums: Album[] | Album | undefined = resp.albumList2.album as Album[] | Album | undefined;
     resp.albumList2.album = SubsonicApi.toArray<Album>(rawAlbums);
     return resp;
+  }
+
+  static async getRandomSongs(size: number = 100): Promise<Song[]> {
+    const resp: RandomSongsResponse =
+      await SubsonicApi.requestEnvelope<RandomSongsResponse>('getRandomSongs.view', [
+        'size', String(size)
+      ]);
+    const rawSongs: Song[] | Song | undefined = resp.randomSongs?.song as Song[] | Song | undefined;
+    return SubsonicApi.toArray<Song>(rawSongs);
+  }
+
+  /** 通过 getAlbumList2 + getAlbum 展开为歌曲列表（frequent / recent / newest） */
+  static async getSongsViaAlbumList(type: string, albumBatchSize: number,
+    albumOffset: number): Promise<Song[]> {
+    const resp: AlbumListResponse = await SubsonicApi.getAlbumList2(type, albumBatchSize, albumOffset);
+    const albums: Album[] = resp.albumList2.album ?? [];
+    if (albums.length === 0) {
+      return [];
+    }
+    const songLists: Song[][] = await Promise.all(albums.map(async (album: Album) => {
+      const detail: AlbumDetailResponse = await SubsonicApi.getAlbum(album.id);
+      const songs: Song[] = detail.album.song ?? [];
+      const albumCover: string = album.coverArt ?? detail.album.coverArt ?? '';
+      for (let i: number = 0; i < songs.length; i++) {
+        const songCover: string | undefined = songs[i].coverArt;
+        if (songCover === undefined || songCover.length === 0) {
+          songs[i].coverArt = albumCover.length > 0 ? albumCover : songCover;
+        }
+      }
+      return songs;
+    }));
+    const merged: Song[] = [];
+    const seenIds: Set<string> = new Set<string>();
+    for (let a: number = 0; a < songLists.length; a++) {
+      const batch: Song[] = songLists[a];
+      for (let s: number = 0; s < batch.length; s++) {
+        const song: Song = batch[s];
+        if (!seenIds.has(song.id)) {
+          seenIds.add(song.id);
+          merged.push(song);
+        }
+      }
+    }
+    if (type === 'frequent') {
+      merged.sort((a: Song, b: Song) => {
+        const pa: number = a.playCount ?? 0;
+        const pb: number = b.playCount ?? 0;
+        return pb - pa;
+      });
+    }
+    return merged;
   }
 
   static async getAlbum(id: string): Promise<AlbumDetailResponse> {

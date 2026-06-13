@@ -10,7 +10,7 @@ export enum SonarPageRole {
 
 export type SonarContentVariant = 'form' | 'hero' | 'login';
 
-/** Scroll 由 Layout 包裹，或由业务自管（媒体库 List） */
+/** Scroll 由 Layout 包裹，或由业务自管（专辑 List） */
 export enum SonarScrollMode {
   SCROLL = 0,
   CUSTOM_BODY = 1,

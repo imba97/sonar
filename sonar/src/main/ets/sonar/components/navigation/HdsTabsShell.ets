@@ -1,8 +1,8 @@
 import { BarToneColorAnimator } from '../../ui/color/BarToneColorAnimator';
 import {
   buildLibraryTabPage,
-  buildProfileTabPage,
-  buildServerTabPage
+  buildMusicTabPage,
+  buildProfileTabPage
 } from './RootTabPages';
 import { BarToneStore } from '../../ui/color/BarToneStore';
 import { ImmersiveMaterialHelper } from '../../ui/material/ImmersiveMaterialHelper';
@@ -27,8 +27,8 @@ interface RootTabItem {
 }
 
 const ROOT_TAB_ITEMS: RootTabItem[] = [
-  { pageIndex: 0, icon: $r('app.media.tab_library'), a11yLabel: '媒体库' },
-  { pageIndex: 1, icon: $r('app.media.tab_server'), a11yLabel: '服务器' },
+  { pageIndex: 0, icon: $r('app.media.tab_library'), a11yLabel: '音乐' },
+  { pageIndex: 1, icon: $r('app.media.tab_album'), a11yLabel: '专辑' },
   { pageIndex: 2, icon: $r('app.media.tab_profile'), a11yLabel: '我的' },
 ];
 
@@ -286,12 +286,12 @@ export struct HdsTabsShell {
   build() {
     HdsTabs({ controller: this.hdsTabsController, index: this.rootTabIndex }) {
       TabContent() {
-        buildLibraryTabPage()
+        buildMusicTabPage()
       }
       .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[0]))
 
       TabContent() {
-        buildServerTabPage()
+        buildLibraryTabPage()
       }
       .tabBar(this.buildHdsTabBarStyle(ROOT_TAB_ITEMS[1]))
 

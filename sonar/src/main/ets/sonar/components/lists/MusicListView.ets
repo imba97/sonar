@@ -1,4 +1,5 @@
 import { Song } from '../../api/SubsonicTypes';
+import { SubsonicClient } from '../../api/SubsonicClient';
 import { SongCache } from '../../cache/SongCache';
 import { TagButtonMenuItem } from '../buttons/TagButton';
 import { MoreMenuIconButton } from '../buttons/MoreMenuIconButton';
@@ -8,7 +9,7 @@ import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
-export type MusicListVariant = 'playlist' | 'album';
+export type MusicListVariant = 'playlist' | 'album' | 'browse';
 
 @Component
 export struct MusicListView {
@@ -17,7 +18,11 @@ export struct MusicListView {
   @Prop highlightSongId: string = '';
   @Prop listVariant: MusicListVariant = 'playlist';
   @Prop showArtist: boolean = false;
+  @Prop showAlbumCover: boolean = false;
   @Prop albumCoverArtId: string = '';
+
+  private static readonly COVER_SIZE: number = 44;
+  private static readonly COVER_RADIUS: number = 8;
 
   private static readonly ARTIST_FONT_SIZE: number = 11;
   private static readonly META_FONT_SIZE: number = 11;
@@ -125,14 +130,30 @@ export struct MusicListView {
   }
 
   private menuItemsFor(song: Song): TagButtonMenuItem[] {
-    if (this.listVariant === 'album') {
+    if (this.listVariant === 'album' || this.listVariant === 'browse') {
       return this.buildAlbumMenuItems(song);
     }
     return this.buildPlaylistMenuItems(song);
   }
 
   private hasMoreMenu(): boolean {
-    return this.listVariant === 'playlist' || this.listVariant === 'album';
+    return this.listVariant === 'playlist' || this.listVariant === 'album' ||
+      this.listVariant === 'browse';
+  }
+
+  private resolveCoverArtId(song: Song): string {
+    if (song.coverArt !== undefined && song.coverArt.length > 0) {
+      return song.coverArt;
+    }
+    return this.albumCoverArtId;
+  }
+
+  private coverUrlFor(song: Song): string | undefined {
+    const coverArt: string = this.resolveCoverArtId(song);
+    if (coverArt.length === 0) {
+      return undefined;
+    }
+    return SubsonicClient.getInstance().getCoverArtUrl(coverArt, 120);
   }
 
   private handleItemClick(index: number, song: Song): void {
@@ -140,9 +161,11 @@ export struct MusicListView {
       void PlaybackService.playFromPlaylistIndex(index);
       return;
     }
-    if (this.listVariant === 'album') {
-      void PlaybackService.playQueue(this.songs, index, this.albumCoverArtId).then(() => {
-        PlaybackService.setPlaybackMode('singleLoop');
+    if (this.listVariant === 'album' || this.listVariant === 'browse') {
+      const coverArt: string = this.listVariant === 'browse' ?
+        this.resolveCoverArtId(song) : this.albumCoverArtId;
+      void PlaybackService.playQueue(this.songs, index, coverArt).then(() => {
+        PlaybackService.setPlaybackMode('listLoop');
       });
       this.showToast(`开始播放：${song.title}`);
     }
@@ -155,6 +178,35 @@ export struct MusicListView {
       .height(1)
       .backgroundColor(UiTokens.COLOR_CARD_BORDER)
       .opacity(0.45)
+  }
+
+  @Builder
+  private buildAlbumCoverThumb(song: Song) {
+    if (this.showAlbumCover || this.listVariant === 'browse') {
+      if (this.coverUrlFor(song) !== undefined) {
+        Image(this.coverUrlFor(song))
+          .width(MusicListView.COVER_SIZE)
+          .height(MusicListView.COVER_SIZE)
+          .borderRadius(MusicListView.COVER_RADIUS)
+          .objectFit(ImageFit.Cover)
+          .flexShrink(0)
+          .margin({ right: 12 })
+      } else {
+        Column() {
+          Text('♪')
+            .fontSize(18)
+            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+        }
+        .width(MusicListView.COVER_SIZE)
+        .height(MusicListView.COVER_SIZE)
+        .borderRadius(MusicListView.COVER_RADIUS)
+        .backgroundColor(UiTokens.COLOR_CARD_BORDER)
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .flexShrink(0)
+        .margin({ right: 12 })
+      }
+    }
   }
 
   @Builder
@@ -182,6 +234,7 @@ export struct MusicListView {
       ForEach(this.songs, (song: Song, index: number) => {
         Column() {
           Row() {
+            this.buildAlbumCoverThumb(song)
             this.buildTitleBlock(song)
 
             Text(this.trailingMetaText(song))

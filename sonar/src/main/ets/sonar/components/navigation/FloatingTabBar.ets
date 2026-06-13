@@ -1,8 +1,8 @@
 import { BarToneCoordinator } from '../../ui/color/BarToneCoordinator';
 import {
   buildLibraryTabPage,
-  buildProfileTabPage,
-  buildServerTabPage
+  buildMusicTabPage,
+  buildProfileTabPage
 } from './RootTabPages';
 import { BarToneStore } from '../../ui/color/BarToneStore';
 import { BarToneSampler } from '../../ui/color/BarToneSampler';
@@ -37,14 +37,14 @@ export struct FloatingTabBar {
   private buildFallbackTabs() {
     Tabs({ barPosition: BarPosition.End, index: this.rootTabIndex }) {
       TabContent() {
-        buildLibraryTabPage()
+        buildMusicTabPage()
       }
       .tabBar($r('app.media.tab_library'))
 
       TabContent() {
-        buildServerTabPage()
+        buildLibraryTabPage()
       }
-      .tabBar($r('app.media.tab_server'))
+      .tabBar($r('app.media.tab_album'))
 
       TabContent() {
         buildProfileTabPage()

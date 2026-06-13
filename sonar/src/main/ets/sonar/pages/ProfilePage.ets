@@ -11,7 +11,7 @@ import {
 } from '../ui/layout/SonarPageLayoutOptions';
 import { UiTokens } from '../ui/tokens/UiTokens';
 
-const LOGOUT_DESTINATION_TAB_INDEX: number = 1;
+const LOGOUT_DESTINATION_TAB_INDEX: number = 2;
 
 @Component
 export struct ProfilePage {
@@ -38,6 +38,32 @@ export struct ProfilePage {
   buildProfileBody() {
     Column({ space: UiTokens.SECTION_GAP }) {
       OuterScreenPreviewEntry()
+
+      CardContainer() {
+        Row() {
+          Column({ space: 4 }) {
+            Text('服务器')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
+            Text(this.isLoggedIn ? this.loggedInServer : '连接与登录设置')
+              .fontSize(12)
+              .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+          }
+          .alignItems(HorizontalAlign.Start)
+          .layoutWeight(1)
+          Text('›')
+            .fontSize(20)
+            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+        .onClick(() => {
+          this.appPathStack.pushPathByName('ServerPage', null);
+        })
+      }
 
       CardContainer() {
       Row() {
@@ -93,7 +119,7 @@ export struct ProfilePage {
           .fontSize(16)
           .fontWeight(FontWeight.Medium)
           .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-        Text(this.isLoggedIn ? this.loggedInServer : '请先在服务器页完成登录')
+        Text(this.isLoggedIn ? this.loggedInServer : '请在我的 > 服务器完成登录')
           .fontSize(12)
           .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
         if (this.isLoggedIn) {

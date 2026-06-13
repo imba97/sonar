@@ -2,7 +2,23 @@ import { LoginPage } from './LoginPage';
 import { AlbumDetailPage } from './AlbumDetailPage';
 import { CacheSettingsPage } from './CacheSettingsPage';
 import { ExportConfigPage } from './ExportConfigPage';
+import { ServerSettingsContent } from '../components/settings/ServerSettingsContent';
 import { SecondaryHdsDestination } from '../components/navigation/SecondaryHdsDestination';
+
+@Builder
+function buildServerSettingsContent() {
+  ServerSettingsContent()
+}
+
+@Component
+struct ServerNavPage {
+  build() {
+    SecondaryHdsDestination({
+      title: '服务器',
+      content: buildServerSettingsContent
+    })
+  }
+}
 
 @Builder
 function buildCacheSettingsContent() {
@@ -60,6 +76,8 @@ export function PageMap(name: string) {
     CacheSettingsNavPage()
   } else if (name === 'ExportConfigPage') {
     ExportConfigNavPage()
+  } else if (name === 'ServerPage') {
+    ServerNavPage()
   } else {
     NavDestination() {
       buildUnknownPage(name)

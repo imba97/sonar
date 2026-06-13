@@ -34,7 +34,7 @@ export struct ExportConfigPage {
       return;
     }
     if (!this.hasRememberedInfo) {
-      this.errorMessage = '请先在服务器页完成登录';
+      this.errorMessage = '请在我的 > 服务器完成登录';
       return;
     }
     this.isGenerating = true;
@@ -75,7 +75,7 @@ export struct ExportConfigPage {
           .alignSelf(ItemAlign.Start)
 
         if (!this.hasRememberedInfo) {
-          Text('请先在服务器页完成登录')
+          Text('请在我的 > 服务器完成登录')
             .fontSize(13)
             .fontColor(UiTokens.COLOR_ERROR)
             .alignSelf(ItemAlign.Start)

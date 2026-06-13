@@ -3,7 +3,9 @@ import {
   AlbumDetailResponse,
   AlbumListResponse,
   ArtistsResponse,
+  MusicListKind,
   SearchResponse,
+  Song,
   SubsonicEnvelope
 } from './SubsonicTypes';
 import { MediaResourceService } from '../network/media/MediaResourceService';
@@ -50,6 +52,20 @@ export class SubsonicClient {
 
   async getAlbumList2(type: string = 'newest', size: number = 60, offset: number = 0): Promise<AlbumListResponse> {
     return await SubsonicApi.getAlbumList2(type, size, offset);
+  }
+
+  async getRandomSongs(size: number = 100): Promise<Song[]> {
+    return await SubsonicApi.getRandomSongs(size);
+  }
+
+  async getSongsViaAlbumList(type: MusicListKind, albumBatchSize: number,
+    albumOffset: number): Promise<Song[]> {
+    if (type === 'random') {
+      return await SubsonicApi.getRandomSongs(100);
+    }
+    const albumType: string = type === 'frequent' ? 'frequent' :
+      (type === 'recent' ? 'recent' : 'newest');
+    return await SubsonicApi.getSongsViaAlbumList(albumType, albumBatchSize, albumOffset);
   }
 
   async getAlbum(id: string): Promise<AlbumDetailResponse> {

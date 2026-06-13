@@ -1,0 +1,225 @@
+import { MusicListKind, Song } from '../api/SubsonicTypes';
+import { SubsonicClient } from '../api/SubsonicClient';
+import { AuthSession } from '../auth/AuthSession';
+import { MusicTabSettingsStore } from '../settings/MusicTabSettingsStore';
+
+export const RANDOM_SONGS_SIZE: number = 100;
+export const MUSIC_PAGE_SIZE: number = 60;
+const ALBUM_BATCH_SIZE: number = 12;
+
+@Observed
+export class MusicViewModel {
+  kind: MusicListKind = 'random';
+  songs: Song[] = [];
+  searchQuery: string = '';
+  isSearchMode: boolean = false;
+  isLoading: boolean = false;
+  isLoadingMore: boolean = false;
+  hasMore: boolean = false;
+  errorMessage: string = '';
+  authExpired: boolean = false;
+  private albumListOffset: number = 0;
+  private randomSongsCache: Song[] = [];
+  private randomFetched: boolean = false;
+
+  reset(): void {
+    this.songs = [];
+    this.searchQuery = '';
+    this.isSearchMode = false;
+    this.isLoading = false;
+    this.isLoadingMore = false;
+    this.hasMore = false;
+    this.errorMessage = '';
+    this.authExpired = false;
+    this.albumListOffset = 0;
+    this.randomSongsCache = [];
+    this.randomFetched = false;
+  }
+
+  async restoreKindFromStore(): Promise<void> {
+    await MusicTabSettingsStore.getInstance().ensureReady();
+    this.kind = MusicTabSettingsStore.getInstance().getKind();
+  }
+
+  async setKind(nextKind: MusicListKind): Promise<void> {
+    if (this.kind === nextKind && !this.isSearchMode && this.songs.length > 0) {
+      return;
+    }
+    if (this.kind === 'random' && !this.isSearchMode && this.songs.length > 0) {
+      this.randomSongsCache = this.songs.slice();
+      this.randomFetched = true;
+    }
+    this.kind = nextKind;
+    await MusicTabSettingsStore.getInstance().setKind(nextKind);
+    await this.loadCurrentKind();
+  }
+
+  clearSearchMode(): void {
+    this.isSearchMode = false;
+    this.searchQuery = '';
+  }
+
+  async reloadRandom(): Promise<void> {
+    if (this.isLoading || this.kind !== 'random') {
+      return;
+    }
+    this.isSearchMode = false;
+    this.searchQuery = '';
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.authExpired = false;
+    this.hasMore = false;
+    this.albumListOffset = 0;
+    try {
+      const loaded: Song[] = await SubsonicClient.getInstance().getRandomSongs(RANDOM_SONGS_SIZE);
+      this.songs = loaded;
+      this.randomSongsCache = loaded.slice();
+      this.randomFetched = true;
+    } catch (err) {
+      await this.handleLoadError(err as Error);
+      this.songs = [];
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async loadCurrentKind(): Promise<void> {
+    if (this.isSearchMode) {
+      return;
+    }
+    if (this.kind === 'random') {
+      if (this.randomFetched && this.randomSongsCache.length > 0) {
+        this.songs = this.randomSongsCache.slice();
+        this.hasMore = false;
+        this.errorMessage = '';
+        this.authExpired = false;
+        return;
+      }
+      await this.reloadRandom();
+      return;
+    }
+    await this.loadAlbumDerived(true);
+  }
+
+  private async loadAlbumDerived(reset: boolean): Promise<void> {
+    if (this.isLoading) {
+      return;
+    }
+    if (reset) {
+      this.albumListOffset = 0;
+      this.songs = [];
+      this.hasMore = true;
+    }
+    this.isSearchMode = false;
+    this.searchQuery = '';
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.authExpired = false;
+    try {
+      const batch: Song[] = await SubsonicClient.getInstance().getSongsViaAlbumList(
+        this.kind, ALBUM_BATCH_SIZE, this.albumListOffset);
+      if (reset) {
+        this.songs = batch;
+      } else if (batch.length > 0) {
+        this.songs = MusicViewModel.mergeSongs(this.songs, batch);
+      }
+      this.albumListOffset += ALBUM_BATCH_SIZE;
+      this.hasMore = batch.length >= ALBUM_BATCH_SIZE;
+    } catch (err) {
+      await this.handleLoadError(err as Error);
+      if (reset) {
+        this.songs = [];
+      }
+      this.hasMore = false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  async loadMore(): Promise<void> {
+    if (this.kind === 'random' || this.isSearchMode || this.isLoading ||
+      this.isLoadingMore || !this.hasMore) {
+      return;
+    }
+    this.isLoadingMore = true;
+    try {
+      const batch: Song[] = await SubsonicClient.getInstance().getSongsViaAlbumList(
+        this.kind, ALBUM_BATCH_SIZE, this.albumListOffset);
+      if (batch.length > 0) {
+        this.songs = MusicViewModel.mergeSongs(this.songs, batch);
+      }
+      this.albumListOffset += ALBUM_BATCH_SIZE;
+      this.hasMore = batch.length >= ALBUM_BATCH_SIZE;
+    } catch (err) {
+      const expired: boolean = await AuthSession.invalidateIfAuthError(err as Error);
+      if (expired) {
+        this.authExpired = true;
+        this.errorMessage = '登录已失效，请重新登录';
+      }
+      this.hasMore = false;
+    } finally {
+      this.isLoadingMore = false;
+    }
+  }
+
+  async searchSongs(query: string): Promise<void> {
+    const normalized: string = query.trim();
+    if (normalized.length === 0) {
+      this.isSearchMode = false;
+      this.searchQuery = '';
+      await this.loadCurrentKind();
+      return;
+    }
+    if (this.isLoading) {
+      return;
+    }
+    this.searchQuery = normalized;
+    this.isSearchMode = true;
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.authExpired = false;
+    this.hasMore = false;
+    try {
+      const resp = await SubsonicClient.getInstance().search3(normalized, 0, 0, 50);
+      this.songs = resp.searchResult3?.song ?? [];
+    } catch (err) {
+      await this.handleLoadError(err as Error);
+      this.songs = [];
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+  private async handleLoadError(err: Error): Promise<void> {
+    const expired: boolean = await AuthSession.invalidateIfAuthError(err);
+    if (expired) {
+      this.authExpired = true;
+      this.errorMessage = '登录已失效，请重新登录';
+    } else {
+      this.errorMessage = err.message;
+    }
+  }
+
+  private static mergeSongs(existing: Song[], incoming: Song[]): Song[] {
+    const seen: Set<string> = new Set<string>();
+    const merged: Song[] = [];
+    for (let i: number = 0; i < existing.length; i++) {
+      seen.add(existing[i].id);
+      merged.push(existing[i]);
+    }
+    for (let i: number = 0; i < incoming.length; i++) {
+      if (!seen.has(incoming[i].id)) {
+        seen.add(incoming[i].id);
+        merged.push(incoming[i]);
+      }
+    }
+    return merged;
+  }
+
+  coverUrl(coverArt: string | undefined): string | undefined {
+    if (coverArt === undefined || coverArt.length === 0) {
+      return undefined;
+    }
+    return SubsonicClient.getInstance().getCoverArtUrl(coverArt, 120);
+  }
+}

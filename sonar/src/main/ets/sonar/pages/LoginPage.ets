@@ -94,7 +94,7 @@ export struct LoginPage {
       isEnabled: !this.vm.isLoading,
       onPressed: () => {
         this.vm.submit(() => {
-          AppStorage.setOrCreate<number>('rootTabIndex', 0);
+          AppStorage.setOrCreate<number>('rootTabIndex', 1);
           this.appPathStack.clear();
         });
       }
@@ -139,7 +139,7 @@ export struct LoginPage {
             this.selectLoginTab(0);
           },
           () => {
-            AppStorage.setOrCreate<number>('rootTabIndex', 0);
+            AppStorage.setOrCreate<number>('rootTabIndex', 1);
             this.appPathStack.clear();
           }
         );

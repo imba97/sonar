@@ -197,7 +197,7 @@ export struct LibraryPage {
         onKeywordChange: (value: string) => {
           this._searchKeyword = value;
         },
-        placeholder: '搜索媒体库',
+        placeholder: '搜索专辑',
         sidePadding: 0,
         onSubmit: () => {
           this.submitSearch();
@@ -213,7 +213,7 @@ export struct LibraryPage {
 
   @Builder
   private buildAlbumsList() {
-    List({ scroller: this.tabScrollerBridge.scrollerForTab(0) }) {
+    List({ scroller: this.tabScrollerBridge.scrollerForTab(1) }) {
       ListItemGroup({ header: this.buildLibrarySearchHeader }) {
       if (this.vm.isLoading && this.vm.albums.length === 0) {
         ListItem() {
@@ -245,7 +245,7 @@ export struct LibraryPage {
         ListItem() {
           EmptyState({
             title: this.vm.isSearchMode ? '未找到结果' : '暂无数据',
-            subtitle: this.vm.isSearchMode ? '试试更换关键词后再回车搜索' : '媒体库中还没有专辑'
+            subtitle: this.vm.isSearchMode ? '试试更换关键词后再回车搜索' : '还没有专辑'
           })
         }
       } else {
@@ -348,7 +348,7 @@ export struct LibraryPage {
     SonarPageLayout({
       options: {
         role: SonarPageRole.TAB_ROOT,
-        barToneTabIndex: 0,
+        barToneTabIndex: 1,
         scrollMode: SonarScrollMode.SCROLL
       },
       content: this.buildBootingBody
@@ -360,7 +360,7 @@ export struct LibraryPage {
     SonarPageLayout({
       options: {
         role: SonarPageRole.TAB_ROOT,
-        barToneTabIndex: 0,
+        barToneTabIndex: 1,
         scrollMode: SonarScrollMode.SCROLL
       },
       content: this.buildAnonymousBody
@@ -379,7 +379,7 @@ export struct LibraryPage {
       colors: [[UiTokens.COLOR_BG_GRADIENT_TOP, 0], [UiTokens.COLOR_BG_GRADIENT_BOTTOM, 1]]
     })
     .expandSafeArea([SafeAreaType.SYSTEM], [SafeAreaEdge.TOP, SafeAreaEdge.BOTTOM])
-    .id('bar-tone-probe-0')
+    .id('bar-tone-probe-1')
   }
 
   build() {

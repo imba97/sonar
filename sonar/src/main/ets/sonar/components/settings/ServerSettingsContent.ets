@@ -1,27 +1,13 @@
-import { SonicApiEntryModule } from '../view/SonicApiEntryModule';
-import { CardContainer } from '../components/layout/CardContainer';
-import { SonarPageLayout } from '../components/layout/SonarPageLayout';
-import {
-  SonarPageLayoutOptions,
-  SonarPageRole,
-  SonarScrollMode
-} from '../ui/layout/SonarPageLayoutOptions';
-import { UiTokens } from '../ui/tokens/UiTokens';
+import { SonicApiEntryModule } from '../../view/SonicApiEntryModule';
+import { CardContainer } from '../layout/CardContainer';
+import { UiTokens } from '../../ui/tokens/UiTokens';
 
 @Component
-export struct ServerPage {
+export struct ServerSettingsContent {
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('loggedInServer') loggedInServer: string = '';
   @StorageLink('loggedInEndpoint') loggedInEndpoint: string = 'remote';
   @StorageLink('networkType') networkType: string = 'none';
-
-  private layoutOptions(): SonarPageLayoutOptions {
-    return {
-      role: SonarPageRole.TAB_ROOT,
-      barToneTabIndex: 1,
-      scrollMode: SonarScrollMode.SCROLL
-    };
-  }
 
   private describeNetworkType(): string {
     switch (this.networkType) {
@@ -59,8 +45,7 @@ export struct ServerPage {
     .alignItems(HorizontalAlign.Start)
   }
 
-  @LocalBuilder
-  buildServerBody() {
+  build() {
     Column({ space: UiTokens.SECTION_GAP }) {
       SonicApiEntryModule()
 
@@ -69,12 +54,5 @@ export struct ServerPage {
       }
     }
     .width('100%')
-  }
-
-  build() {
-    SonarPageLayout({
-      options: this.layoutOptions(),
-      content: this.buildServerBody
-    })
   }
 }

@@ -36,7 +36,8 @@ year
 genre
 created
 playCount
-starred
+randomSongs
+albumId
 parent
 isDir
 track
@@ -45,6 +46,7 @@ contentType
 suffix
 bitRate
 path
+starred
 
 # 本地配置与缓存 JSON 字段
 -keep-property-name

@@ -84,13 +84,26 @@ export interface Song {
   year?: number;
   genre?: string;
   coverArt?: string;
+  albumId?: string;
   size: number;
   contentType?: string;
   suffix?: string;
   duration: number;
   bitRate?: number;
   path?: string;
+  playCount?: number;
+  created?: string;
   starred?: string;
+}
+
+export type MusicListKind = 'random' | 'frequent' | 'recent' | 'newest';
+
+export interface RandomSongsContainer {
+  song: Song[];
+}
+
+export interface RandomSongsResponse extends SubsonicEnvelope {
+  randomSongs: RandomSongsContainer;
 }
 
 export interface AlbumDetailRouteParam {

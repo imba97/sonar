@@ -32,11 +32,16 @@ export struct MiniBarRow {
   private colorAnimator: BarToneColorAnimator = new BarToneColorAnimator();
   private hideOverlayTimerId: number = -1;
   private lastSyncedTrackId: string = '';
+  private lastSyncedPlaying: boolean = false;
   private readonly playlistSheetController: PlaylistSheetController = PlaylistSheetController.getInstance();
 
   aboutToAppear(): void {
     this.lastSyncedTrackId = this.playback.track !== null ? this.playback.track.id : '';
+    this.lastSyncedPlaying = this.playback.isPlaying();
     this.applyDisplayColors(false);
+    if (this.hasActiveTrack() && !this.lastSyncedPlaying && this.canTogglePlayback()) {
+      this.revealCoverControl(false);
+    }
   }
 
   aboutToDisappear(): void {
@@ -48,14 +53,22 @@ export struct MiniBarRow {
     const trackId: string = this.playback.track !== null ? this.playback.track.id : '';
     if (trackId !== this.lastSyncedTrackId) {
       this.lastSyncedTrackId = trackId;
+      this.lastSyncedPlaying = this.playback.isPlaying();
       this.clearHideOverlayTimer();
       this.coverControlOpacity = 0;
       return;
     }
     if (this.playback.isCoverLoading()) {
+      this.lastSyncedPlaying = this.playback.isPlaying();
       this.clearHideOverlayTimer();
       this.coverControlOpacity = 0;
+      return;
     }
+    const isPlaying: boolean = this.playback.isPlaying();
+    if (this.lastSyncedPlaying && !isPlaying && this.canTogglePlayback()) {
+      this.revealCoverControl(false);
+    }
+    this.lastSyncedPlaying = isPlaying;
   }
 
   private clearHideOverlayTimer(): void {

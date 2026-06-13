@@ -5,13 +5,26 @@
         "name": "debug",
         "type": "HarmonyOS",
         "material": {
-          "storeFile": "D:/sonar-certificate/SonarDebug.p12",
-          "storePassword": "0000001EF0B09ADBE8B5619282E096F6FCC3988C87F846FEC4315765006FAF6D755221C4FDE9CFBFC0B9BEECF5C8",
+          "storeFile": "D:/sonar-certificate/debug/SonarDebug.p12",
+          "storePassword": "0000001E94FE1FFA66CD8290F23A141CA2AEC67357E9A00BE935FB0E8B33B8865FF99E95E918D14B40ECA0943937",
           "keyAlias": "sonar-debug",
-          "keyPassword": "0000001E4186D37582D2FEC05940BFD5AFD66A0E21642E3FD9DB8F40D8663E0532185DBFFAE0B0F48B2A10F6B2EC",
+          "keyPassword": "0000001E059EB630635C742D2C88661308D8C9B92CB001D62E31597CB954BF333817B4CCB559359C1DCB74AAECA0",
           "signAlg": "SHA256withECDSA",
-          "profile": "D:/sonar-certificate/SonarDebugDebug.p7b",
-          "certpath": "D:/sonar-certificate/SonarDebug.cer"
+          "profile": "D:/sonar-certificate/debug/SonarDebugDebug.p7b",
+          "certpath": "D:/sonar-certificate/debug/SonarDebug.cer"
+        }
+      },
+      {
+        "name": "release",
+        "type": "HarmonyOS",
+        "material": {
+          "storeFile": "D:/sonar-certificate/release/SonarRelease.p12",
+          "storePassword": "0000001EABF9885A4B22F20E7AF8F01A0741B34CC9AFA3434349F6072CA9986121D84A16A0180EF9CA07FC75F395",
+          "keyAlias": "sonar-release",
+          "keyPassword": "0000001E1297764E1CED13A11AA51BF6F3739482FFFC9DC0841878EEC651E8B52A583FE6096553123927495BD0D6",
+          "signAlg": "SHA256withECDSA",
+          "profile": "D:/sonar-certificate/release/SonarReleaseRelease.p7b",
+          "certpath": "D:/sonar-certificate/release/SonarRelease.cer"
         }
       }
     ],
@@ -28,14 +41,34 @@
             "useNormalizedOHMUrl": true
           }
         }
+      },
+      {
+        "name": "release",
+        "signingConfig": "release",
+        "targetSdkVersion": "6.1.1(24)",
+        "compatibleSdkVersion": "6.1.0(23)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "debuggable": false,
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
       }
     ],
     "buildModeSet": [
       {
         "name": "debug",
+        "buildOption": {
+          "debuggable": true
+        }
       },
       {
-        "name": "release"
+        "name": "release",
+        "buildOption": {
+          "debuggable": false
+        }
       }
     ]
   },
@@ -47,7 +80,8 @@
         {
           "name": "default",
           "applyToProducts": [
-            "default"
+            "default",
+            "release"
           ]
         }
       ]

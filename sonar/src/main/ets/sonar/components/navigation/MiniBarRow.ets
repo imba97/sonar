@@ -1,6 +1,6 @@
 import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
-import { PlaylistSheetOpener } from '../playlist/PlaylistSheetOpener';
+import { PlaylistSheetController } from '../playlist/PlaylistSheetController';
 import { BarToneColorAnimator } from '../../ui/color/BarToneColorAnimator';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { AutoMarqueeText } from '../layout/AutoMarqueeText';
@@ -32,6 +32,7 @@ export struct MiniBarRow {
   private colorAnimator: BarToneColorAnimator = new BarToneColorAnimator();
   private hideOverlayTimerId: number = -1;
   private lastSyncedTrackId: string = '';
+  private readonly playlistSheetController: PlaylistSheetController = PlaylistSheetController.getInstance();
 
   aboutToAppear(): void {
     this.lastSyncedTrackId = this.playback.track !== null ? this.playback.track.id : '';
@@ -152,10 +153,16 @@ export struct MiniBarRow {
     void PlaybackService.toggle();
   }
 
-  private onSwipeUpEnd(event: GestureEvent): void {
-    if (event.offsetY <= -UiTokens.MINI_BAR_SWIPE_UP_THRESHOLD_VP) {
-      PlaylistSheetOpener.requestOpen();
-    }
+  private onPlaylistSheetPanStart(): void {
+    this.playlistSheetController.beginDrag();
+  }
+
+  private onPlaylistSheetPanUpdate(event: GestureEvent): void {
+    this.playlistSheetController.updateDragHeight(event.offsetY);
+  }
+
+  private onPlaylistSheetPanEnd(event: GestureEvent): void {
+    this.playlistSheetController.endDrag(event.offsetY, event.velocityY);
   }
 
   private titleText(): string {
@@ -313,9 +320,15 @@ export struct MiniBarRow {
       .justifyContent(FlexAlign.Start)
       .clip(true)
       .priorityGesture(
-        PanGesture({ direction: PanDirection.Up, distance: 1 })
+        PanGesture({ direction: PanDirection.Vertical, distance: 1 })
+          .onActionStart(() => {
+            this.onPlaylistSheetPanStart();
+          })
+          .onActionUpdate((event: GestureEvent) => {
+            this.onPlaylistSheetPanUpdate(event);
+          })
           .onActionEnd((event: GestureEvent) => {
-            this.onSwipeUpEnd(event);
+            this.onPlaylistSheetPanEnd(event);
           })
       )
     } else {

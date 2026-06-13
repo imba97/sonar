@@ -1,10 +1,9 @@
-import { AlbumDetailRouteParam, Song } from '../api/SubsonicTypes';
-import { SongCache } from '../cache/SongCache';
+import { AlbumDetailRouteParam } from '../api/SubsonicTypes';
 import { AlbumDetailViewModel } from '../viewmodel/AlbumDetailViewModel';
 import { LoadingState } from '../components/feedback/LoadingState';
 import { ErrorState } from '../components/feedback/ErrorState';
-import { TagButton, TagButtonMenuItem } from '../components/buttons/TagButton';
-import { CardContainer } from '../components/layout/CardContainer';
+import { MoreMenuIconButton } from '../components/buttons/MoreMenuIconButton';
+import { MusicListView } from '../components/lists/MusicListView';
 import { SecondaryHdsDestination } from '../components/navigation/SecondaryHdsDestination';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
@@ -17,44 +16,73 @@ export struct AlbumDetailPage {
   @State vm: AlbumDetailViewModel = new AlbumDetailViewModel();
   @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
   @State private albumId: string = '';
+  @State private _playAllLoading: boolean = false;
 
   private showToast(message: string): void {
     ToastUtil.show(this, message, 1600);
   }
 
-  private buildSongMenuItems(song: Song): TagButtonMenuItem[] {
-    return [
-      {
-        value: '下一首播放',
-        action: (): void => {
-          void PlaybackService.enqueueNext(song);
-          this.showToast(`已加入下一首：${song.title}`);
-        }
-      },
-      {
-        value: '下载',
-        action: (): void => {
-          if (SongCache.isComplete(song.id)) {
-            this.showToast(`已在缓存中：${song.title}`);
-          } else {
-            void SongCache.enqueueDownload(song.id);
-            this.showToast(`已加入下载：${song.title}`);
+  @Builder
+  buildAlbumCoverMenu() {
+    MoreMenuIconButton({
+      useDarkOverlay: true,
+      menuItems: [
+        {
+          value: '播放全部',
+          action: (): void => {
+            void this.playAllAlbum();
+          }
+        },
+        {
+          value: '添加到播放列表',
+          action: (): void => {
+            void this.appendAlbumToPlaylist();
           }
         }
-      },
-      {
-        value: '详情',
-        action: (): void => {
-          this.showToast(`跳转音乐详情：${song.title}`);
-        }
-      }
-    ];
+      ]
+    })
+      .margin(6)
   }
 
-  private playSong(index: number, song: Song): void {
-    const albumCover: string = this.vm.album?.coverArt ?? '';
-    void PlaybackService.playQueue(this.vm.songs, index, albumCover);
-    this.showToast(`开始播放：${song.title}`);
+  private async appendAlbumToPlaylist(): Promise<void> {
+    if (this.vm.album === null) {
+      return;
+    }
+    try {
+      const added: number = await PlaybackService.appendAlbumToPlaylist(this.vm.album.id);
+      const title: string = this.vm.album.title ?? this.vm.album.name ?? '专辑';
+      if (added > 0) {
+        this.showToast(`已添加 ${added} 首到播放列表：${title}`);
+      } else {
+        this.showToast(`曲目已在播放列表中：${title}`);
+      }
+    } catch (err) {
+      const message: string = (err as Error).message;
+      this.showToast(message.length > 0 ? message : '添加失败');
+    }
+  }
+
+  private async playAllAlbum(): Promise<void> {
+    if (this.vm.album === null || this._playAllLoading) {
+      return;
+    }
+    this._playAllLoading = true;
+    try {
+      const coverArt: string = this.vm.album.coverArt ?? '';
+      await PlaybackService.playQueue(this.vm.songs, 0, coverArt);
+      PlaybackService.setPlaybackMode('listLoop');
+      const title: string = this.vm.album.title ?? this.vm.album.name ?? '专辑';
+      this.showToast(`开始播放：${title}`);
+    } catch (err) {
+      const message: string = (err as Error).message;
+      if (message === 'EMPTY_ALBUM') {
+        this.showToast('暂无曲目');
+      } else {
+        this.showToast(message.length > 0 ? message : '加载专辑失败');
+      }
+    } finally {
+      this._playAllLoading = false;
+    }
   }
 
   async aboutToAppear(): Promise<void> {
@@ -74,26 +102,32 @@ export struct AlbumDetailPage {
   @LocalBuilder
   buildAlbumHeader() {
     Column() {
-      if (this.vm.album !== null && this.vm.album.coverArt !== undefined && this.vm.album.coverArt.length > 0) {
-        Image(this.vm.coverUrl(this.vm.album.coverArt))
+      Stack({ alignContent: Alignment.TopEnd }) {
+        if (this.vm.album !== null && this.vm.album.coverArt !== undefined && this.vm.album.coverArt.length > 0) {
+          Image(this.vm.coverUrl(this.vm.album.coverArt))
+            .width(180)
+            .height(180)
+            .borderRadius(18)
+            .objectFit(ImageFit.Cover)
+            .alt('#E5E5EA')
+        } else {
+          Column() {
+            Text('♪')
+              .fontSize(56)
+              .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+          }
           .width(180)
           .height(180)
           .borderRadius(18)
-          .objectFit(ImageFit.Cover)
-          .alt('#E5E5EA')
-      } else {
-        Column() {
-          Text('♪')
-            .fontSize(56)
-            .fontColor(UiTokens.COLOR_TEXT_TERTIARY)
+          .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
+          .justifyContent(FlexAlign.Center)
+          .alignItems(HorizontalAlign.Center)
         }
-        .width(180)
-        .height(180)
-        .borderRadius(18)
-        .backgroundColor(UiTokens.COLOR_PLACEHOLDER_BG)
-        .justifyContent(FlexAlign.Center)
-        .alignItems(HorizontalAlign.Center)
+        this.buildAlbumCoverMenu()
       }
+      .width(180)
+      .height(180)
+
       if (this.vm.album !== null) {
         Text(this.vm.album.title ?? this.vm.album.name ?? '未知专辑')
           .fontSize(20)
@@ -115,41 +149,14 @@ export struct AlbumDetailPage {
 
   @LocalBuilder
   buildSongList() {
-    Column({ space: 8 }) {
-      ForEach(this.vm.songs, (song: Song, index: number) => {
-        CardContainer() {
-          Row() {
-            Column() {
-              Text(`${index + 1}. ${song.title}`)
-                .fontSize(14)
-                .fontWeight(FontWeight.Medium)
-                .fontColor(UiTokens.COLOR_TEXT_PRIMARY)
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-              Text(song.artist)
-                .fontSize(12)
-                .fontColor(UiTokens.COLOR_TEXT_SECONDARY)
-                .margin({ top: 4 })
-                .maxLines(1)
-                .textOverflow({ overflow: TextOverflow.Ellipsis })
-            }
-            .layoutWeight(1)
-            .alignItems(HorizontalAlign.Start)
-
-            TagButton({
-              text: '更多',
-              menuItems: this.buildSongMenuItems(song)
-            })
-          }
-          .width('100%')
-          .onClick(() => {
-            this.playSong(index, song);
-          })
-        }
-      }, (song: Song) => song.id)
-    }
-    .width('100%')
-    .padding({ bottom: 16 })
+    MusicListView({
+      songs: this.vm.songs,
+      highlightSongId: this.playback.track !== null ? this.playback.track.id : '',
+      listVariant: 'album',
+      showArtist: false,
+      albumCoverArtId: this.vm.album?.coverArt ?? ''
+    })
+      .padding({ bottom: 16 })
   }
 
   @LocalBuilder

@@ -73,6 +73,7 @@ export struct LibraryPage {
     this._playAllLoading = true;
     try {
       await PlaybackService.playAlbumAll(album);
+      PlaybackService.setPlaybackMode('listLoop');
       const title: string = album.title ?? album.name ?? '专辑';
       this.showToast(`开始播放：${title}`);
     } catch (err) {
@@ -84,6 +85,21 @@ export struct LibraryPage {
       }
     } finally {
       this._playAllLoading = false;
+    }
+  }
+
+  private async appendAlbumToPlaylist(album: Album): Promise<void> {
+    try {
+      const added: number = await PlaybackService.appendAlbumToPlaylist(album.id);
+      const title: string = album.title ?? album.name ?? '专辑';
+      if (added > 0) {
+        this.showToast(`已添加 ${added} 首到播放列表：${title}`);
+      } else {
+        this.showToast(`曲目已在播放列表中：${title}`);
+      }
+    } catch (err) {
+      const message: string = (err as Error).message;
+      this.showToast(message.length > 0 ? message : '添加失败');
     }
   }
 
@@ -127,6 +143,12 @@ export struct LibraryPage {
           value: '播放全部',
           action: (): void => {
             void this.playAllAlbum(album);
+          }
+        },
+        {
+          value: '添加到播放列表',
+          action: (): void => {
+            void this.appendAlbumToPlaylist(album);
           }
         }
       ])

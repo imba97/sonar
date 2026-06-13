@@ -1,5 +1,6 @@
 import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackSnapshot } from '../../playback/PlaybackSnapshot';
+import { PlaylistSheetOpener } from '../playlist/PlaylistSheetOpener';
 import { BarToneColorAnimator } from '../../ui/color/BarToneColorAnimator';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 import { MiniBarCoverDisc } from './MiniBarCoverDisc';
@@ -90,6 +91,25 @@ export struct MiniBarRow {
     .alignItems(HorizontalAlign.Center)
     .onClick(() => {
       onTap();
+    })
+  }
+
+  @Builder
+  private queueButton(iconSize: number) {
+    Column() {
+      Image($r('app.media.cb_queue'))
+        .width(iconSize)
+        .height(iconSize)
+        .fillColor(this.displayPrimary)
+        .animation({ duration: BAR_TONE_COLOR_ANIM_MS, curve: TONE_COLOR_ANIM_CURVE })
+    }
+    .width(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .height(UiTokens.MINI_PLAYER_ACTION_TOUCH_SIZE)
+    .justifyContent(FlexAlign.Center)
+    .alignItems(HorizontalAlign.Center)
+    .accessibilityText('播放列表')
+    .onClick(() => {
+      PlaylistSheetOpener.requestOpen();
     })
   }
 
@@ -186,14 +206,17 @@ export struct MiniBarRow {
       .justifyContent(FlexAlign.Center)
 
       Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
-        this.playPauseButton(22)
-        this.actionIcon($r('app.media.cb_next'), 22, () => {
-          void PlaybackService.playNext(true);
-        })
-        this.playbackModeButton(20)
+        if (this.hasActiveTrack()) {
+          this.playPauseButton(22)
+          this.actionIcon($r('app.media.cb_next'), 22, () => {
+            void PlaybackService.playNext(true);
+          })
+          this.playbackModeButton(20)
+        }
+        this.queueButton(20)
       }
       .flexShrink(0)
-      .visibility(this.hasActiveTrack() ? Visibility.Visible : Visibility.None)
+      .padding({ right: UiTokens.MINI_BAR_HORIZONTAL_INSET })
     }
     .width('100%')
     .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)

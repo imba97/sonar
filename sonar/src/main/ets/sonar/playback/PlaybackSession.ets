@@ -16,7 +16,7 @@ import { SongCache } from '../cache/SongCache';
 import { SongCacheStore } from '../cache/SongCacheStore';
 import { CoverCache } from './CoverCache';
 import { MediaCenter, MediaCenterCommands } from './MediaCenter';
-import { resolveNextIndex, resolvePreviousIndex } from './PlaybackModeResolver';
+import { resolveNextPlayback, resolvePreviousPlayback } from './PlaybackModeResolver';
 import {
   buildNowPlayingTrack,
   NowPlayingTrack,
@@ -24,7 +24,10 @@ import {
   PlaybackPhase,
   PlaybackSnapshot
 } from './PlaybackSnapshot';
+import { PlaylistSnapshot } from './PlaylistSnapshot';
+import { PlaylistStore } from './PlaylistStore';
 import { PlaybackStore } from './PlaybackStore';
+import { ShuffleController } from './ShuffleController';
 import { PlaybackSwitch, PlaybackSwitchHost } from './PlaybackSwitch';
 
 const HEARTBEAT_INTERVAL_MS: number = 15_000;
@@ -126,9 +129,12 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private context: common.UIAbilityContext | null = null;
   private readonly orchestrator: PipelineOrchestrator = new PipelineOrchestrator();
   private readonly mediaCenter: MediaCenter = new MediaCenter();
-  private queue: Song[] = [];
+  private displayQueue: Song[] = [];
   private currentIndex: number = -1;
   private currentMode: PlaybackMode = 'listLoop';
+  private shuffleOrder: number[] = [];
+  private shuffleCursor: number = 0;
+  private playlistRevision: number = 0;
   private coverRevision: number = 0;
   private currentCover: image.PixelMap | null = null;
   private currentCoverId: string = '';
@@ -182,6 +188,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       return;
     }
     PlaybackStore.init(PlaybackSnapshot.idle());
+    PlaylistStore.init(PlaylistSnapshot.empty());
     await this.orchestrator.initialize();
     PlaybackPipeline.setNetworkPathChangedHandler((event: EndpointChangeEvent) => {
       return this.handleNetworkPathChanged(event);
@@ -203,25 +210,58 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await CoverCache.releaseAll();
     this.releaseActiveStream();
     this.releaseCover();
-    this.queue = [];
+    this.displayQueue = [];
     this.currentIndex = -1;
+    this.shuffleOrder = [];
+    this.shuffleCursor = 0;
     this.previewTrack = null;
     this.isBuffering = false;
     this.initialized = false;
     this.snapshot = PlaybackSnapshot.idle();
     PlaybackStore.publish(this.snapshot);
+    this.publishPlaylist();
+  }
+
+  setPlaybackMode(mode: PlaybackMode): PlaybackMode {
+    if (this.currentMode === mode) {
+      return this.currentMode;
+    }
+    this.applyModeChange(mode);
+    return this.currentMode;
   }
 
   togglePlaybackMode(): PlaybackMode {
+    let nextMode: PlaybackMode = 'listLoop';
     if (this.currentMode === 'listLoop') {
-      this.currentMode = 'singleLoop';
+      nextMode = 'singleLoop';
     } else if (this.currentMode === 'singleLoop') {
-      this.currentMode = 'random';
-    } else {
-      this.currentMode = 'listLoop';
+      nextMode = 'random';
     }
-    this.publishSnapshot(this.snapshot.phase, true);
+    this.applyModeChange(nextMode);
     return this.currentMode;
+  }
+
+  private applyModeChange(nextMode: PlaybackMode): void {
+    if (this.currentMode === 'random' && nextMode !== 'random') {
+      this.shuffleOrder = [];
+      this.shuffleCursor = 0;
+    }
+    if (nextMode === 'random' && this.currentMode !== 'random' &&
+      this.currentIndex >= 0 && this.displayQueue.length > 0) {
+      this.shuffleOrder = ShuffleController.buildShuffleOrder(this.displayQueue.length, this.currentIndex);
+      this.shuffleCursor = 0;
+    }
+    this.currentMode = nextMode;
+    this.publishSnapshot(this.snapshot.phase, true);
+  }
+
+  private publishPlaylist(): void {
+    this.playlistRevision += 1;
+    PlaylistStore.publish(new PlaylistSnapshot(
+      this.displayQueue.map((item: Song) => item),
+      this.currentIndex,
+      this.playlistRevision
+    ));
   }
 
   async playQueue(songs: Song[], index: number, albumCoverArtId?: string): Promise<void> {
@@ -233,9 +273,12 @@ export class PlaybackSession implements PlaybackSwitchHost {
     const targetSong: Song = songs[safeIndex];
     const previewTrack: NowPlayingTrack = buildNowPlayingTrack(targetSong, this.albumCoverFallbackId);
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.queue = songs.map((item: Song) => item);
+    this.displayQueue = songs.map((item: Song) => item);
     this.currentIndex = safeIndex;
+    this.shuffleOrder = [];
+    this.shuffleCursor = 0;
     await PlaybackSwitch.commitSwitch(this, true);
+    this.publishPlaylist();
   }
 
   async playAlbumAll(album: Album): Promise<void> {
@@ -255,19 +298,126 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async enqueueNext(song: Song): Promise<void> {
-    if (this.queue.length === 0 || this.currentIndex < 0) {
-      this.queue = [song];
+    if (this.displayQueue.length === 0 || this.currentIndex < 0) {
+      this.displayQueue = [song];
       this.currentIndex = 0;
+      this.shuffleOrder = [];
+      this.shuffleCursor = 0;
       this.albumCoverFallbackId = song.coverArt ?? this.albumCoverFallbackId;
       const previewTrack: NowPlayingTrack = buildNowPlayingTrack(song, this.albumCoverFallbackId);
       await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
       await PlaybackSwitch.commitSwitch(this, true);
+      this.publishPlaylist();
       return;
     }
     const nextInsertIndex: number = this.currentIndex + 1;
-    const before: Song[] = this.queue.slice(0, nextInsertIndex);
-    const after: Song[] = this.queue.slice(nextInsertIndex);
-    this.queue = [...before, song, ...after];
+    const before: Song[] = this.displayQueue.slice(0, nextInsertIndex);
+    const after: Song[] = this.displayQueue.slice(nextInsertIndex);
+    this.displayQueue = [...before, song, ...after];
+    if (this.currentMode === 'random' && this.shuffleOrder.length > 0) {
+      this.shuffleOrder = ShuffleController.remapAfterInsert(
+        this.shuffleOrder,
+        nextInsertIndex,
+        this.shuffleCursor
+      );
+    }
+    this.publishPlaylist();
+  }
+
+  async appendToPlaylist(songs: Song[]): Promise<number> {
+    if (songs.length === 0) {
+      return 0;
+    }
+    const existingIds: Set<string> = new Set<string>();
+    for (let i: number = 0; i < this.displayQueue.length; i++) {
+      existingIds.add(this.displayQueue[i].id);
+    }
+    const toAdd: Song[] = [];
+    for (let i: number = 0; i < songs.length; i++) {
+      if (!existingIds.has(songs[i].id)) {
+        toAdd.push(songs[i]);
+        existingIds.add(songs[i].id);
+      }
+    }
+    if (toAdd.length === 0) {
+      return 0;
+    }
+    const startIndex: number = this.displayQueue.length;
+    this.displayQueue = [...this.displayQueue, ...toAdd];
+    if (this.currentMode === 'random' && this.shuffleOrder.length > 0) {
+      for (let i: number = 0; i < toAdd.length; i++) {
+        this.shuffleOrder.push(startIndex + i);
+      }
+    }
+    this.publishPlaylist();
+    return toAdd.length;
+  }
+
+  async appendAlbumToPlaylist(albumId: string): Promise<number> {
+    const resp = await SubsonicClient.getInstance().getAlbum(albumId);
+    const songs: Song[] = resp.album.song ?? [];
+    return this.appendToPlaylist(songs);
+  }
+
+  async playFromPlaylistIndex(index: number): Promise<void> {
+    if (index < 0 || index >= this.displayQueue.length) {
+      return;
+    }
+    const targetSong: Song = this.displayQueue[index];
+    const previewTrack: NowPlayingTrack = buildNowPlayingTrack(targetSong, this.albumCoverFallbackId);
+    await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
+    this.currentIndex = index;
+    if (this.currentMode === 'random') {
+      const cursor: number = ShuffleController.findCursorForIndex(this.shuffleOrder, index);
+      if (cursor >= 0) {
+        this.shuffleCursor = cursor;
+      } else {
+        this.shuffleOrder = ShuffleController.buildShuffleOrder(this.displayQueue.length, index);
+        this.shuffleCursor = 0;
+      }
+    }
+    await PlaybackSwitch.commitSwitch(this, true);
+    this.publishPlaylist();
+  }
+
+  async removeFromPlaylist(index: number): Promise<void> {
+    if (index < 0 || index >= this.displayQueue.length) {
+      return;
+    }
+    const removingCurrent: boolean = index === this.currentIndex;
+    this.displayQueue = [
+      ...this.displayQueue.slice(0, index),
+      ...this.displayQueue.slice(index + 1)
+    ];
+    if (this.currentIndex > index) {
+      this.currentIndex -= 1;
+    } else if (removingCurrent) {
+      if (this.displayQueue.length === 0) {
+        this.currentIndex = -1;
+        await this.stopEngineAndClearBuffers();
+        this.clearPreview();
+        this.pipelinePhase = 'idle';
+        this.publishSnapshot('idle', true);
+        this.publishPlaylist();
+        await BackgroundPlayback.stop();
+        PlaybackPipeline.onTrackStopped();
+      } else if (this.currentIndex >= this.displayQueue.length) {
+        this.currentIndex = this.displayQueue.length - 1;
+        await this.playFromPlaylistIndex(this.currentIndex);
+        return;
+      }
+    }
+    if (this.currentMode === 'random' && this.shuffleOrder.length > 0) {
+      this.shuffleOrder = ShuffleController.remapAfterRemove(this.shuffleOrder, index);
+      if (this.shuffleCursor >= this.shuffleOrder.length) {
+        this.shuffleCursor = Math.max(0, this.shuffleOrder.length - 1);
+      }
+      const cursor: number = ShuffleController.findCursorForIndex(this.shuffleOrder, this.currentIndex);
+      if (cursor >= 0) {
+        this.shuffleCursor = cursor;
+      }
+    }
+    this.publishPlaylist();
   }
 
   async toggle(): Promise<void> {
@@ -279,7 +429,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.publishSnapshot('paused', true);
       return;
     }
-    if (this.getCurrentSong() === null && this.queue.length > 0) {
+    if (this.getCurrentSong() === null && this.displayQueue.length > 0) {
       await PlaybackSwitch.commitSwitch(this, true);
       return;
     }
@@ -300,29 +450,49 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async playNext(manual: boolean = true): Promise<void> {
-    if (this.queue.length === 0) {
+    if (this.displayQueue.length === 0) {
       return;
     }
-    const nextIndex: number = resolveNextIndex(this.queue, this.currentIndex, this.currentMode, manual);
-    const nextSong: Song = this.queue[nextIndex];
+    const nav = resolveNextPlayback(
+      this.displayQueue.length,
+      this.currentIndex,
+      this.currentMode,
+      manual,
+      this.shuffleOrder,
+      this.shuffleCursor
+    );
+    if (nav.reshuffleOrder !== null) {
+      this.shuffleOrder = nav.reshuffleOrder;
+    }
+    this.shuffleCursor = nav.shuffleCursor;
+    const nextSong: Song = this.displayQueue[nav.index];
     const previewTrack: NowPlayingTrack = buildNowPlayingTrack(nextSong, this.albumCoverFallbackId);
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.currentIndex = nextIndex;
+    this.currentIndex = nav.index;
     await PlaybackSwitch.commitSwitch(this, true);
     this.schedulePrefetchNext();
+    this.publishPlaylist();
   }
 
   async playPrevious(): Promise<void> {
-    if (this.queue.length === 0) {
+    if (this.displayQueue.length === 0) {
       return;
     }
-    const prevIndex: number = resolvePreviousIndex(this.queue, this.currentIndex);
-    const prevSong: Song = this.queue[prevIndex];
+    const nav = resolvePreviousPlayback(
+      this.displayQueue.length,
+      this.currentIndex,
+      this.currentMode,
+      this.shuffleOrder,
+      this.shuffleCursor
+    );
+    this.shuffleCursor = nav.shuffleCursor;
+    const prevSong: Song = this.displayQueue[nav.index];
     const previewTrack: NowPlayingTrack = buildNowPlayingTrack(prevSong, this.albumCoverFallbackId);
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.currentIndex = prevIndex;
+    this.currentIndex = nav.index;
     await PlaybackSwitch.commitSwitch(this, true);
     this.schedulePrefetchNext();
+    this.publishPlaylist();
   }
 
   async seekTo(positionMs: number): Promise<void> {
@@ -419,6 +589,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.isBuffering = false;
       this.pipelinePhase = 'idle';
       this.publishSnapshot('idle', true);
+      this.publishPlaylist();
       await BackgroundPlayback.stop();
       PlaybackPipeline.onTrackStopped();
       return;
@@ -697,7 +868,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       if (sinkPhase === 'playing') {
         return;
       }
-      if (this.getCurrentSong() === null && this.queue.length > 0) {
+      if (this.getCurrentSong() === null && this.displayQueue.length > 0) {
         await PlaybackSwitch.commitSwitch(this, true);
         return;
       }
@@ -732,7 +903,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     this.handlingCompletion = true;
     await this.submitCurrentTrackCompletion('completed');
-    if (this.queue.length === 0) {
+    if (this.displayQueue.length === 0) {
       this.handlingCompletion = false;
       return;
     }
@@ -746,14 +917,26 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.handlingCompletion = false;
       return;
     }
-    const nextIndex: number = resolveNextIndex(this.queue, this.currentIndex, this.currentMode, false);
-    const nextSong: Song = this.queue[nextIndex];
+    const nav = resolveNextPlayback(
+      this.displayQueue.length,
+      this.currentIndex,
+      this.currentMode,
+      false,
+      this.shuffleOrder,
+      this.shuffleCursor
+    );
+    if (nav.reshuffleOrder !== null) {
+      this.shuffleOrder = nav.reshuffleOrder;
+    }
+    this.shuffleCursor = nav.shuffleCursor;
+    const nextSong: Song = this.displayQueue[nav.index];
     const previewTrack: NowPlayingTrack = buildNowPlayingTrack(nextSong, this.albumCoverFallbackId);
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.currentIndex = nextIndex;
+    this.currentIndex = nav.index;
     await PlaybackSwitch.commitSwitch(this, true);
     this.schedulePrefetchNext();
     this.handlingCompletion = false;
+    this.publishPlaylist();
   }
 
   private schedulePrefetchNext(): void {
@@ -761,19 +944,26 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.prefetchCancelToken.cancel();
       this.prefetchCancelToken = null;
     }
-    if (this.queue.length === 0 || this.currentIndex < 0) {
+    if (this.displayQueue.length === 0 || this.currentIndex < 0) {
       return;
     }
-    const nextIndex: number = resolveNextIndex(this.queue, this.currentIndex, this.currentMode, false);
-    const nextSong: Song = this.queue[nextIndex];
+    const nav = resolveNextPlayback(
+      this.displayQueue.length,
+      this.currentIndex,
+      this.currentMode,
+      false,
+      this.shuffleOrder,
+      this.shuffleCursor
+    );
+    const nextSong: Song = this.displayQueue[nav.index];
     this.prefetchCancelToken = PrefetchWorker.prefetchNextSong(nextSong.id);
   }
 
   private getCurrentSong(): Song | null {
-    if (this.currentIndex < 0 || this.currentIndex >= this.queue.length) {
+    if (this.currentIndex < 0 || this.currentIndex >= this.displayQueue.length) {
       return null;
     }
-    return this.queue[this.currentIndex];
+    return this.displayQueue[this.currentIndex];
   }
 
   stopHeartbeat(): void {

@@ -4,9 +4,18 @@ export struct AutoMarqueeText {
   @Prop fontSize: number = 15;
   @Prop fontColor: ResourceColor = Color.Black;
   @Prop fontWeight: FontWeight = FontWeight.Regular;
+  @Prop secondaryText: string = '';
+  @Prop secondaryFontSize: number = 11;
+  @Prop secondaryFontColor: ResourceColor = Color.Black;
+  @Prop secondaryFontWeight: FontWeight = FontWeight.Regular;
+  @Prop secondaryGapVp: number = 6;
   @Prop edgeFadeRatio: number = 0.08;
   @State private _contentWidthVp: number = 0;
   @State private _enableEdgeFade: boolean = false;
+
+  private hasSecondaryText(): boolean {
+    return this.secondaryText.length > 0;
+  }
 
   private normalizedFadeRatio(): number {
     return Math.max(0.02, Math.min(0.2, this.edgeFadeRatio));
@@ -31,18 +40,36 @@ export struct AutoMarqueeText {
     return 0;
   }
 
+  private measureTextWidthPx(content: string, sizeVp: number, weight: FontWeight): number {
+    if (content.length === 0) {
+      return 0;
+    }
+    return this.getUIContext().getMeasureUtils().measureText({
+      textContent: content,
+      fontSize: `${sizeVp}vp`,
+      fontWeight: weight
+    });
+  }
+
+  private measureContentWidthPx(): number {
+    const titleWidthPx: number = this.measureTextWidthPx(this.text, this.fontSize, this.fontWeight);
+    if (!this.hasSecondaryText()) {
+      return titleWidthPx;
+    }
+    const gapPx: number = this.getUIContext().vp2px(Math.max(0, this.secondaryGapVp));
+    const secondaryWidthPx: number = this.measureTextWidthPx(
+      this.secondaryText, this.secondaryFontSize, this.secondaryFontWeight);
+    return titleWidthPx + gapPx + secondaryWidthPx;
+  }
+
   private updateEdgeFade(): void {
     const widthVp: number = Math.max(0, this._contentWidthVp);
-    if (widthVp <= 0 || this.text.length === 0) {
+    if (widthVp <= 0 || (this.text.length === 0 && !this.hasSecondaryText())) {
       this._enableEdgeFade = false;
       return;
     }
     try {
-      const textWidthPx: number = this.getUIContext().getMeasureUtils().measureText({
-        textContent: this.text,
-        fontSize: `${this.fontSize}vp`,
-        fontWeight: this.fontWeight
-      });
+      const textWidthPx: number = this.measureContentWidthPx();
       const containerWidthPx: number = this.getUIContext().vp2px(widthVp);
       const enableThresholdPx: number = 3;
       const disableThresholdPx: number = 1;
@@ -60,8 +87,27 @@ export struct AutoMarqueeText {
     this.updateEdgeFade();
   }
 
-  build() {
-    Stack({ alignContent: Alignment.Center }) {
+  @Builder
+  private buildMarqueeText() {
+    if (this.hasSecondaryText()) {
+      Text() {
+        Span(this.text)
+          .fontSize(this.fontSize)
+          .fontWeight(this.fontWeight)
+          .fontColor(this.fontColor)
+        Span(' ')
+          .fontSize(this.fontSize)
+          .letterSpacing(this.secondaryGapVp)
+        Span(this.secondaryText)
+          .fontSize(this.secondaryFontSize)
+          .fontWeight(this.secondaryFontWeight)
+          .fontColor(this.secondaryFontColor)
+      }
+      .width('100%')
+      .textOverflow({ overflow: TextOverflow.MARQUEE })
+      .textAlign(TextAlign.Start)
+      .clip(true)
+    } else {
       Text(this.text)
         .fontSize(this.fontSize)
         .fontWeight(this.fontWeight)
@@ -70,6 +116,12 @@ export struct AutoMarqueeText {
         .textOverflow({ overflow: TextOverflow.MARQUEE })
         .textAlign(TextAlign.Start)
         .clip(true)
+    }
+  }
+
+  build() {
+    Stack({ alignContent: Alignment.Center }) {
+      this.buildMarqueeText()
 
       if (this._enableEdgeFade) {
         Row()

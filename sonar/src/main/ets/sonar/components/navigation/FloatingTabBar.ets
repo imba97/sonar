@@ -7,6 +7,7 @@ import {
 import { BarToneStore } from '../../ui/color/BarToneStore';
 import { BarToneSampler } from '../../ui/color/BarToneSampler';
 import { HdsTabsShell } from './HdsTabsShell';
+import { PlaylistSheetHost } from '../playlist/PlaylistSheetHost';
 import { TabScrollerBridge } from '../../ui/layout/TabScrollerBridge';
 import deviceInfo from '@ohos.deviceInfo';
 
@@ -70,6 +71,7 @@ export struct FloatingTabBar {
         this.buildFallbackTabs()
       }
       BarToneCoordinator()
+      PlaylistSheetHost()
     }
     .width('100%')
     .height('100%')

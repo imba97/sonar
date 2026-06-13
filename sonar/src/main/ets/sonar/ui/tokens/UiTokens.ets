@@ -89,6 +89,8 @@ export class UiTokens {
   static readonly FLOATING_TAB_BAR_EXPANDED_WIDTH_LARGE: number = 294;
   static readonly DOCK_COVER_ROTATION_DURATION: number = 9000;
   static readonly MINI_BAR_BALL_COVER_INSET: number = 6;
+  /** miniBar 操作区与胶囊右缘内边距（与左侧封面球视觉留白对齐） */
+  static readonly MINI_BAR_HORIZONTAL_INSET: number = 10;
   static readonly MINI_PLAYER_CAPSULE_CONTENT_GAP: number = 10;
   static readonly MINI_PLAYER_ACTION_TOUCH_SIZE: number = 34;
   static readonly MINI_PLAYER_ACTION_ICON_GAP: number = 6;
@@ -107,6 +109,9 @@ export class UiTokens {
   static readonly LIBRARY_GRID_MAX_COLUMNS: number = 3;
   static readonly LIBRARY_CARD_MIN_WIDTH: number = 158;
   static readonly LIBRARY_CARD_TITLE_HEIGHT: number = 22;
+  /** 曲目列表：曲名区与右侧操作区间距 */
+  static readonly MUSIC_LIST_TEXT_TRAILING_GAP: number = 10;
+  static readonly MUSIC_LIST_TITLE_HEIGHT: number = 20;
 
   /** Pura X 外屏：1:1 方形判定容差 */
   static readonly OUTER_SCREEN_ASPECT_RATIO_MIN: number = 0.85;

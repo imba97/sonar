@@ -4,8 +4,10 @@ import { Logger } from '../common/Logger';
 import { NetworkStatus } from '../common/NetworkStatus';
 import { EndpointRouter } from '../network/routing/EndpointRouter';
 import { NetworkCoordinator } from '../network/coordinator/NetworkCoordinator';
+import { SongMetadataCache } from '../cache/SongMetadataCache';
 import { PlaybackService } from '../playback/PlaybackService';
 import { PlaybackPipeline } from '../playback/pipeline/PlaybackPipeline';
+import { RecentPlayHistoryStore } from '../settings/RecentPlayHistoryStore';
 
 export type AuthPhase = 'booting' | 'anonymous' | 'authenticated';
 
@@ -96,6 +98,8 @@ export class AuthSession {
   private static async exitAuthenticated(): Promise<void> {
     EndpointRouter.stop();
     NetworkCoordinator.shutdown();
+    SongMetadataCache.clear();
+    RecentPlayHistoryStore.getInstance().clearMemory();
     await PlaybackService.release();
   }
 }

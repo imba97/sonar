@@ -12,7 +12,9 @@ import { PlaybackPipeline } from './pipeline/PlaybackPipeline';
 import { BackgroundPlayback } from './BackgroundPlayback';
 import { CoverCacheStore } from '../cache/CoverCacheStore';
 import { SongCache } from '../cache/SongCache';
+import { SongMetadataCache } from '../cache/SongMetadataCache';
 import { SongCacheStore } from '../cache/SongCacheStore';
+import { RecentPlayHistoryStore } from '../settings/RecentPlayHistoryStore';
 import { CoverCache } from './CoverCache';
 import { MediaCenter, MediaCenterCommands } from './MediaCenter';
 import { resolveNextPlayback, resolvePreviousPlayback } from './PlaybackModeResolver';
@@ -1421,7 +1423,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
       return;
     }
     try {
-      await SubsonicClient.getInstance().submitScrobble(song.id, Date.now());
+      const playedAtMs: number = Date.now();
+      await SubsonicClient.getInstance().submitScrobble(song.id, playedAtMs);
+      SongMetadataCache.put(song);
+      await RecentPlayHistoryStore.getInstance().recordPlay(song.id, playedAtMs);
       Logger.debug('PlaybackSession', `scrobble ok reason=${reason} id=${song.id}`);
     } catch (err) {
       Logger.warn('PlaybackSession', `scrobble failed: ${(err as Error).message}`);

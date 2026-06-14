@@ -15,6 +15,7 @@ import { HdsNavigation, HdsNavigationTitleMode } from '@kit.UIDesignKit';
 import { HdsPageTitleBar } from '../ui/material/HdsPageTitleBar';
 import { TabScrollerBridge } from '../ui/layout/TabScrollerBridge';
 import { MusicTabSettingsStore } from '../settings/MusicTabSettingsStore';
+import { RecentPlayHistoryStore } from '../settings/RecentPlayHistoryStore';
 
 const DOMAIN = 0x0000;
 const TAG = 'Sonar.Index';
@@ -42,6 +43,7 @@ struct Index {
     this.maybeRedirectToLogin();
     const context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
     await MusicTabSettingsStore.getInstance().init(context);
+    await RecentPlayHistoryStore.getInstance().init(context);
     await PlaybackService.initialize(context);
   }
 

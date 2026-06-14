@@ -136,8 +136,10 @@ export struct MusicPage {
         } else if (this.vm.songs.length === 0) {
           ListItem() {
             EmptyState({
+              icon: '',
               title: '暂无歌曲',
-              subtitle: this.isLoggedIn ? '还没有可展示的曲目' : '请在我的 > 服务器完成登录'
+              subtitle: this.isLoggedIn ? '还没有可展示的曲目' : '请在我的 > 服务器完成登录',
+              contentPaddingTop: 56
             })
           }
         } else {

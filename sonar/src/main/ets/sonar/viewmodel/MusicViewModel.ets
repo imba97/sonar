@@ -2,11 +2,19 @@ import { MusicListKind, Song } from '../api/SubsonicTypes';
 import { SubsonicClient } from '../api/SubsonicClient';
 import { AuthSession } from '../auth/AuthSession';
 import { CoverDisplayResolver } from '../cache/CoverDisplayResolver';
+import { SongMetadataCache } from '../cache/SongMetadataCache';
 import { MusicTabSettingsStore } from '../settings/MusicTabSettingsStore';
+import { RecentPlayHistoryStore } from '../settings/RecentPlayHistoryStore';
 
 export const RANDOM_SONGS_SIZE: number = 100;
 export const MUSIC_PAGE_SIZE: number = 60;
 const ALBUM_BATCH_SIZE: number = 12;
+
+interface RecentPageResult {
+  songs: Song[];
+  nextOffset: number;
+  hasMore: boolean;
+}
 
 @Observed
 export class MusicViewModel {
@@ -21,7 +29,8 @@ export class MusicViewModel {
   hasMore: boolean = false;
   errorMessage: string = '';
   authExpired: boolean = false;
-  private albumListOffset: number = 0;
+  /** recent：song 索引；frequent/newest：album batch offset */
+  private listOffset: number = 0;
   private randomSongsCache: Song[] = [];
   private randomFetched: boolean = false;
 
@@ -42,7 +51,7 @@ export class MusicViewModel {
     this.hasMore = false;
     this.errorMessage = '';
     this.authExpired = false;
-    this.albumListOffset = 0;
+    this.listOffset = 0;
     this.randomSongsCache = [];
     this.randomFetched = false;
   }
@@ -53,7 +62,7 @@ export class MusicViewModel {
   }
 
   async setKind(nextKind: MusicListKind): Promise<void> {
-    if (this.kind === nextKind && !this.isSearchMode && this.songs.length > 0) {
+    if (nextKind !== 'recent' && this.kind === nextKind && !this.isSearchMode && this.songs.length > 0) {
       return;
     }
     if (this.kind === 'random' && !this.isSearchMode && this.songs.length > 0) {
@@ -80,7 +89,7 @@ export class MusicViewModel {
     this.errorMessage = '';
     this.authExpired = false;
     this.hasMore = false;
-    this.albumListOffset = 0;
+    this.listOffset = 0;
     this.randomFetched = false;
     this.randomSongsCache = [];
     try {
@@ -113,7 +122,57 @@ export class MusicViewModel {
       await this.reloadRandom();
       return;
     }
+    if (this.kind === 'recent') {
+      await this.loadRecentPlayed(true);
+      return;
+    }
     await this.loadAlbumDerived(true);
+  }
+
+  private async fetchRecentPage(offset: number, limit: number): Promise<RecentPageResult> {
+    await RecentPlayHistoryStore.getInstance().ensureReady();
+    const ids: string[] = RecentPlayHistoryStore.getInstance().listSongIds(offset, limit);
+    const total: number = RecentPlayHistoryStore.getInstance().totalCount();
+    if (ids.length === 0) {
+      return { songs: [], nextOffset: offset, hasMore: offset < total };
+    }
+    const songs: Song[] = await SongMetadataCache.getMany(ids);
+    const nextOffset: number = offset + ids.length;
+    return { songs: songs, nextOffset: nextOffset, hasMore: nextOffset < total };
+  }
+
+  private async loadRecentPlayed(reset: boolean): Promise<void> {
+    if (this.isLoading) {
+      return;
+    }
+    if (reset) {
+      this.listOffset = 0;
+      this.songs = [];
+      this.hasMore = true;
+    }
+    this.isSearchMode = false;
+    this.searchQuery = '';
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.authExpired = false;
+    try {
+      const page: RecentPageResult = await this.fetchRecentPage(this.listOffset, MUSIC_PAGE_SIZE);
+      if (reset) {
+        this.songs = page.songs;
+      } else if (page.songs.length > 0) {
+        this.songs = this.songs.concat(page.songs);
+      }
+      this.listOffset = page.nextOffset;
+      this.hasMore = page.hasMore;
+    } catch (err) {
+      await this.handleLoadError(err as Error);
+      if (reset) {
+        this.songs = [];
+      }
+      this.hasMore = false;
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   private async loadAlbumDerived(reset: boolean): Promise<void> {
@@ -121,7 +180,7 @@ export class MusicViewModel {
       return;
     }
     if (reset) {
-      this.albumListOffset = 0;
+      this.listOffset = 0;
       this.songs = [];
       this.hasMore = true;
     }
@@ -132,13 +191,13 @@ export class MusicViewModel {
     this.authExpired = false;
     try {
       const batch: Song[] = await SubsonicClient.getInstance().getSongsViaAlbumList(
-        this.kind, ALBUM_BATCH_SIZE, this.albumListOffset);
+        this.kind, ALBUM_BATCH_SIZE, this.listOffset);
       if (reset) {
         this.songs = batch;
       } else if (batch.length > 0) {
         this.songs = MusicViewModel.mergeSongs(this.songs, batch);
       }
-      this.albumListOffset += ALBUM_BATCH_SIZE;
+      this.listOffset += ALBUM_BATCH_SIZE;
       this.hasMore = batch.length >= ALBUM_BATCH_SIZE;
     } catch (err) {
       await this.handleLoadError(err as Error);
@@ -158,12 +217,21 @@ export class MusicViewModel {
     }
     this.isLoadingMore = true;
     try {
+      if (this.kind === 'recent') {
+        const page: RecentPageResult = await this.fetchRecentPage(this.listOffset, MUSIC_PAGE_SIZE);
+        if (page.songs.length > 0) {
+          this.songs = this.songs.concat(page.songs);
+        }
+        this.listOffset = page.nextOffset;
+        this.hasMore = page.hasMore;
+        return;
+      }
       const batch: Song[] = await SubsonicClient.getInstance().getSongsViaAlbumList(
-        this.kind, ALBUM_BATCH_SIZE, this.albumListOffset);
+        this.kind, ALBUM_BATCH_SIZE, this.listOffset);
       if (batch.length > 0) {
         this.songs = MusicViewModel.mergeSongs(this.songs, batch);
       }
-      this.albumListOffset += ALBUM_BATCH_SIZE;
+      this.listOffset += ALBUM_BATCH_SIZE;
       this.hasMore = batch.length >= ALBUM_BATCH_SIZE;
     } catch (err) {
       const expired: boolean = await AuthSession.invalidateIfAuthError(err as Error);

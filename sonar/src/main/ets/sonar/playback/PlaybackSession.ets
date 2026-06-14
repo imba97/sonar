@@ -9,8 +9,6 @@ import { StreamResource } from '../network/media/StreamResource';
 import { PlaySinkPhase } from './pipeline/AudioRenderSink';
 import { PipelineOrchestrator, PipelineOrchestratorCallbacks } from './pipeline/PipelineOrchestrator';
 import { PlaybackPipeline } from './pipeline/PlaybackPipeline';
-import { CancelToken } from '../network/transport/CancelToken';
-import { PrefetchWorker } from './pipeline/PrefetchWorker';
 import { BackgroundPlayback } from './BackgroundPlayback';
 import { CoverCacheStore } from '../cache/CoverCacheStore';
 import { SongCache } from '../cache/SongCache';
@@ -18,6 +16,11 @@ import { SongCacheStore } from '../cache/SongCacheStore';
 import { CoverCache } from './CoverCache';
 import { MediaCenter, MediaCenterCommands } from './MediaCenter';
 import { resolveNextPlayback, resolvePreviousPlayback } from './PlaybackModeResolver';
+import { EndpointRouter } from '../network/routing/EndpointRouter';
+import { NextTrackPreloadCoordinator } from './preload/NextTrackPreloadCoordinator';
+import { PreloadDeps } from './preload/NextTrackPreloadStrategy';
+import { PreloadContext, resolvePreloadRemainingMs } from './preload/NextTrackPreloadTypes';
+import { PreloadDeviceCapability } from './preload/PreloadDeviceCapability';
 import {
   buildNowPlayingTrack,
   NowPlayingTrack,
@@ -157,7 +160,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private isBuffering: boolean = false;
   private frozenPositionMs: number = 0;
   private pipelinePhase: PlaybackPhase = 'idle';
-  private prefetchCancelToken: CancelToken | null = null;
+  private preloadCoordinator: NextTrackPreloadCoordinator | null = null;
   private switchDepth: number = 0;
   /** loadCurrentSongStream 已对账后，跳过 onPipelinePhase(playing) 的重复 reconcile。 */
   private streamMetadataAligned: boolean = false;
@@ -279,6 +282,11 @@ export class PlaybackSession implements PlaybackSwitchHost {
     PlaylistStore.init(PlaylistSnapshot.empty());
     await PlaylistPersistence.getInstance().init(context);
     await this.orchestrator.initialize();
+    await PreloadDeviceCapability.probe();
+    this.preloadCoordinator = new NextTrackPreloadCoordinator(this.buildPreloadDeps());
+    this.orchestrator.setStandbyPrepareFailedCallback((songId: string): void => {
+      this.preloadCoordinator?.handleStandbyPrepareFailed(songId);
+    });
     await this.restorePersistedPlaylist();
     PlaybackPipeline.setNetworkPathChangedHandler((event: EndpointChangeEvent) => {
       return this.handleNetworkPathChanged(event);
@@ -299,6 +307,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   async release(): Promise<void> {
     this.stopHeartbeat();
     this.systemCommandInFlight = false;
+    this.preloadCoordinator?.reset();
     await this.submitCurrentTrackCompletion('release');
     await this.orchestrator.release();
     await BackgroundPlayback.release();
@@ -699,7 +708,6 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.currentIndex = nav.index;
       await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
       await PlaybackSwitch.commitSwitch(this, true);
-      this.schedulePrefetchNext();
       this.publishPlaylist(false);
     } finally {
       this.endSwitch();
@@ -726,7 +734,6 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.currentIndex = nav.index;
       await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
       await PlaybackSwitch.commitSwitch(this, true);
-      this.schedulePrefetchNext();
       this.publishPlaylist(false);
     } finally {
       this.endSwitch();
@@ -752,6 +759,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await this.orchestrator.seek(safe);
     this.frozenPositionMs = safe;
     this.publishSnapshot(this.pipelinePhase, true);
+    this.evaluateNextPreload();
   }
 
   buildPreviewTrackFromAlbum(album: Album): NowPlayingTrack {
@@ -847,13 +855,67 @@ export class PlaybackSession implements PlaybackSwitchHost {
     const coverTask: Promise<image.PixelMap | null> = this.ensureCover(track.coverArtId);
     try {
       await this.orchestrator.startTrack(this.activeStreamResource, durationMs, true);
-      if (reportStart) {
-        await SubsonicClient.getInstance().reportNowPlaying(song.id, 0);
-      }
     } catch (err) {
       this.publishSnapshot('error', true);
       Logger.error('PlaybackSession', `play failed: ${(err as Error).message}`);
       return;
+    }
+    await this.afterTrackEngineStarted(song, reportStart, coverTask, false);
+  }
+
+  getSwitchTargetSongId(): string {
+    const song: Song | null = this.getCurrentSong();
+    return song !== null ? song.id : '';
+  }
+
+  resetNextTrackPreload(): void {
+    this.preloadCoordinator?.reset();
+  }
+
+  async tryPromoteStandbyForSwitch(nextSongId: string): Promise<boolean> {
+    if (nextSongId.length === 0) {
+      return false;
+    }
+    if (SongCache.resolveLocalPath(nextSongId) !== null) {
+      await this.orchestrator.cancelStandby();
+      return false;
+    }
+    if (!this.orchestrator.isStandbyReady(nextSongId)) {
+      return false;
+    }
+    return await this.orchestrator.promoteStandbyToActive(true);
+  }
+
+  async finishPromotedSwitch(reportStart: boolean): Promise<void> {
+    const song: Song | null = this.getCurrentSong();
+    if (song === null) {
+      return;
+    }
+    this.clearPreview();
+    this.isBuffering = false;
+    this.frozenPositionMs = 0;
+    this.activeStreamResource = this.orchestrator.getActiveStreamResource();
+    this.pipelinePhase = 'playing';
+    this.publishSnapshot('playing', true);
+    PlaybackPipeline.onTrackStarted(song.id);
+    const track: NowPlayingTrack = buildNowPlayingTrack(song, this.albumCoverFallbackId);
+    const coverTask: Promise<image.PixelMap | null> = this.ensureCover(track.coverArtId);
+    await this.afterTrackEngineStarted(song, reportStart, coverTask, true);
+  }
+
+  /** 引擎已开播后的公共收尾：pin / 边听边下 / 封面 / 元数据 / 可选 heartbeat */
+  private async afterTrackEngineStarted(
+    song: Song,
+    reportStart: boolean,
+    coverTask: Promise<image.PixelMap | null>,
+    startHeartbeatAfter: boolean
+  ): Promise<void> {
+    if (reportStart) {
+      try {
+        await SubsonicClient.getInstance().reportNowPlaying(song.id, 0);
+      } catch (err) {
+        Logger.warn('PlaybackSession', `nowPlaying failed: ${this.classifyScrobbleError(err as Error)}`);
+      }
     }
     SongCache.pin(song.id);
     if (SongCache.shouldAutoCacheNow() && !SongCache.isComplete(song.id)) {
@@ -861,7 +923,9 @@ export class PlaybackSession implements PlaybackSwitchHost {
     }
     await coverTask;
     await this.reconcilePlaybackMetadata(true);
-    this.schedulePrefetchNext();
+    if (startHeartbeatAfter) {
+      this.startHeartbeat();
+    }
   }
 
   private async handleNetworkPathChanged(event: EndpointChangeEvent): Promise<void> {
@@ -874,6 +938,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       return;
     }
     await this.orchestrator.onNetworkPathChanged(event);
+    this.preloadCoordinator?.onEndpointChanged();
   }
 
   getAuthoritativePositionMs(): number {
@@ -981,6 +1046,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.lastMediaCenterPositionAt = now;
     this.publishSnapshot(this.pipelinePhase, false);
     void this.mediaCenter.syncPlaybackState(this.snapshot);
+    this.evaluateNextPreload();
   }
 
   onPipelineDuration(durationMs: number): void {
@@ -1009,6 +1075,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
     PlaybackStore.publish(this.snapshot);
     if (durationMs > 0) {
       void this.syncMediaCenter(this.snapshot, true);
+      this.evaluateNextPreload();
     }
   }
 
@@ -1218,18 +1285,33 @@ export class PlaybackSession implements PlaybackSwitchHost {
     await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
     this.currentIndex = nav.index;
     await PlaybackSwitch.commitSwitch(this, true);
-    this.schedulePrefetchNext();
     this.handlingCompletion = false;
     this.publishPlaylist(true);
   }
 
-  private schedulePrefetchNext(): void {
-    if (this.prefetchCancelToken !== null) {
-      this.prefetchCancelToken.cancel();
-      this.prefetchCancelToken = null;
-    }
+  private buildPreloadDeps(): PreloadDeps {
+    return {
+      orchestrator: this.orchestrator,
+      openStream: (songId: string): StreamResource => MediaResourceService.openStream(songId),
+      enqueueDownload: (songId: string): void => {
+        void SongCache.enqueueDownload(songId);
+      },
+      isComplete: (songId: string): boolean => SongCache.isComplete(songId),
+      shouldAutoCacheNow: (): boolean => SongCache.shouldAutoCacheNow(),
+      isStandbyCapable: (): boolean => PreloadDeviceCapability.isStandbyCapable(),
+      onStandbyPrepareFailed: (songId: string): void => {
+        this.preloadCoordinator?.handleStandbyPrepareFailed(songId);
+      }
+    };
+  }
+
+  private buildPreloadContext(): PreloadContext | null {
     if (this.displayQueue.length === 0 || this.currentIndex < 0) {
-      return;
+      return null;
+    }
+    const currentSong: Song | null = this.getCurrentSong();
+    if (currentSong === null) {
+      return null;
     }
     const nav = resolveNextPlayback(
       this.displayQueue.length,
@@ -1240,7 +1322,32 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.shuffleCursor
     );
     const nextSong: Song = this.displayQueue[nav.index];
-    this.prefetchCancelToken = PrefetchWorker.prefetchNextSong(nextSong.id);
+    const snapshotDurationMs: number = this.snapshot.track !== null ? this.snapshot.track.durationMs : 0;
+    const timing = resolvePreloadRemainingMs(
+      this.getAuthoritativePositionMs(),
+      this.orchestrator.getDurationMs(),
+      snapshotDurationMs,
+      currentSong.duration
+    );
+    return {
+      currentSongId: currentSong.id,
+      nextSong: nextSong,
+      remainingMs: timing.remainingMs,
+      durationMs: timing.durationMs,
+      phase: this.pipelinePhase,
+      endpoint: EndpointRouter.getActiveEndpoint()
+    };
+  }
+
+  private evaluateNextPreload(): void {
+    if (this.preloadCoordinator === null) {
+      return;
+    }
+    const ctx: PreloadContext | null = this.buildPreloadContext();
+    if (ctx === null) {
+      return;
+    }
+    this.preloadCoordinator.onProgressTick(ctx);
   }
 
   private getCurrentSong(): Song | null {

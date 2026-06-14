@@ -83,4 +83,6 @@ const options: audio.AudioRendererOptions = { streamInfo, rendererInfo };
 - **PipelineOrchestrator.replayAt**：首播、切网 migrate、error 恢复共用同一原语。
 - **切网 migrate**：`enterBuffering` → `replayAt(新 endpoint URL, frozenMs, wasPlaying)` → `exitBuffering`；等价于手动选曲 + 拖进度。
 - **用户 seek**：同 endpoint 且 player 已 prepared/playing/paused 时仅 `AVPlayer.seek`；error/idle 才 `replayAt`。
-- **PrefetchWorker**：下一首 local boost 预拉（与当前播放独立）；禁止业务层直接 `http.createHttp()`。
+- **下一首预加载**（`playback/preload/`）：剩余 ≤30s 时 `NextTrackPreloadCoordinator` 驱动；已缓存跳过；边听边下 `SongCache.enqueueDownload`；默认 `PipelineOrchestrator.prepareStandby` 双 AVPlayer 槽；低端机降级 `StreamWarmupPreloadStrategy`（512KB HTTP 预热）。切歌 standby 命中走 `promoteStandbyToActive` 热路径。
+- **双槽编排**：`PlayerSlot` active + standby；`cancel()` 仅影响 active，不取消 standby。
+- 禁止业务层直接 `http.createHttp()`（StreamWarmup 经 `HttpTransport.openStream`）。

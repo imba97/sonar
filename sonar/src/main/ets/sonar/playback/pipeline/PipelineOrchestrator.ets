@@ -8,6 +8,7 @@ import { StreamResource } from '../../network/media/StreamResource';
 import { EndpointChangeEvent } from '../../network/routing/EndpointTypes';
 import { AudioRenderSink, AudioRenderSinkListener, PlaySinkPhase } from './AudioRenderSink';
 import { PipelineMetrics } from './PipelineMetrics';
+import { PlayerSlot } from './PlayerSlot';
 
 type PlaybackSource = 'local' | 'remote';
 
@@ -26,12 +27,12 @@ export interface PipelineOrchestratorCallbacks {
 const MAX_REPLAY_RETRIES: number = 3;
 
 /**
- * AVPlayer-only 播放编排：首播 / 切网 / seek 共用 replayAt(HTTP URL)。
+ * AVPlayer-only 播放编排：active / standby 双槽；首播 / 切网 / seek 共用 replayAt(HTTP URL)。
  */
 export class PipelineOrchestrator implements AudioRenderSinkListener {
   private callbacks: PipelineOrchestratorCallbacks | null = null;
-  private readonly audioSink: AudioRenderSink = new AudioRenderSink();
-  private activeStreamResource: StreamResource | null = null;
+  private activeSlot: PlayerSlot = new PlayerSlot();
+  private standbySlot: PlayerSlot | null = null;
   private migrating: boolean = false;
   private bufferingActive: boolean = false;
   private frozenPositionMs: number = 0;
@@ -46,9 +47,10 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   private playbackSource: PlaybackSource = 'remote';
   /** replayAt(seek>0)：等 onReplayReady 再 exitBuffering */
   private awaitReplayReady: boolean = false;
+  private standbyPrepareFailedCb: ((songId: string) => void) | null = null;
 
   constructor() {
-    this.audioSink.setListener(this);
+    this.activeSlot.sink.setListener(this);
   }
 
   setContext(_context: common.UIAbilityContext): void {
@@ -58,26 +60,32 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     this.callbacks = callbacks;
   }
 
+  setStandbyPrepareFailedCallback(callback: ((songId: string) => void) | null): void {
+    this.standbyPrepareFailedCb = callback;
+  }
+
   async initialize(): Promise<void> {
-    await this.audioSink.initialize();
+    await this.activeSlot.sink.initialize();
   }
 
   async release(): Promise<void> {
     await this.cancel(false);
-    await this.audioSink.release();
+    await this.cancelStandby();
+    await this.activeSlot.release();
   }
 
   getActiveStreamResource(): StreamResource | null {
-    return this.activeStreamResource;
+    return this.activeSlot.streamResource;
   }
 
   setActiveStreamResource(resource: StreamResource | null): void {
-    this.activeStreamResource = resource;
+    this.activeSlot.streamResource = resource;
   }
 
   async startTrack(streamResource: StreamResource, durationMs: number, autoPlay: boolean): Promise<void> {
     await this.cancel(false);
-    this.activeStreamResource = streamResource;
+    this.activeSlot.streamResource = streamResource;
+    this.activeSlot.songId = streamResource.songId;
     this.durationMs = durationMs;
     await this.replayAtCurrentTarget(0, autoPlay);
     PipelineMetrics.recordTrackStart();
@@ -85,21 +93,110 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
 
   async cancel(keepStreamResource: boolean = false): Promise<void> {
     this.clearReplayRetry();
-    if (this.activeStreamResource !== null && !keepStreamResource) {
-      this.activeStreamResource.cancelToken.cancel();
+    if (this.activeSlot.streamResource !== null && !keepStreamResource) {
+      this.activeSlot.streamResource.cancelToken.cancel();
     }
-    await this.audioSink.stop();
+    await this.activeSlot.sink.stop();
     this.bufferingActive = false;
     this.awaitReplayReady = false;
     this.migrating = false;
     this.replayRetryCount = 0;
     if (!keepStreamResource) {
-      this.activeStreamResource = null;
+      this.activeSlot.streamResource = null;
+      this.activeSlot.songId = '';
     }
   }
 
+  async prepareStandby(streamResource: StreamResource, _durationMs: number): Promise<boolean> {
+    await this.cancelStandby();
+    const slot: PlayerSlot = new PlayerSlot();
+    slot.streamResource = streamResource;
+    slot.songId = streamResource.songId;
+    slot.sink.setStandbyPreparedCallback((): void => {
+      slot.standbyReady = true;
+    });
+    slot.sink.setStandbyFailedCallback((): void => {
+      this.standbyPrepareFailedCb?.(slot.songId);
+      if (this.standbySlot === slot) {
+        this.standbySlot = null;
+      }
+      void slot.release();
+    });
+    await slot.sink.initialize();
+    const localPath: string | null = SongCache.resolveLocalPath(streamResource.songId);
+    try {
+      if (localPath !== null) {
+        slot.playbackSource = 'local';
+        slot.localPath = localPath;
+        await slot.sink.openLocalFile(localPath, 0, false);
+      } else {
+        slot.playbackSource = 'remote';
+        const url: string = streamResource.resolveRequest().url;
+        await slot.sink.openUrl(url, 0, false);
+      }
+    } catch (err) {
+      Logger.warn('PipelineOrchestrator', `prepareStandby failed: ${(err as Error).message}`);
+      await slot.release();
+      return false;
+    }
+    if (slot.sink.getPhase() === 'error') {
+      await slot.release();
+      return false;
+    }
+    this.standbySlot = slot;
+    return true;
+  }
+
+  isStandbyReady(songId: string): boolean {
+    if (this.standbySlot === null || this.standbySlot.songId !== songId) {
+      return false;
+    }
+    if (!this.standbySlot.standbyReady) {
+      return false;
+    }
+    const phase: PlaySinkPhase = this.standbySlot.sink.getPhase();
+    return phase === 'paused';
+  }
+
+  async promoteStandbyToActive(autoPlay: boolean): Promise<boolean> {
+    if (this.standbySlot === null || !this.standbySlot.standbyReady) {
+      return false;
+    }
+    const promoted: PlayerSlot = this.standbySlot;
+    this.standbySlot = null;
+    promoted.sink.setStandbyPreparedCallback(null);
+    promoted.sink.setStandbyFailedCallback(null);
+
+    const oldActive: PlayerSlot = this.activeSlot;
+    oldActive.sink.setListener(null);
+    await oldActive.sink.release();
+
+    this.activeSlot = promoted;
+    promoted.sink.setListener(this);
+    this.playbackSource = promoted.playbackSource;
+    const fromSink: number = promoted.sink.getDurationMs();
+    if (fromSink > 0) {
+      this.durationMs = fromSink;
+    }
+
+    if (autoPlay) {
+      await promoted.sink.play();
+    }
+    PipelineMetrics.recordTrackStart();
+    return true;
+  }
+
+  async cancelStandby(): Promise<void> {
+    if (this.standbySlot === null) {
+      return;
+    }
+    const slot: PlayerSlot = this.standbySlot;
+    this.standbySlot = null;
+    await slot.release();
+  }
+
   async migrateInPlace(frozenPositionMs: number, wasPlaying: boolean): Promise<void> {
-    if (this.activeStreamResource === null || this.migrating) {
+    if (this.activeSlot.streamResource === null || this.migrating) {
       return;
     }
     if (this.playbackSource === 'local') {
@@ -111,14 +208,14 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     this.wasPlayingBeforeBuffer = wasPlaying;
     this.replayRetryCount = 0;
     this.enterBuffering(frozenPositionMs);
-    await this.audioSink.stop();
+    await this.activeSlot.sink.stop();
     try {
-      await PipelineOrchestrator.probeStreamEndpoint(this.activeStreamResource.getEndpoint());
+      await PipelineOrchestrator.probeStreamEndpoint(this.activeSlot.streamResource.getEndpoint());
     } catch (err) {
       Logger.warn('PipelineOrchestrator', `endpoint probe: ${(err as Error).message}`);
     }
-    this.activeStreamResource.timeOffsetMs = 0;
-    this.activeStreamResource.byteOffset = 0;
+    this.activeSlot.streamResource.timeOffsetMs = 0;
+    this.activeSlot.streamResource.byteOffset = 0;
     const url: string = this.resolveStreamUrl();
     await this.replayAt(url, frozenPositionMs, wasPlaying);
     PipelineMetrics.recordMigrate();
@@ -126,24 +223,27 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   async onNetworkPathChanged(event: EndpointChangeEvent): Promise<void> {
-    if (this.activeStreamResource !== null) {
-      this.activeStreamResource.migrate(event.to);
+    if (this.activeSlot.streamResource !== null) {
+      this.activeSlot.streamResource.migrate(event.to);
+    }
+    if (this.standbySlot !== null) {
+      await this.cancelStandby();
     }
     const frozenMs: number = this.callbacks?.getAuthoritativePositionMs() ?? this.frozenPositionMs;
     const phase: string = this.callbacks?.getCurrentPhase() ?? 'idle';
     const wasPlaying: boolean = phase === 'playing' || this.wasPlayingBeforeBuffer;
-    if (this.activeStreamResource === null) {
+    if (this.activeSlot.streamResource === null) {
       return;
     }
     await this.migrateInPlace(frozenMs, wasPlaying);
   }
 
   async seek(positionMs: number): Promise<void> {
-    if (this.activeStreamResource === null) {
+    if (this.activeSlot.streamResource === null) {
       return;
     }
-    if (this.audioSink.canSeekInPlace()) {
-      await this.audioSink.seek(positionMs);
+    if (this.activeSlot.sink.canSeekInPlace()) {
+      await this.activeSlot.sink.seek(positionMs);
       this.frozenPositionMs = positionMs;
       PipelineMetrics.recordSeek();
       return;
@@ -154,40 +254,40 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   async play(): Promise<void> {
-    const sinkPhase: PlaySinkPhase = this.audioSink.getPhase();
+    const sinkPhase: PlaySinkPhase = this.activeSlot.sink.getPhase();
     if (sinkPhase === 'error' || sinkPhase === 'stopped' || sinkPhase === 'idle') {
       await this.resumeAfterError();
       return;
     }
-    await this.audioSink.play();
+    await this.activeSlot.sink.play();
   }
 
   async resumeAfterError(): Promise<void> {
-    if (this.activeStreamResource === null) {
+    if (this.activeSlot.streamResource === null) {
       return;
     }
     const frozenMs: number = this.callbacks?.getAuthoritativePositionMs() ?? this.frozenPositionMs;
-    await this.replayAtCurrentTarget(frozenMs > 0 ? frozenMs : this.audioSink.getPositionMs(), true);
+    await this.replayAtCurrentTarget(frozenMs > 0 ? frozenMs : this.activeSlot.sink.getPositionMs(), true);
   }
 
   async pause(): Promise<void> {
-    await this.audioSink.pause();
+    await this.activeSlot.sink.pause();
   }
 
   getPositionMs(): number {
     if (this.bufferingActive) {
       return this.frozenPositionMs;
     }
-    return this.audioSink.getPositionMs();
+    return this.activeSlot.sink.getPositionMs();
   }
 
   getDurationMs(): number {
-    const fromSink: number = this.audioSink.getDurationMs();
+    const fromSink: number = this.activeSlot.sink.getDurationMs();
     return fromSink > 0 ? fromSink : this.durationMs;
   }
 
   getPhase(): PlaySinkPhase {
-    return this.audioSink.getPhase();
+    return this.activeSlot.sink.getPhase();
   }
 
   isBuffering(): boolean {
@@ -199,16 +299,19 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   private async replayAtCurrentTarget(seekMs: number, shouldResumeAfterLoad: boolean): Promise<void> {
-    if (this.activeStreamResource === null) {
+    if (this.activeSlot.streamResource === null) {
       return;
     }
-    const localPath: string | null = SongCache.resolveLocalPath(this.activeStreamResource.songId);
+    const localPath: string | null = SongCache.resolveLocalPath(this.activeSlot.streamResource.songId);
     if (localPath !== null) {
       this.playbackSource = 'local';
+      this.activeSlot.playbackSource = 'local';
+      this.activeSlot.localPath = localPath;
       await this.replayAtLocal(localPath, seekMs, shouldResumeAfterLoad);
       return;
     }
     this.playbackSource = 'remote';
+    this.activeSlot.playbackSource = 'remote';
     const url: string = this.resolveStreamUrl();
     await this.replayAt(url, seekMs, shouldResumeAfterLoad);
   }
@@ -226,7 +329,7 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     }
     const autoPlayDuringLoad: boolean = seekMs === 0 && shouldResumeAfterLoad && !this.bufferingActive;
     try {
-      await this.audioSink.openUrl(url, seekMs, autoPlayDuringLoad);
+      await this.activeSlot.sink.openUrl(url, seekMs, autoPlayDuringLoad);
     } catch (err) {
       Logger.warn('PipelineOrchestrator', `replayAt failed: ${(err as Error).message}`);
       this.callbacks?.onError((err as Error).message);
@@ -245,15 +348,16 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
     }
     const autoPlayDuringLoad: boolean = seekMs === 0 && shouldResumeAfterLoad && !this.bufferingActive;
     try {
-      await this.audioSink.openLocalFile(localPath, seekMs, autoPlayDuringLoad);
+      await this.activeSlot.sink.openLocalFile(localPath, seekMs, autoPlayDuringLoad);
     } catch (err) {
       const error: Error = err as Error;
       Logger.warn('PipelineOrchestrator', `replayAtLocal failed: ${error.message}`);
-      if (this.activeStreamResource !== null &&
+      if (this.activeSlot.streamResource !== null &&
         SongCache.shouldInvalidateLocalCache(localPath, error)) {
-        await SongCache.removeEntry(this.activeStreamResource.songId);
+        await SongCache.removeEntry(this.activeSlot.streamResource.songId);
       }
       this.playbackSource = 'remote';
+      this.activeSlot.playbackSource = 'remote';
       const url: string = this.resolveStreamUrl();
       await this.replayAt(url, seekMs, shouldResumeAfterLoad);
     }
@@ -269,10 +373,10 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   private resolveStreamUrl(): string {
-    if (this.activeStreamResource === null) {
+    if (this.activeSlot.streamResource === null) {
       return '';
     }
-    return this.activeStreamResource.resolveRequest().url;
+    return this.activeSlot.streamResource.resolveRequest().url;
   }
 
   private enterBuffering(frozenPositionMs: number): void {
@@ -296,13 +400,13 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
 
   private async resumeAfterBufferingExit(shouldResume: boolean, targetMs: number): Promise<void> {
     if (targetMs > 0) {
-      const currentMs: number = this.audioSink.getPositionMs();
+      const currentMs: number = this.activeSlot.sink.getPositionMs();
       if (Math.abs(currentMs - targetMs) > 1500) {
-        await this.audioSink.seek(targetMs);
+        await this.activeSlot.sink.seek(targetMs);
       }
     }
     if (shouldResume) {
-      await this.audioSink.play();
+      await this.activeSlot.sink.play();
     }
   }
 
@@ -340,10 +444,10 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
   }
 
   private retryReplayAfterError(): void {
-    if (!this.bufferingActive || this.activeStreamResource === null) {
+    if (!this.bufferingActive || this.activeSlot.streamResource === null) {
       return;
     }
-    this.activeStreamResource.timeOffsetMs = 0;
+    this.activeSlot.streamResource.timeOffsetMs = 0;
     const seekMs: number = this.frozenPositionMs > 0 ? this.frozenPositionMs : this.lastReplaySeekMs;
     void this.replayAtCurrentTarget(seekMs, this.lastReplayAutoPlay);
   }
@@ -362,8 +466,8 @@ export class PipelineOrchestrator implements AudioRenderSinkListener {
 
   onReplayReady(positionMs: number): void {
     this.awaitReplayReady = false;
-    if (this.activeStreamResource !== null) {
-      this.activeStreamResource.timeOffsetMs = 0;
+    if (this.activeSlot.streamResource !== null) {
+      this.activeSlot.streamResource.timeOffsetMs = 0;
     }
     const reportPos: number =
       this.bufferingActive && this.frozenPositionMs > 0 ? this.frozenPositionMs : positionMs;

@@ -39,6 +39,16 @@ export class AudioRenderSink {
   private durationMs: number = 0;
   private seekTimeoutTimerId: number = -1;
   private localFile: fileIo.File | null = null;
+  private standbyPreparedCallback: (() => void) | null = null;
+  private standbyFailedCallback: (() => void) | null = null;
+
+  setStandbyPreparedCallback(callback: (() => void) | null): void {
+    this.standbyPreparedCallback = callback;
+  }
+
+  setStandbyFailedCallback(callback: (() => void) | null): void {
+    this.standbyFailedCallback = callback;
+  }
 
   setListener(listener: AudioRenderSinkListener | null): void {
     this.listener = listener;
@@ -460,6 +470,11 @@ export class AudioRenderSink {
       } catch (err) {
         this.emitError(`auto play failed: ${(err as Error).message}`);
       }
+      return;
+    }
+    this.setPhase('paused');
+    if (this.standbyPreparedCallback !== null) {
+      this.standbyPreparedCallback();
     }
   }
 
@@ -496,6 +511,13 @@ export class AudioRenderSink {
     this.pendingOpenSeekComplete = false;
     this.clearSeekTimeout();
     Logger.warn('AudioRenderSink', message);
+    if (this.standbyFailedCallback !== null && this.standbyPreparedCallback !== null) {
+      const failedCb: () => void = this.standbyFailedCallback;
+      this.standbyFailedCallback = null;
+      this.standbyPreparedCallback = null;
+      failedCb();
+      return;
+    }
     if (this.phase !== 'error') {
       this.setPhase('error');
       this.listener?.onError(message);

@@ -7,12 +7,16 @@ export interface PlaybackSwitchHost {
   lockPreview(track: NowPlayingTrack, albumCoverArtId?: string): void;
   stopEngineAndClearBuffers(): Promise<void>;
   loadCurrentSongStream(reportStart: boolean): Promise<void>;
+  tryPromoteStandbyForSwitch(nextSongId: string): Promise<boolean>;
+  finishPromotedSwitch(reportStart: boolean): Promise<void>;
+  resetNextTrackPreload(): void;
+  getSwitchTargetSongId(): string;
   clearPreview(): void;
   restoreSnapshotFromEngine(): void;
   buildPreviewTrackFromAlbum(album: Album): NowPlayingTrack;
 }
 
-/** 统一切歌：preview → stop → commit load */
+/** 统一切歌：preview → stop → commit load（standby 命中时热路径 promote） */
 export class PlaybackSwitch {
   static async prepareSwitch(
     host: PlaybackSwitchHost,
@@ -31,7 +35,13 @@ export class PlaybackSwitch {
   }
 
   static async commitSwitch(host: PlaybackSwitchHost, reportStart: boolean): Promise<void> {
-    await host.loadCurrentSongStream(reportStart);
+    const targetId: string = host.getSwitchTargetSongId();
+    if (targetId.length > 0 && await host.tryPromoteStandbyForSwitch(targetId)) {
+      await host.finishPromotedSwitch(reportStart);
+    } else {
+      await host.loadCurrentSongStream(reportStart);
+    }
+    host.resetNextTrackPreload();
   }
 
   static restoreFailedSwitch(host: PlaybackSwitchHost): void {

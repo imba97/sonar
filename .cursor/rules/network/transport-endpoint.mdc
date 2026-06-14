@@ -19,7 +19,7 @@ alwaysApply: false
 - REST JSON 必须 `HttpTransport.requestWithFallback`（经 `SubsonicApi`）。
 - 小二进制（封面）必须 `HttpTransport.requestBufferWithFallback`。
 - 音频播放：`MediaResourceService.openStream` 构建 URL → **AVPlayer HTTP 直连接口**（`PipelineOrchestrator.replayAt`）；禁止播放路径并行 Fetch。
-- 可选预拉：`PrefetchWorker` 经 `HttpTransport.openStream`（local boost 下一首）。
+- 下一首预加载：`playback/preload/NextTrackPreloadCoordinator` + `StreamWarmupPreloadStrategy` 经 `HttpTransport.openStream`（与播放独立，不落盘）；standby 预加载用第二路 AVPlayer prepare。
 - Endpoint 切换必须经 `EndpointRouter`；长流 migrate 顺序：**`NetworkCoordinator` 先 `MediaResourceService.migrateActiveStreams(to)`，再 `PlaybackPipelineBridge` → `replayAt`**。
 
 ## WiFi 信任缓存

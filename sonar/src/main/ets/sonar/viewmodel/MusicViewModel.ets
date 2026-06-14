@@ -10,6 +10,8 @@ const ALBUM_BATCH_SIZE: number = 12;
 
 @Observed
 export class MusicViewModel {
+  private static session: MusicViewModel | null = null;
+
   kind: MusicListKind = 'random';
   songs: Song[] = [];
   searchQuery: string = '';
@@ -22,6 +24,14 @@ export class MusicViewModel {
   private albumListOffset: number = 0;
   private randomSongsCache: Song[] = [];
   private randomFetched: boolean = false;
+
+  /** 跨 MusicPage 重建保留列表态（外屏预览、二级页返回等） */
+  static getInstance(): MusicViewModel {
+    if (MusicViewModel.session === null) {
+      MusicViewModel.session = new MusicViewModel();
+    }
+    return MusicViewModel.session;
+  }
 
   reset(): void {
     this.songs = [];

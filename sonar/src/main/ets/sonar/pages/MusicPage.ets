@@ -28,7 +28,7 @@ export struct MusicPage {
   @StorageLink('playbackPhase') playbackPhase: PlaybackPhase = 'idle';
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
-  @State vm: MusicViewModel = new MusicViewModel();
+  @State vm: MusicViewModel = MusicViewModel.getInstance();
   @State private refreshSpinDeg: number = 0;
   @State private randomRefreshing: boolean = false;
 

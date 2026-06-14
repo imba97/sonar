@@ -128,9 +128,6 @@ export class MediaCenter {
     lastDurationMs: number
   ): boolean {
     if (assetChanged) {
-      if (track.coverArtId.length > 0 && cover === null) {
-        return false;
-      }
       return true;
     }
     if (cover !== null && track.coverArtId.length > 0 && track.coverArtId !== lastCoverArtId) {

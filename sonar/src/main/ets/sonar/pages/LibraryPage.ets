@@ -77,8 +77,6 @@ export struct LibraryPage {
     try {
       await PlaybackService.playAlbumAll(album);
       PlaybackService.setPlaybackMode('listLoop');
-      const title: string = album.title ?? album.name ?? '专辑';
-      this.showToast(`开始播放：${title}`);
     } catch (err) {
       const message: string = (err as Error).message;
       if (message === 'EMPTY_ALBUM') {

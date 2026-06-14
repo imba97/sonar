@@ -15,6 +15,9 @@ import { CoverCacheEntry, CoverCacheIndex } from '../cache/CoverCacheTypes';
 import { AuthContext } from '../network/auth/AuthContext';
 import { MediaResourceService } from '../network/media/MediaResourceService';
 import { HttpTransport } from '../network/transport/HttpTransport';
+import { TaskPoolRunner } from '../concurrency/TaskPoolRunner';
+import { ReconcileEntryInput, ReconcileFileStat, ReconcileOrphanOutput } from '../concurrency/CacheIndexReconcileTask';
+import { CoverDecodeScheduler, CoverDecodePriority } from './CoverDecodeScheduler';
 
 const COVER_PIXEL_SIZE: number = 320;
 const COVER_DISK_SIZE: number = 480;
@@ -61,6 +64,9 @@ export class CoverCache {
     if (CoverCache.context === null) {
       return;
     }
+    CoverDecodeScheduler.setDecodeFn((path: string): Promise<image.PixelMap | null> => {
+      return CoverCache.decodeFile(path);
+    });
     CoverCacheStore.ensureInitialized();
     await CoverCacheSettingsStore.getInstance().init(CoverCache.context);
     CoverCache.ensureCoverDir();
@@ -295,7 +301,8 @@ export class CoverCache {
   private static async loadInternal(coverArtId: string): Promise<image.PixelMap | null> {
     const localPath: string | null = CoverCache.resolveLocalPath(coverArtId);
     if (localPath !== null) {
-      const pm: image.PixelMap | null = await CoverCache.decodeFile(localPath);
+      const pm: image.PixelMap | null =
+        await CoverCache.scheduleDecode(coverArtId, localPath, CoverDecodePriority.PLAYBACK);
       if (pm !== null) {
         CoverCache.putMemory(coverArtId, pm);
         CoverCache.revision++;
@@ -310,7 +317,8 @@ export class CoverCache {
       if (pathAfter === null) {
         return null;
       }
-      const pm: image.PixelMap | null = await CoverCache.decodeFile(pathAfter);
+      const pm: image.PixelMap | null =
+        await CoverCache.scheduleDecode(coverArtId, pathAfter, CoverDecodePriority.PLAYBACK);
       if (pm !== null) {
         CoverCache.putMemory(coverArtId, pm);
         CoverCache.revision++;
@@ -485,6 +493,18 @@ export class CoverCache {
     return fileName;
   }
 
+  private static scheduleDecode(
+    coverArtId: string,
+    path: string,
+    priority: CoverDecodePriority = CoverDecodePriority.NORMAL
+  ): Promise<image.PixelMap | null> {
+    let effectivePriority: CoverDecodePriority = priority;
+    if (coverArtId === CoverCache.pinnedCoverArtId) {
+      effectivePriority = CoverDecodePriority.PINNED;
+    }
+    return CoverDecodeScheduler.schedule(coverArtId, path, effectivePriority);
+  }
+
   private static async loadIndex(): Promise<void> {
     const path: string = CoverCache.indexPath();
     const text: string | null = CacheFileUtil.readTextFile(path);
@@ -493,7 +513,7 @@ export class CoverCache {
       CoverCache.safeIdToCoverArtId.clear();
     } else {
       try {
-        const parsed: CoverCacheIndex = JSON.parse(text) as CoverCacheIndex;
+        const parsed: CoverCacheIndex = await TaskPoolRunner.parseJsonText<CoverCacheIndex>(text);
         const rawEntries: CoverCacheEntry[] = parsed.entries ?? [];
         CoverCache.entryMap.clear();
         CoverCache.safeIdToCoverArtId.clear();
@@ -527,67 +547,75 @@ export class CoverCache {
   }
 
   private static async reconcileIndexWithDisk(): Promise<boolean> {
-    let changed: boolean = false;
-    const staleIds: string[] = [];
+    const entries: ReconcileEntryInput[] = [];
     CoverCache.entryMap.forEach((entry: CoverCacheEntry, coverArtId: string) => {
-      if (entry.completedAt <= 0) {
-        staleIds.push(coverArtId);
-        return;
-      }
-      const path: string = CoverCache.entryPath(entry);
-      if (!CacheFileUtil.fileExists(path)) {
-        staleIds.push(coverArtId);
-        return;
-      }
-      const actualSize: number = CacheFileUtil.fileSize(path);
-      if (actualSize < MIN_COMPLETE_BYTES) {
-        CacheFileUtil.removeIfExists(path);
-        staleIds.push(coverArtId);
-        return;
-      }
-      if (entry.sizeBytes !== actualSize) {
-        entry.sizeBytes = actualSize;
-        changed = true;
-      }
+      entries.push({
+        id: coverArtId,
+        fileName: entry.fileName,
+        sizeBytes: entry.sizeBytes,
+        completedAt: entry.completedAt
+      });
     });
-    for (let i: number = 0; i < staleIds.length; i++) {
-      const staleId: string = staleIds[i];
+    const diskFiles: ReconcileFileStat[] = CoverCache.collectDiskFileStats();
+    const result = await TaskPoolRunner.reconcileCoverIndex(
+      entries,
+      diskFiles,
+      MIN_COMPLETE_BYTES
+    );
+    let changed: boolean = false;
+    for (let i: number = 0; i < result.deleteFiles.length; i++) {
+      const fileName: string = result.deleteFiles[i];
+      CacheFileUtil.removeIfExists(`${CoverCache.coverDir()}/${fileName}`);
+      changed = true;
+    }
+    for (let j: number = 0; j < result.staleIds.length; j++) {
+      const staleId: string = result.staleIds[j];
       const entry: CoverCacheEntry | undefined = CoverCache.entryMap.get(staleId);
       if (entry !== undefined) {
+        CacheFileUtil.removeIfExists(CoverCache.entryPath(entry));
         CoverCache.safeIdToCoverArtId.delete(CoverCache.safeIdFromFileName(entry.fileName));
       }
       CoverCache.entryMap.delete(staleId);
       changed = true;
       Logger.info('CoverCache', `reconcile removed stale coverArtId=${staleId}`);
     }
-
-    const orphanFiles: string[] = CoverCache.listJpgFilesOnDisk();
-    for (let j: number = 0; j < orphanFiles.length; j++) {
-      const fileName: string = orphanFiles[j];
-      const safeId: string = CoverCache.safeIdFromFileName(fileName);
-      if (CoverCache.safeIdToCoverArtId.has(safeId)) {
-        continue;
-      }
-      const path: string = `${CoverCache.coverDir()}/${fileName}`;
-      const actualSize: number = CacheFileUtil.fileSize(path);
-      if (actualSize < MIN_COMPLETE_BYTES) {
-        CacheFileUtil.removeIfExists(path);
+    for (let k: number = 0; k < result.sizeUpdates.length; k++) {
+      const update: ReconcileEntryInput = result.sizeUpdates[k];
+      const entry: CoverCacheEntry | undefined = CoverCache.entryMap.get(update.id);
+      if (entry !== undefined && entry.sizeBytes !== update.sizeBytes) {
+        entry.sizeBytes = update.sizeBytes;
         changed = true;
-        continue;
       }
+    }
+    for (let m: number = 0; m < result.orphans.length; m++) {
+      const orphan: ReconcileOrphanOutput = result.orphans[m];
       const now: number = Date.now();
-      CoverCache.entryMap.set(safeId, {
-        coverArtId: safeId,
-        fileName: fileName,
-        sizeBytes: actualSize,
+      CoverCache.entryMap.set(orphan.coverArtId, {
+        coverArtId: orphan.coverArtId,
+        fileName: orphan.fileName,
+        sizeBytes: orphan.sizeBytes,
         lastAccessedAt: now,
         completedAt: now
       });
-      CoverCache.safeIdToCoverArtId.set(safeId, safeId);
+      CoverCache.safeIdToCoverArtId.set(orphan.coverArtId, orphan.coverArtId);
       changed = true;
-      Logger.info('CoverCache', `reconcile adopted orphan file=${fileName}`);
+      Logger.info('CoverCache', `reconcile adopted orphan file=${orphan.fileName}`);
     }
     return changed;
+  }
+
+  private static collectDiskFileStats(): ReconcileFileStat[] {
+    const fileNames: string[] = CoverCache.listJpgFilesOnDisk();
+    const stats: ReconcileFileStat[] = [];
+    const dir: string = CoverCache.coverDir();
+    for (let i: number = 0; i < fileNames.length; i++) {
+      const fileName: string = fileNames[i];
+      stats.push({
+        fileName: fileName,
+        sizeBytes: CacheFileUtil.fileSize(`${dir}/${fileName}`)
+      });
+    }
+    return stats;
   }
 
   private static listJpgFilesOnDisk(): string[] {

@@ -15,7 +15,7 @@ import { TabScrollerBridge } from '../ui/layout/TabScrollerBridge';
 import { SonarPageRole } from '../ui/layout/SonarPageLayoutOptions';
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { MusicViewModel } from '../viewmodel/MusicViewModel';
-import { PlaybackSnapshot } from '../playback/PlaybackSnapshot';
+import { PlaybackPhase } from '../playback/PlaybackSnapshot';
 
 @Component
 export struct MusicPage {
@@ -24,7 +24,8 @@ export struct MusicPage {
   @StorageLink('authPhase') @Watch('onAuthSnapshotChanged') authPhase: string = 'booting';
   @StorageLink('isLoggedIn') isLoggedIn: boolean = false;
   @StorageLink('rootTabActive') rootTabActive: boolean = false;
-  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageLink('playbackTrackId') playbackTrackId: string = '';
+  @StorageLink('playbackPhase') playbackPhase: PlaybackPhase = 'idle';
   @StorageProp('topRectHeight') topInset: number = 0;
   @StorageProp('bottomRectHeight') bottomInset: number = 0;
   @State vm: MusicViewModel = new MusicViewModel();
@@ -143,9 +144,9 @@ export struct MusicPage {
           ListItem() {
             MusicListView({
               songs: this.vm.songs,
-              highlightSongId: this.playback.track !== null ? this.playback.track.id : '',
-              playingTrackId: this.playback.track !== null ? this.playback.track.id : '',
-              playbackPhase: this.playback.phase,
+              highlightSongId: this.playbackTrackId,
+              playingTrackId: this.playbackTrackId,
+              playbackPhase: this.playbackPhase,
               listVariant: 'browse',
               showArtist: true,
               showAlbumCover: true

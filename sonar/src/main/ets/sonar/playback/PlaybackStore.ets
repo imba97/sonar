@@ -3,12 +3,23 @@ import { PlaybackPhase, PlaybackSnapshot } from './PlaybackSnapshot';
 const STORAGE_KEY: string = 'playback';
 const TRACK_ID_KEY: string = 'playbackTrackId';
 const PHASE_KEY: string = 'playbackPhase';
+const SESSION_READY_KEY: string = 'playbackSessionReady';
 
 export class PlaybackStore {
   static init(snapshot: PlaybackSnapshot = PlaybackSnapshot.idle()): void {
     AppStorage.setOrCreate<PlaybackSnapshot>(STORAGE_KEY, snapshot);
     AppStorage.setOrCreate<string>(TRACK_ID_KEY, PlaybackStore.resolveTrackId(snapshot));
     AppStorage.setOrCreate<PlaybackPhase>(PHASE_KEY, snapshot.phase);
+    AppStorage.setOrCreate<boolean>(SESSION_READY_KEY, false);
+  }
+
+  static setSessionReady(ready: boolean): void {
+    AppStorage.setOrCreate<boolean>(SESSION_READY_KEY, ready);
+  }
+
+  static isSessionReady(): boolean {
+    const ready: boolean | undefined = AppStorage.get<boolean>(SESSION_READY_KEY);
+    return ready === true;
   }
 
   static get(): PlaybackSnapshot {

@@ -68,7 +68,7 @@ export class SubsonicApi {
       buildUrl: (ep: EndpointType): string => AuthContext.buildRestUrl(api, extraParams, undefined, ep),
       profile: 'json'
     });
-    return SubsonicResponseParser.parseEnvelope<T>(text);
+    return SubsonicResponseParser.parseEnvelopeAsync<T>(text);
   }
 
   static async getArtists(): Promise<ArtistsResponse> {

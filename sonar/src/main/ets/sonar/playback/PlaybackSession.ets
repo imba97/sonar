@@ -33,6 +33,7 @@ import { PlaybackSwitch, PlaybackSwitchHost } from './PlaybackSwitch';
 import { PlaylistPersistence } from './PlaylistPersistence';
 
 const HEARTBEAT_INTERVAL_MS: number = 15_000;
+const UI_POSITION_PUBLISH_INTERVAL_MS: number = 1000;
 const MIN_SCROBBLE_TRACK_LENGTH_MS: number = 30_000;
 const MAX_SCROBBLE_PROGRESS_THRESHOLD_MS: number = 240_000;
 
@@ -128,6 +129,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private static instance: PlaybackSession | null = null;
 
   private initialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
   private context: common.UIAbilityContext | null = null;
   private readonly orchestrator: PipelineOrchestrator = new PipelineOrchestrator();
   private readonly mediaCenter: MediaCenter = new MediaCenter();
@@ -147,6 +149,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private albumCoverFallbackId: string = '';
   snapshot: PlaybackSnapshot = PlaybackSnapshot.idle();
   private previewTrack: NowPlayingTrack | null = null;
+  /** 点播后、Session init 完成前暂存的预览曲，用于 miniBar 封面 loading */
+  private stagedPlayPreview: NowPlayingTrack | null = null;
   private transportHandler: SystemTransportHandler | null = null;
   private lastMediaCenterPositionAt: number = 0;
   private activeStreamResource: StreamResource | null = null;
@@ -154,8 +158,55 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private frozenPositionMs: number = 0;
   private pipelinePhase: PlaybackPhase = 'idle';
   private prefetchCancelToken: CancelToken | null = null;
+  private switchDepth: number = 0;
+  /** loadCurrentSongStream 已对账后，跳过 onPipelinePhase(playing) 的重复 reconcile。 */
+  private streamMetadataAligned: boolean = false;
 
   private readonly pipelineCallbacks: PipelineOrchestratorCallbacks = new SessionPipelineCallbacks(this);
+
+  private beginSwitch(): void {
+    this.switchDepth++;
+  }
+
+  private endSwitch(): void {
+    if (this.switchDepth > 0) {
+      this.switchDepth--;
+    }
+  }
+
+  private isSwitching(): boolean {
+    return this.switchDepth > 0;
+  }
+
+  private static cloneSongs(songs: Song[]): Song[] {
+    const cloned: Song[] = [];
+    for (let i: number = 0; i < songs.length; i++) {
+      const item: Song = songs[i];
+      cloned.push({
+        id: item.id,
+        parent: item.parent,
+        isDir: item.isDir,
+        title: item.title,
+        album: item.album,
+        artist: item.artist,
+        track: item.track,
+        year: item.year,
+        genre: item.genre,
+        coverArt: item.coverArt,
+        albumId: item.albumId,
+        size: item.size,
+        contentType: item.contentType,
+        suffix: item.suffix,
+        duration: item.duration,
+        bitRate: item.bitRate,
+        path: item.path,
+        playCount: item.playCount,
+        created: item.created,
+        starred: item.starred
+      });
+    }
+    return cloned;
+  }
 
   static getInstance(): PlaybackSession {
     if (PlaybackSession.instance === null) {
@@ -176,8 +227,37 @@ export class PlaybackSession implements PlaybackSwitchHost {
     return this.currentMode;
   }
 
+  async ensureInitialized(): Promise<void> {
+    if (this.initialized) {
+      return;
+    }
+    if (this.context === null) {
+      return;
+    }
+    await this.initialize(this.context);
+  }
+
   async initialize(context: common.UIAbilityContext): Promise<void> {
     this.context = context;
+    if (this.initialized) {
+      PlaybackStore.setSessionReady(true);
+      return;
+    }
+    if (this.initPromise !== null) {
+      await this.initPromise;
+      return;
+    }
+    PlaybackStore.setSessionReady(false);
+    this.initPromise = this.runFirstTimeInitialize(context);
+    try {
+      await this.initPromise;
+    } catch (err) {
+      this.initPromise = null;
+      throw err as Error;
+    }
+  }
+
+  private async runFirstTimeInitialize(context: common.UIAbilityContext): Promise<void> {
     CoverCache.setContext(context);
     CoverCacheStore.ensureInitialized();
     SongCacheStore.ensureInitialized();
@@ -192,9 +272,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.orchestrator.setContext(context);
     this.orchestrator.setCallbacks(this.pipelineCallbacks);
     if (this.initialized) {
+      PlaybackStore.setSessionReady(true);
       return;
     }
-    PlaybackStore.init(PlaybackSnapshot.idle());
+    PlaybackStore.init(PlaybackSession.buildInitialPlaybackSnapshot(this.stagedPlayPreview));
     PlaylistStore.init(PlaylistSnapshot.empty());
     await PlaylistPersistence.getInstance().init(context);
     await this.orchestrator.initialize();
@@ -203,6 +284,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
       return this.handleNetworkPathChanged(event);
     });
     this.initialized = true;
+    PlaybackStore.setSessionReady(true);
+    this.initPromise = null;
   }
 
   setContext(context: common.UIAbilityContext): void {
@@ -229,8 +312,11 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.shuffleOrder = [];
     this.shuffleCursor = 0;
     this.previewTrack = null;
+    this.stagedPlayPreview = null;
     this.isBuffering = false;
     this.initialized = false;
+    this.initPromise = null;
+    PlaybackStore.setSessionReady(false);
     this.snapshot = PlaybackSnapshot.idle();
     PlaybackStore.publish(this.snapshot);
     this.publishPlaylist(true);
@@ -283,12 +369,22 @@ export class PlaybackSession implements PlaybackSwitchHost {
     PlaylistPersistence.getInstance().scheduleSave(this.displayQueue, this.currentIndex);
   }
 
+  private hasActivePlaybackSession(): boolean {
+    return this.activeStreamResource !== null ||
+      this.previewTrack !== null ||
+      this.pipelinePhase !== 'idle';
+  }
+
   private async restorePersistedPlaylist(): Promise<void> {
     const restored = await PlaylistPersistence.getInstance().load();
     if (restored === null || restored.songs.length === 0) {
       return;
     }
-    this.displayQueue = restored.songs.map((item: Song) => item);
+    if (this.hasActivePlaybackSession()) {
+      await this.reconcilePlaybackMetadata(true);
+      return;
+    }
+    this.displayQueue = PlaybackSession.cloneSongs(restored.songs);
     this.currentIndex = restored.currentIndex;
     this.cachedPublishedItems = this.displayQueue.map((item: Song) => item);
     this.playlistRevision += 1;
@@ -297,26 +393,108 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.currentIndex,
       this.playlistRevision
     ));
+    this.publishSnapshot('idle', true);
+  }
+
+  /** 流已开播但队列游标/快照仍指向旧曲时，按 activeStreamResource.songId 对齐元数据。 */
+  private async reconcilePlaybackMetadata(forcePublish: boolean): Promise<void> {
+    const resource: StreamResource | null = this.activeStreamResource;
+    if (resource === null) {
+      return;
+    }
+    const streamSongId: string = resource.songId;
+    if (streamSongId.length === 0) {
+      return;
+    }
+    const snapshotTrackId: string = this.snapshot.track !== null ? this.snapshot.track.id : '';
+    const currentSong: Song | null = this.getCurrentSong();
+    const queueMatches: boolean = currentSong !== null && currentSong.id === streamSongId;
+    if (snapshotTrackId === streamSongId && queueMatches) {
+      this.streamMetadataAligned = true;
+      return;
+    }
+    let foundIndex: number = -1;
+    for (let i: number = 0; i < this.displayQueue.length; i++) {
+      if (this.displayQueue[i].id === streamSongId) {
+        foundIndex = i;
+        break;
+      }
+    }
+    if (foundIndex >= 0) {
+      this.currentIndex = foundIndex;
+    } else {
+      try {
+        const fetched: Song = await SubsonicClient.getInstance().getSong(streamSongId);
+        this.displayQueue = [fetched, ...this.displayQueue];
+        this.currentIndex = 0;
+        if (fetched.coverArt !== undefined && fetched.coverArt.length > 0) {
+          this.albumCoverFallbackId = fetched.coverArt;
+        }
+        this.publishPlaylist(true);
+      } catch (err) {
+        Logger.warn('PlaybackSession', `reconcile getSong failed: ${(err as Error).message}`);
+        return;
+      }
+    }
+    this.streamMetadataAligned = true;
+    if (forcePublish) {
+      this.publishSnapshot(this.pipelinePhase, true);
+    }
+  }
+
+  private static buildInitialPlaybackSnapshot(stagedPreview: NowPlayingTrack | null): PlaybackSnapshot {
+    if (stagedPreview !== null) {
+      return new PlaybackSnapshot(stagedPreview, 'loading', 0, 'listLoop', true, 0, false);
+    }
+    return PlaybackSnapshot.idle();
+  }
+
+  /** 点播后立即写入全局 playback 快照，miniBar 封面进入 loading（无需等 init 结束）。 */
+  private publishStagedPlayPreview(track: NowPlayingTrack, albumCoverArtId?: string): void {
+    this.stagedPlayPreview = track;
+    if (albumCoverArtId !== undefined && albumCoverArtId.length > 0) {
+      this.albumCoverFallbackId = albumCoverArtId;
+    }
+    PlaybackStore.publish(new PlaybackSnapshot(
+      track,
+      'loading',
+      0,
+      this.currentMode,
+      true,
+      this.coverRevision,
+      false
+    ));
   }
 
   async playQueue(songs: Song[], index: number, albumCoverArtId?: string): Promise<void> {
     if (songs.length === 0) {
       return;
     }
-    this.albumCoverFallbackId = albumCoverArtId ?? '';
     const safeIndex: number = index >= 0 && index < songs.length ? index : 0;
-    const targetSong: Song = songs[safeIndex];
-    const previewTrack: NowPlayingTrack = buildNowPlayingTrack(targetSong, this.albumCoverFallbackId);
-    await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.displayQueue = songs.map((item: Song) => item);
-    this.currentIndex = safeIndex;
-    this.shuffleOrder = [];
-    this.shuffleCursor = 0;
-    await PlaybackSwitch.commitSwitch(this, true);
-    this.publishPlaylist(true);
+    const previewTrack: NowPlayingTrack = buildNowPlayingTrack(songs[safeIndex], albumCoverArtId ?? '');
+    this.publishStagedPlayPreview(previewTrack, albumCoverArtId);
+    await this.ensureInitialized();
+    this.beginSwitch();
+    try {
+      this.albumCoverFallbackId = albumCoverArtId ?? '';
+      this.displayQueue = PlaybackSession.cloneSongs(songs);
+      this.currentIndex = safeIndex;
+      this.shuffleOrder = [];
+      this.shuffleCursor = 0;
+      const targetSong: Song = this.displayQueue[safeIndex];
+      const previewTrack: NowPlayingTrack = buildNowPlayingTrack(targetSong, this.albumCoverFallbackId);
+      await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
+      await PlaybackSwitch.commitSwitch(this, true);
+      this.publishPlaylist(true);
+    } finally {
+      this.endSwitch();
+    }
   }
 
   async playAlbumAll(album: Album): Promise<void> {
+    const previewTrack: NowPlayingTrack = this.buildPreviewTrackFromAlbum(album);
+    this.publishStagedPlayPreview(previewTrack, album.coverArt);
+    await this.ensureInitialized();
     await PlaybackSwitch.prepareSwitchFromAlbum(this, album);
     try {
       const resp = await SubsonicClient.getInstance().getAlbum(album.id);
@@ -333,6 +511,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async enqueueNext(song: Song): Promise<void> {
+    await this.ensureInitialized();
     if (this.displayQueue.length === 0 || this.currentIndex < 0) {
       this.displayQueue = [song];
       this.currentIndex = 0;
@@ -395,24 +574,30 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async playFromPlaylistIndex(index: number): Promise<void> {
+    await this.ensureInitialized();
     if (index < 0 || index >= this.displayQueue.length) {
       return;
     }
-    const targetSong: Song = this.displayQueue[index];
-    const previewTrack: NowPlayingTrack = buildNowPlayingTrack(targetSong, this.albumCoverFallbackId);
-    await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.currentIndex = index;
-    if (this.currentMode === 'random') {
-      const cursor: number = ShuffleController.findCursorForIndex(this.shuffleOrder, index);
-      if (cursor >= 0) {
-        this.shuffleCursor = cursor;
-      } else {
-        this.shuffleOrder = ShuffleController.buildShuffleOrder(this.displayQueue.length, index);
-        this.shuffleCursor = 0;
+    this.beginSwitch();
+    try {
+      const targetSong: Song = this.displayQueue[index];
+      const previewTrack: NowPlayingTrack = buildNowPlayingTrack(targetSong, this.albumCoverFallbackId);
+      this.currentIndex = index;
+      await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
+      if (this.currentMode === 'random') {
+        const cursor: number = ShuffleController.findCursorForIndex(this.shuffleOrder, index);
+        if (cursor >= 0) {
+          this.shuffleCursor = cursor;
+        } else {
+          this.shuffleOrder = ShuffleController.buildShuffleOrder(this.displayQueue.length, index);
+          this.shuffleCursor = 0;
+        }
       }
+      await PlaybackSwitch.commitSwitch(this, true);
+      this.publishPlaylist(false);
+    } finally {
+      this.endSwitch();
     }
-    await PlaybackSwitch.commitSwitch(this, true);
-    this.publishPlaylist(false);
   }
 
   async removeFromPlaylist(index: number): Promise<void> {
@@ -456,6 +641,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async toggle(): Promise<void> {
+    await this.ensureInitialized();
     const sinkPhase: PlaySinkPhase = this.orchestrator.getPhase();
     if (this.pipelinePhase === 'playing' || sinkPhase === 'playing') {
       await this.orchestrator.pause();
@@ -485,49 +671,61 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async playNext(manual: boolean = true): Promise<void> {
+    await this.ensureInitialized();
     if (this.displayQueue.length === 0) {
       return;
     }
-    const nav = resolveNextPlayback(
-      this.displayQueue.length,
-      this.currentIndex,
-      this.currentMode,
-      manual,
-      this.shuffleOrder,
-      this.shuffleCursor
-    );
-    if (nav.reshuffleOrder !== null) {
-      this.shuffleOrder = nav.reshuffleOrder;
+    this.beginSwitch();
+    try {
+      const nav = resolveNextPlayback(
+        this.displayQueue.length,
+        this.currentIndex,
+        this.currentMode,
+        manual,
+        this.shuffleOrder,
+        this.shuffleCursor
+      );
+      if (nav.reshuffleOrder !== null) {
+        this.shuffleOrder = nav.reshuffleOrder;
+      }
+      this.shuffleCursor = nav.shuffleCursor;
+      const nextSong: Song = this.displayQueue[nav.index];
+      const previewTrack: NowPlayingTrack = buildNowPlayingTrack(nextSong, this.albumCoverFallbackId);
+      this.currentIndex = nav.index;
+      await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
+      await PlaybackSwitch.commitSwitch(this, true);
+      this.schedulePrefetchNext();
+      this.publishPlaylist(false);
+    } finally {
+      this.endSwitch();
     }
-    this.shuffleCursor = nav.shuffleCursor;
-    const nextSong: Song = this.displayQueue[nav.index];
-    const previewTrack: NowPlayingTrack = buildNowPlayingTrack(nextSong, this.albumCoverFallbackId);
-    await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.currentIndex = nav.index;
-    await PlaybackSwitch.commitSwitch(this, true);
-    this.schedulePrefetchNext();
-    this.publishPlaylist(false);
   }
 
   async playPrevious(): Promise<void> {
+    await this.ensureInitialized();
     if (this.displayQueue.length === 0) {
       return;
     }
-    const nav = resolvePreviousPlayback(
-      this.displayQueue.length,
-      this.currentIndex,
-      this.currentMode,
-      this.shuffleOrder,
-      this.shuffleCursor
-    );
-    this.shuffleCursor = nav.shuffleCursor;
-    const prevSong: Song = this.displayQueue[nav.index];
-    const previewTrack: NowPlayingTrack = buildNowPlayingTrack(prevSong, this.albumCoverFallbackId);
-    await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
-    this.currentIndex = nav.index;
-    await PlaybackSwitch.commitSwitch(this, true);
-    this.schedulePrefetchNext();
-    this.publishPlaylist(false);
+    this.beginSwitch();
+    try {
+      const nav = resolvePreviousPlayback(
+        this.displayQueue.length,
+        this.currentIndex,
+        this.currentMode,
+        this.shuffleOrder,
+        this.shuffleCursor
+      );
+      this.shuffleCursor = nav.shuffleCursor;
+      const prevSong: Song = this.displayQueue[nav.index];
+      const previewTrack: NowPlayingTrack = buildNowPlayingTrack(prevSong, this.albumCoverFallbackId);
+      this.currentIndex = nav.index;
+      await PlaybackSwitch.prepareSwitch(this, previewTrack, this.albumCoverFallbackId);
+      await PlaybackSwitch.commitSwitch(this, true);
+      this.schedulePrefetchNext();
+      this.publishPlaylist(false);
+    } finally {
+      this.endSwitch();
+    }
   }
 
   async seekTo(positionMs: number): Promise<void> {
@@ -564,6 +762,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   lockPreview(track: NowPlayingTrack, albumCoverArtId?: string): void {
+    this.stagedPlayPreview = null;
     if (albumCoverArtId !== undefined && albumCoverArtId.length > 0) {
       this.albumCoverFallbackId = albumCoverArtId;
     }
@@ -611,6 +810,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       this.activeStreamResource.cancelToken.cancel();
       this.activeStreamResource = null;
     }
+    this.streamMetadataAligned = false;
   }
 
   async loadCurrentSongStream(reportStart: boolean): Promise<void> {
@@ -655,6 +855,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
       void SongCache.enqueueDownload(song.id);
     }
     await coverTask;
+    await this.reconcilePlaybackMetadata(true);
     this.schedulePrefetchNext();
   }
 
@@ -725,7 +926,30 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.pipelinePhase = PlaybackSession.mapSinkPhase(phase);
     if (this.pipelinePhase === 'playing') {
       this.startHeartbeat();
-    } else if (this.pipelinePhase === 'paused' || this.pipelinePhase === 'error' ||
+      if (this.streamMetadataAligned) {
+        this.streamMetadataAligned = false;
+        this.publishSnapshot(this.pipelinePhase, true);
+        void this.syncMediaCenter(this.snapshot, true);
+        const alignedTrack: NowPlayingTrack | null = this.snapshot.track;
+        if (alignedTrack === null) {
+          void BackgroundPlayback.stop();
+        } else {
+          void BackgroundPlayback.start(alignedTrack.title, alignedTrack.artist, true);
+        }
+        return;
+      }
+      void this.reconcilePlaybackMetadata(true).then(() => {
+        void this.syncMediaCenter(this.snapshot, true);
+        const track: NowPlayingTrack | null = this.snapshot.track;
+        if (track === null) {
+          void BackgroundPlayback.stop();
+          return;
+        }
+        void BackgroundPlayback.start(track.title, track.artist, true);
+      });
+      return;
+    }
+    if (this.pipelinePhase === 'paused' || this.pipelinePhase === 'error' ||
       this.pipelinePhase === 'idle') {
       this.stopHeartbeat();
     }
@@ -734,10 +958,6 @@ export class PlaybackSession implements PlaybackSwitchHost {
     const track: NowPlayingTrack | null = this.snapshot.track;
     if (track === null) {
       void BackgroundPlayback.stop();
-      return;
-    }
-    if (this.pipelinePhase === 'playing') {
-      void BackgroundPlayback.start(track.title, track.artist, true);
       return;
     }
     if (this.pipelinePhase === 'paused' || this.pipelinePhase === 'idle' || this.pipelinePhase === 'error') {
@@ -749,34 +969,35 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (this.previewTrack !== null || this.isBuffering) {
       return;
     }
-    this.publishSnapshot(this.pipelinePhase, false);
     const now: number = Date.now();
-    if (now - this.lastMediaCenterPositionAt < 1000) {
+    if (now - this.lastMediaCenterPositionAt < UI_POSITION_PUBLISH_INTERVAL_MS) {
       return;
     }
     this.lastMediaCenterPositionAt = now;
+    this.publishSnapshot(this.pipelinePhase, false);
     void this.mediaCenter.syncPlaybackState(this.snapshot);
   }
 
   onPipelineDuration(durationMs: number): void {
-    const track: NowPlayingTrack | null = this.snapshot.track;
-    if (track === null) {
+    const baseTrack: NowPlayingTrack | null = this.resolveActiveNowPlayingTrack();
+    if (baseTrack === null) {
       return;
     }
     const updated: NowPlayingTrack = new NowPlayingTrack(
-      track.id,
-      track.title,
-      track.artist,
-      track.album,
-      track.coverArtId,
-      durationMs > 0 ? durationMs : track.durationMs
+      baseTrack.id,
+      baseTrack.title,
+      baseTrack.artist,
+      baseTrack.album,
+      baseTrack.coverArtId,
+      durationMs > 0 ? durationMs : baseTrack.durationMs
     );
+    const showMiniPlayer: boolean = this.previewTrack !== null || this.getCurrentSong() !== null;
     this.snapshot = new PlaybackSnapshot(
       updated,
       this.snapshot.phase,
       this.snapshot.positionMs,
       this.currentMode,
-      this.currentIndex >= 0,
+      showMiniPlayer,
       this.coverRevision,
       this.isBuffering
     );
@@ -784,6 +1005,38 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (durationMs > 0) {
       void this.syncMediaCenter(this.snapshot, true);
     }
+  }
+
+  private static shouldExposeQueueTrack(phase: PlaybackPhase): boolean {
+    return phase === 'loading' || phase === 'playing' || phase === 'paused' || phase === 'error';
+  }
+
+  /** 从 preview 或队列当前曲构建元数据；idle 时不暴露队列游标曲目。 */
+  private resolveActiveNowPlayingTrack(exposePhase?: PlaybackPhase): NowPlayingTrack | null {
+    if (this.previewTrack !== null) {
+      return this.previewTrack;
+    }
+    const phaseForExpose: PlaybackPhase = exposePhase ?? this.pipelinePhase;
+    if (!PlaybackSession.shouldExposeQueueTrack(phaseForExpose)) {
+      return null;
+    }
+    const song: Song | null = this.getCurrentSong();
+    if (song === null) {
+      return null;
+    }
+    let track: NowPlayingTrack = buildNowPlayingTrack(song, this.albumCoverFallbackId);
+    const durationMs: number = this.orchestrator.getDurationMs();
+    if (durationMs > 0) {
+      track = new NowPlayingTrack(
+        track.id,
+        track.title,
+        track.artist,
+        track.album,
+        track.coverArtId,
+        durationMs
+      );
+    }
+    return track;
   }
 
   private static mapSinkPhase(phase: PlaySinkPhase): PlaybackPhase {
@@ -805,7 +1058,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   private publishSnapshot(phase: PlaybackPhase, forceMedia: boolean = false): void {
     let track: NowPlayingTrack | null = null;
     let positionMs: number = 0;
-    let showMiniPlayer: boolean = this.currentIndex >= 0;
+    let showMiniPlayer: boolean = false;
     let snapshotPhase: PlaybackPhase = phase;
 
     if (this.previewTrack !== null) {
@@ -813,21 +1066,11 @@ export class PlaybackSession implements PlaybackSwitchHost {
       snapshotPhase = 'loading';
       positionMs = 0;
       showMiniPlayer = true;
-    } else {
-      const song: Song | null = this.getCurrentSong();
-      if (song !== null) {
-        track = buildNowPlayingTrack(song, this.albumCoverFallbackId);
-        const durationMs: number = this.orchestrator.getDurationMs();
-        if (durationMs > 0) {
-          track = new NowPlayingTrack(
-            track.id,
-            track.title,
-            track.artist,
-            track.album,
-            track.coverArtId,
-            durationMs
-          );
-        }
+    } else if (PlaybackSession.shouldExposeQueueTrack(phase)) {
+      const resolvedTrack: NowPlayingTrack | null = this.resolveActiveNowPlayingTrack(phase);
+      if (resolvedTrack !== null) {
+        track = resolvedTrack;
+        showMiniPlayer = true;
       }
       if (this.isBuffering) {
         positionMs = this.frozenPositionMs;
@@ -894,6 +1137,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async handleSystemPlay(): Promise<void> {
+    await this.ensureInitialized();
     if (this.systemCommandInFlight) {
       return;
     }
@@ -933,7 +1177,7 @@ export class PlaybackSession implements PlaybackSwitchHost {
   }
 
   async handleTrackCompleted(): Promise<void> {
-    if (this.handlingCompletion) {
+    if (this.handlingCompletion || this.isSwitching()) {
       return;
     }
     this.handlingCompletion = true;

@@ -21,7 +21,7 @@ export struct MiniBarRow {
   @Prop @Watch('onToneTargetChange') targetPrimary: string = '#1B1D23';
   @Prop @Watch('onToneTargetChange') targetSecondary: string = '#3C3F4A';
   @StorageLink('playback') @Watch('onPlaybackSync') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
-  @StorageProp(MINI_BAR_COMPACT_KEY) miniBarCompact: boolean = false;
+  @StorageProp(MINI_BAR_COMPACT_KEY) miniBarCompact: boolean = true;
 
   @State private displayInactive: string = '#282A32';
   @State private displayPrimary: string = '#1B1D23';
@@ -142,7 +142,7 @@ export struct MiniBarRow {
   }
 
   private canTogglePlayback(): boolean {
-    return this.isMiniBarExpanded() && this.hasActiveTrack() && !this.playback.isCoverLoading();
+    return this.isMiniBarExpanded() && this.hasActiveTrack();
   }
 
   private coverOuterSize(): number {
@@ -235,17 +235,18 @@ export struct MiniBarRow {
   }
 
   @Builder
-  private coverCollapsed() {
+  private coverSectionCollapsed() {
     Stack({ alignContent: Alignment.Center }) {
       this.coverDisc()
     }
     .width(this.coverOuterSize())
     .height(this.coverOuterSize())
     .flexShrink(0)
+    .hitTestBehavior(HitTestMode.None)
   }
 
   @Builder
-  private coverExpanded() {
+  private coverSectionExpanded() {
     Stack({ alignContent: Alignment.Center }) {
       this.coverDisc()
       this.coverPlayPauseOverlay()
@@ -258,6 +259,15 @@ export struct MiniBarRow {
     .onClick(() => {
       this.onCoverTap();
     })
+  }
+
+  @Builder
+  private coverSection() {
+    if (this.isMiniBarExpanded()) {
+      this.coverSectionExpanded()
+    } else {
+      this.coverSectionCollapsed()
+    }
   }
 
   @Builder
@@ -281,11 +291,7 @@ export struct MiniBarRow {
 
   @Builder
   private miniBarContent() {
-    if (this.isMiniBarExpanded()) {
-      this.coverExpanded()
-    } else {
-      this.coverCollapsed()
-    }
+    this.coverSection()
 
     Column({ space: UiTokens.MINI_BAR_TEXT_LINE_GAP }) {
       AutoMarqueeText({
@@ -310,6 +316,28 @@ export struct MiniBarRow {
     .flexShrink(1)
     .alignItems(HorizontalAlign.Start)
     .justifyContent(FlexAlign.Center)
+    .hitTestBehavior(this.miniBarCompact ? HitTestMode.None : HitTestMode.Default)
+    .priorityGesture(
+      PanGesture({ direction: PanDirection.Vertical, distance: 1 })
+        .onActionStart(() => {
+          if (!this.isMiniBarExpanded()) {
+            return;
+          }
+          this.onPlaylistSheetPanStart();
+        })
+        .onActionUpdate((event: GestureEvent) => {
+          if (!this.isMiniBarExpanded()) {
+            return;
+          }
+          this.onPlaylistSheetPanUpdate(event);
+        })
+        .onActionEnd((event: GestureEvent) => {
+          if (!this.isMiniBarExpanded()) {
+            return;
+          }
+          this.onPlaylistSheetPanEnd(event);
+        })
+    )
 
     if (this.isMiniBarExpanded() && this.hasActiveTrack()) {
       Row({ space: UiTokens.MINI_PLAYER_ACTION_ICON_GAP }) {
@@ -323,36 +351,14 @@ export struct MiniBarRow {
   }
 
   build() {
-    if (this.isMiniBarExpanded()) {
-      Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
-        this.miniBarContent()
-      }
-      .width('100%')
-      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-      .alignItems(VerticalAlign.Center)
-      .justifyContent(FlexAlign.Start)
-      .clip(true)
-      .priorityGesture(
-        PanGesture({ direction: PanDirection.Vertical, distance: 1 })
-          .onActionStart(() => {
-            this.onPlaylistSheetPanStart();
-          })
-          .onActionUpdate((event: GestureEvent) => {
-            this.onPlaylistSheetPanUpdate(event);
-          })
-          .onActionEnd((event: GestureEvent) => {
-            this.onPlaylistSheetPanEnd(event);
-          })
-      )
-    } else {
-      Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
-        this.miniBarContent()
-      }
-      .width('100%')
-      .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
-      .alignItems(VerticalAlign.Center)
-      .justifyContent(FlexAlign.Start)
-      .clip(true)
+    Row({ space: UiTokens.MINI_PLAYER_CAPSULE_CONTENT_GAP }) {
+      this.miniBarContent()
     }
+    .width('100%')
+    .height(UiTokens.FLOATING_TAB_BAR_HEIGHT)
+    .alignItems(VerticalAlign.Center)
+    .justifyContent(FlexAlign.Start)
+    .clip(true)
+    .hitTestBehavior(this.miniBarCompact ? HitTestMode.None : HitTestMode.Default)
   }
 }

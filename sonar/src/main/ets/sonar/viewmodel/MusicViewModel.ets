@@ -71,6 +71,8 @@ export class MusicViewModel {
     this.authExpired = false;
     this.hasMore = false;
     this.albumListOffset = 0;
+    this.randomFetched = false;
+    this.randomSongsCache = [];
     try {
       const loaded: Song[] = await SubsonicClient.getInstance().getRandomSongs(RANDOM_SONGS_SIZE);
       this.songs = loaded;
@@ -79,6 +81,8 @@ export class MusicViewModel {
     } catch (err) {
       await this.handleLoadError(err as Error);
       this.songs = [];
+      this.randomSongsCache = [];
+      this.randomFetched = false;
     } finally {
       this.isLoading = false;
     }

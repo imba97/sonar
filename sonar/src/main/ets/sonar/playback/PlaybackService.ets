@@ -110,6 +110,10 @@ export class PlaybackService {
     return PlaybackStore.get();
   }
 
+  static isSessionReady(): boolean {
+    return PlaybackStore.isSessionReady();
+  }
+
   static getPlaylistSnapshot(): PlaylistSnapshot {
     return PlaylistStore.get();
   }

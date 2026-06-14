@@ -2,7 +2,7 @@ import { BarToneStore } from './BarToneStore';
 import { ColorUtil } from './ColorUtil';
 import { image } from '@kit.ImageKit';
 
-const SAMPLE_INTERVAL_MS: number = 1000;
+const SAMPLE_INTERVAL_MS: number = 2000;
 const PROBE_OVERRIDE_KEY: string = 'barToneProbeOverride';
 const SNAPSHOT_SCALE: number = 0.25;
 const BOTTOM_BAND_HEIGHT_RATIO: number = 0.14;

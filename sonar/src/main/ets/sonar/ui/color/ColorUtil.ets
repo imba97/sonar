@@ -1,4 +1,5 @@
 import { image } from '@kit.ImageKit';
+import { TaskPoolRunner } from '../../concurrency/TaskPoolRunner';
 
 export class ColorUtil {
   private static normalizeHex(color: string): string {
@@ -70,25 +71,12 @@ export class ColorUtil {
       region: region
     };
     await pixelMap.readPixels(area);
-    const pixels: Uint8Array = new Uint8Array(buffer);
-    let rSum: number = 0;
-    let gSum: number = 0;
-    let bSum: number = 0;
-    let count: number = 0;
-    for (let i: number = 0; i < pixels.length; i += bytesPerPixel) {
-      const alpha: number = pixels[i + 3];
-      if (alpha < 16) {
-        continue;
-      }
-      bSum += pixels[i];
-      gSum += pixels[i + 1];
-      rSum += pixels[i + 2];
-      count++;
-    }
-    if (count === 0) {
-      return '#808080';
-    }
-    return ColorUtil.rgbToHex(rSum / count, gSum / count, bSum / count);
+    return await TaskPoolRunner.averageBottomBandFromBuffer(
+      buffer,
+      regionWidth,
+      bandHeight,
+      bytesPerPixel
+    );
   }
 
   /**

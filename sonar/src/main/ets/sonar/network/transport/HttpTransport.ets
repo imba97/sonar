@@ -194,7 +194,7 @@ export class HttpTransport {
         throw new SubsonicApiError(resp.responseCode, `HTTP ${resp.responseCode}`);
       }
       const text: string = resp.result as string;
-      if (profile === 'json' || profile === 'probe') {
+      if (profile === 'probe') {
         SubsonicResponseParser.parseEnvelope(text);
       }
       return text;

@@ -302,7 +302,6 @@ export struct MusicListView {
       void PlaybackService.playQueue(this.songs, index, coverArt).then(() => {
         PlaybackService.setPlaybackMode('listLoop');
       });
-      this.showToast(`开始播放：${song.title}`);
     }
   }
 

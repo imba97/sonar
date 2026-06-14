@@ -158,6 +158,7 @@ export struct PlaybackCoverDisc {
     }
     .width(this.discSize)
     .height(this.discSize)
+    .hitTestBehavior(HitTestMode.None)
   }
 
   build() {

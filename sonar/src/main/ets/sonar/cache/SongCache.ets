@@ -9,6 +9,8 @@ import { SongCacheSettingsStore } from './SongCacheSettingsStore';
 import { SongCacheStore } from './SongCacheStore';
 import { SongCacheWriter } from './SongCacheWriter';
 import { SongCacheEntry, SongCacheIndex } from './SongCacheTypes';
+import { TaskPoolRunner } from '../concurrency/TaskPoolRunner';
+import { ReconcileEntryInput, ReconcileFileStat } from '../concurrency/CacheIndexReconcileTask';
 
 const AUDIO_DIR: string = 'sonar_audio';
 const INDEX_FILE: string = 'index.json';
@@ -268,7 +270,7 @@ export class SongCache {
       return;
     }
     try {
-      const parsed: SongCacheIndex = JSON.parse(text) as SongCacheIndex;
+      const parsed: SongCacheIndex = await TaskPoolRunner.parseJsonText<SongCacheIndex>(text);
       const rawEntries: SongCacheEntry[] = parsed.entries ?? [];
       SongCache.entryMap.clear();
       for (let i: number = 0; i < rawEntries.length; i++) {
@@ -296,35 +298,62 @@ export class SongCache {
 
   /** 剔除索引中无对应文件的条目，并校正 sizeBytes */
   private static async reconcileIndexWithDisk(): Promise<boolean> {
-    let changed: boolean = false;
-    const staleIds: string[] = [];
+    const entries: ReconcileEntryInput[] = [];
     SongCache.entryMap.forEach((entry: SongCacheEntry, songId: string) => {
-      if (entry.completedAt <= 0) {
-        staleIds.push(songId);
-        return;
+      entries.push({
+        id: songId,
+        fileName: entry.fileName,
+        sizeBytes: entry.sizeBytes,
+        completedAt: entry.completedAt
+      });
+    });
+    const diskFiles: ReconcileFileStat[] = SongCache.collectDiskFileStats();
+    const result = await TaskPoolRunner.reconcileSongIndex(
+      entries,
+      diskFiles,
+      MIN_COMPLETE_BYTES
+    );
+    let changed: boolean = false;
+    for (let i: number = 0; i < result.staleIds.length; i++) {
+      const staleId: string = result.staleIds[i];
+      const entry: SongCacheEntry | undefined = SongCache.entryMap.get(staleId);
+      if (entry !== undefined) {
+        const path: string = SongCache.entryPath(entry);
+        if (CacheFileUtil.fileExists(path)) {
+          const actualSize: number = CacheFileUtil.fileSize(path);
+          if (actualSize < MIN_COMPLETE_BYTES) {
+            CacheFileUtil.removeIfExists(path);
+          }
+        }
       }
-      const path: string = SongCache.entryPath(entry);
-      if (!CacheFileUtil.fileExists(path)) {
-        staleIds.push(songId);
-        return;
-      }
-      const actualSize: number = CacheFileUtil.fileSize(path);
-      if (actualSize < MIN_COMPLETE_BYTES) {
-        CacheFileUtil.removeIfExists(path);
-        staleIds.push(songId);
-        return;
-      }
-      if (entry.sizeBytes !== actualSize) {
-        entry.sizeBytes = actualSize;
+      SongCache.entryMap.delete(staleId);
+      changed = true;
+      Logger.info('SongCache', `reconcile removed stale songId=${staleId}`);
+    }
+    for (let j: number = 0; j < result.sizeUpdates.length; j++) {
+      const update: ReconcileEntryInput = result.sizeUpdates[j];
+      const entry: SongCacheEntry | undefined = SongCache.entryMap.get(update.id);
+      if (entry !== undefined && entry.sizeBytes !== update.sizeBytes) {
+        entry.sizeBytes = update.sizeBytes;
         changed = true;
       }
-    });
-    for (let i: number = 0; i < staleIds.length; i++) {
-      SongCache.entryMap.delete(staleIds[i]);
-      changed = true;
-      Logger.info('SongCache', `reconcile removed stale songId=${staleIds[i]}`);
     }
     return changed;
+  }
+
+  private static collectDiskFileStats(): ReconcileFileStat[] {
+    const stats: ReconcileFileStat[] = [];
+    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
+      const path: string = SongCache.entryPath(entry);
+      if (!CacheFileUtil.fileExists(path)) {
+        return;
+      }
+      stats.push({
+        fileName: entry.fileName,
+        sizeBytes: CacheFileUtil.fileSize(path)
+      });
+    });
+    return stats;
   }
 
   private static async writeIndexFile(): Promise<void> {

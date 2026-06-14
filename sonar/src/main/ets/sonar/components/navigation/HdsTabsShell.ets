@@ -73,7 +73,7 @@ export struct HdsTabsShell {
   };
 
   aboutToAppear(): void {
-    AppStorage.setOrCreate<boolean>(MINI_BAR_COMPACT_KEY, false);
+    AppStorage.setOrCreate<boolean>(MINI_BAR_COMPACT_KEY, true);
     this.applyTabTone(false);
     this.refreshFloatingStyle(true);
   }

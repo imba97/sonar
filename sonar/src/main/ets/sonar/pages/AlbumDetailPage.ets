@@ -9,13 +9,14 @@ import { SecondaryHdsDestination } from '../components/navigation/SecondaryHdsDe
 import { UiTokens } from '../ui/tokens/UiTokens';
 import { ToastUtil } from '../common/ToastUtil';
 import { PlaybackService } from '../playback/PlaybackService';
-import { PlaybackSnapshot } from '../playback/PlaybackSnapshot';
+import { PlaybackPhase } from '../playback/PlaybackSnapshot';
 
 @Component
 export struct AlbumDetailPage {
   @Consume('appPathStack') appPathStack: NavPathStack;
   @State vm: AlbumDetailViewModel = new AlbumDetailViewModel();
-  @StorageLink('playback') playback: PlaybackSnapshot = PlaybackSnapshot.idle();
+  @StorageLink('playbackTrackId') playbackTrackId: string = '';
+  @StorageLink('playbackPhase') playbackPhase: PlaybackPhase = 'idle';
   /** 封面落盘后 bump，触发页面重建以切换本地 file URI */
   @StorageLink('coverCacheRevision') coverCacheRevision: number = 0;
   @State private albumId: string = '';
@@ -74,8 +75,6 @@ export struct AlbumDetailPage {
       const coverArt: string = this.vm.album.coverArt ?? '';
       await PlaybackService.playQueue(this.vm.songs, 0, coverArt);
       PlaybackService.setPlaybackMode('listLoop');
-      const title: string = this.vm.album.title ?? this.vm.album.name ?? '专辑';
-      this.showToast(`开始播放：${title}`);
     } catch (err) {
       const message: string = (err as Error).message;
       if (message === 'EMPTY_ALBUM') {
@@ -159,9 +158,9 @@ export struct AlbumDetailPage {
   buildSongList() {
     MusicListView({
       songs: this.vm.songs,
-      highlightSongId: this.playback.track !== null ? this.playback.track.id : '',
-      playingTrackId: this.playback.track !== null ? this.playback.track.id : '',
-      playbackPhase: this.playback.phase,
+      highlightSongId: this.playbackTrackId,
+      playingTrackId: this.playbackTrackId,
+      playbackPhase: this.playbackPhase,
       listVariant: 'album',
       showArtist: false,
       albumCoverArtId: this.vm.album?.coverArt ?? ''

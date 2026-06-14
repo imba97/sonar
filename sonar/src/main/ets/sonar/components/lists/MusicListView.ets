@@ -7,6 +7,7 @@ import { AutoMarqueeText } from '../layout/AutoMarqueeText';
 import { ToastUtil } from '../../common/ToastUtil';
 import { PlaybackService } from '../../playback/PlaybackService';
 import { PlaybackPhase } from '../../playback/PlaybackSnapshot';
+import { MusicViewModel } from '../../viewmodel/MusicViewModel';
 import { UiTokens } from '../../ui/tokens/UiTokens';
 
 export type MusicListVariant = 'album' | 'browse';
@@ -193,6 +194,7 @@ export struct MusicListView {
   @Prop showArtist: boolean = false;
   @Prop showAlbumCover: boolean = false;
   @Prop albumCoverArtId: string = '';
+  @Prop showRemoveFromRecent: boolean = false;
 
   private static readonly COVER_SIZE: number = MUSIC_LIST_COVER_SIZE;
   private static readonly COVER_RADIUS: number = MUSIC_LIST_COVER_RADIUS;
@@ -281,7 +283,17 @@ export struct MusicListView {
   }
 
   private menuItemsFor(song: Song): TagButtonMenuItem[] {
-    return this.buildAlbumMenuItems(song);
+    const items: TagButtonMenuItem[] = this.buildAlbumMenuItems(song);
+    if (this.showRemoveFromRecent) {
+      items.push({
+        value: '移除',
+        action: (): void => {
+          void MusicViewModel.getInstance().removeFromRecent(song.id);
+          this.showToast(`已从最近播放移除：${song.title}`);
+        }
+      });
+    }
+    return items;
   }
 
   private hasMoreMenu(): boolean {

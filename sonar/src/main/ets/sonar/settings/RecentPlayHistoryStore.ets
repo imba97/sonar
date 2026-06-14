@@ -8,6 +8,7 @@ const STORE_NAME: string = 'sonar_recent_play';
 const KEY_PREFIX: string = 'recent_play_';
 const MAX_ENTRIES: number = 300;
 const PERSIST_DEBOUNCE_MS: number = 400;
+const RETENTION_MS: number = 30 * 24 * 60 * 60 * 1000;
 
 interface RecentPlayEntry {
   songId: string;
@@ -65,11 +66,30 @@ export class RecentPlayHistoryStore {
     }
     const rest: RecentPlayEntry[] = this.entries.filter((entry: RecentPlayEntry) => entry.songId !== songId);
     const next: RecentPlayEntry[] = [{ songId: songId, playedAt: playedAtMs }, ...rest];
-    this.entries = next.length > MAX_ENTRIES ? next.slice(0, MAX_ENTRIES) : next;
+    this.entries = RecentPlayHistoryStore.trimEntries(next, playedAtMs);
     this.schedulePersist();
   }
 
+  async removeSong(songId: string): Promise<boolean> {
+    await this.ensureReady();
+    if (songId.length === 0 || this.loadedAccountKey.length === 0) {
+      return false;
+    }
+    const before: number = this.entries.length;
+    this.entries = this.entries.filter((entry: RecentPlayEntry) => entry.songId !== songId);
+    if (this.entries.length === before) {
+      return false;
+    }
+    this.schedulePersist();
+    return true;
+  }
+
   listSongIds(offset: number, limit: number): string[] {
+    const before: number = this.entries.length;
+    this.entries = RecentPlayHistoryStore.trimEntries(this.entries, Date.now());
+    if (this.entries.length !== before && this.loadedAccountKey.length > 0) {
+      this.schedulePersist();
+    }
     const safeOffset: number = offset < 0 ? 0 : offset;
     const safeLimit: number = limit < 0 ? 0 : limit;
     const end: number = Math.min(safeOffset + safeLimit, this.entries.length);
@@ -131,7 +151,7 @@ export class RecentPlayHistoryStore {
           normalized.push({ songId: item.songId, playedAt: item.playedAt });
         }
       }
-      this.entries = normalized;
+      this.entries = RecentPlayHistoryStore.trimEntries(normalized, Date.now());
     } catch (err) {
       Logger.warn('RecentPlayHistoryStore', `load failed: ${(err as Error).message}`);
       this.entries = [];
@@ -162,5 +182,17 @@ export class RecentPlayHistoryStore {
       server = auth.remoteServerUrl.trim();
     }
     return `${server}::${auth.username}`;
+  }
+
+  private static trimEntries(entries: RecentPlayEntry[], nowMs: number): RecentPlayEntry[] {
+    const cutoff: number = nowMs - RETENTION_MS;
+    const retained: RecentPlayEntry[] = [];
+    for (let i: number = 0; i < entries.length; i++) {
+      const entry: RecentPlayEntry = entries[i];
+      if (entry.playedAt >= cutoff) {
+        retained.push(entry);
+      }
+    }
+    return retained.length > MAX_ENTRIES ? retained.slice(0, MAX_ENTRIES) : retained;
   }
 }

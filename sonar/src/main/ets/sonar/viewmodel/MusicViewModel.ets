@@ -299,6 +299,22 @@ export class MusicViewModel {
     return merged;
   }
 
+  async removeFromRecent(songId: string): Promise<void> {
+    const removed: boolean = await RecentPlayHistoryStore.getInstance().removeSong(songId);
+    if (!removed) {
+      return;
+    }
+    const nextSongs: Song[] = [];
+    for (let i: number = 0; i < this.songs.length; i++) {
+      if (this.songs[i].id !== songId) {
+        nextSongs.push(this.songs[i]);
+      }
+    }
+    this.songs = nextSongs;
+    const total: number = RecentPlayHistoryStore.getInstance().totalCount();
+    this.hasMore = this.listOffset < total;
+  }
+
   coverUrl(coverArt: string | undefined): string | undefined {
     if (coverArt === undefined || coverArt.length === 0) {
       return undefined;

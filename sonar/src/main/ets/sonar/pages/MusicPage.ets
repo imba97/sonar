@@ -151,7 +151,8 @@ export struct MusicPage {
               playbackPhase: this.playbackPhase,
               listVariant: 'browse',
               showArtist: true,
-              showAlbumCover: true
+              showAlbumCover: true,
+              showRemoveFromRecent: this.vm.kind === 'recent'
             })
           }
         }

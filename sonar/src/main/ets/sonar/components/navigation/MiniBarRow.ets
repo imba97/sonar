@@ -145,6 +145,10 @@ export struct MiniBarRow {
     return this.isMiniBarExpanded() && this.hasActiveTrack();
   }
 
+  private shouldShowCoverPlayPauseOverlay(): boolean {
+    return this.canTogglePlayback() && !this.playback.isCoverLoading();
+  }
+
   private coverOuterSize(): number {
     return UiTokens.FLOATING_TAB_BAR_HEIGHT;
   }
@@ -162,7 +166,12 @@ export struct MiniBarRow {
       return;
     }
     const wasPlaying: boolean = this.playback.isPlaying();
-    this.revealCoverControl(!wasPlaying);
+    if (wasPlaying) {
+      this.revealCoverControl(false);
+    } else {
+      this.clearHideOverlayTimer();
+      this.coverControlOpacity = 0;
+    }
     void PlaybackService.toggle();
   }
 
@@ -197,7 +206,7 @@ export struct MiniBarRow {
 
   @Builder
   private coverPlayPauseOverlay() {
-    if (this.canTogglePlayback()) {
+    if (this.shouldShowCoverPlayPauseOverlay()) {
       Stack({ alignContent: Alignment.Center }) {
         Column()
           .width(this.coverInnerSize())
@@ -254,7 +263,7 @@ export struct MiniBarRow {
     .width(this.coverOuterSize())
     .height(this.coverOuterSize())
     .flexShrink(0)
-    .accessibilityText(this.canTogglePlayback() ?
+    .accessibilityText(this.shouldShowCoverPlayPauseOverlay() ?
       (this.playback.isPlaying() ? '暂停' : '播放') : '')
     .onClick(() => {
       this.onCoverTap();

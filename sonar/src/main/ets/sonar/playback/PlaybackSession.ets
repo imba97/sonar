@@ -659,6 +659,11 @@ export class PlaybackSession implements PlaybackSwitchHost {
       await this.orchestrator.resumeAfterError();
       return;
     }
+    const resumingFromPause: boolean = this.pipelinePhase === 'paused' || sinkPhase === 'paused';
+    if (resumingFromPause) {
+      this.pipelinePhase = 'loading';
+      this.publishSnapshot('loading', true);
+    }
     await this.orchestrator.play();
     const song: Song | null = this.getCurrentSong();
     if (song !== null) {

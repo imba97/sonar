@@ -22,6 +22,16 @@ export struct AutoMarqueeText {
     return Math.max(0.02, Math.min(0.2, this.edgeFadeRatio));
   }
 
+  private edgeFadeGradientColors(): Array<[ResourceColor, number]> {
+    const fade: number = this.normalizedFadeRatio();
+    return [
+      ['rgba(0, 0, 0, 0)', 0.0],
+      ['rgba(0, 0, 0, 1)', fade],
+      ['rgba(0, 0, 0, 1)', 1.0 - fade],
+      ['rgba(0, 0, 0, 0)', 1.0]
+    ];
+  }
+
   private resolveVpLength(value: Length): number {
     if (typeof value === 'number') {
       return value;
@@ -124,30 +134,38 @@ export struct AutoMarqueeText {
     }
   }
 
-  build() {
-    Stack({ alignContent: Alignment.Center }) {
-      this.buildMarqueeText()
+  @Builder
+  private buildMarqueeWithEdgeFade() {
+    Row() {
+      Column() {
+        this.buildMarqueeText()
+      }
+      .width('100%')
+      .height('100%')
+      .blendMode(BlendMode.SRC_IN, BlendApplyType.OFFSCREEN)
+      .backgroundColor(Color.Transparent)
+    }
+    .width('100%')
+    .height('100%')
+    .linearGradient({
+      angle: 90,
+      colors: this.edgeFadeGradientColors()
+    })
+    .blendMode(BlendMode.SRC_OVER, BlendApplyType.OFFSCREEN)
+    .clip(true)
+  }
 
+  build() {
+    Column() {
       if (this.enableEdgeFade && this._enableEdgeFade) {
-        Row()
-          .width('100%')
-          .height('100%')
-          .linearGradient({
-            angle: 90,
-            colors: [
-              ['#00FFFFFF', 0],
-              ['#FFFFFFFF', this.normalizedFadeRatio()],
-              ['#FFFFFFFF', 1 - this.normalizedFadeRatio()],
-              ['#00FFFFFF', 1]
-            ]
-          })
-          .blendMode(BlendMode.DST_IN)
+        this.buildMarqueeWithEdgeFade()
+      } else {
+        this.buildMarqueeText()
       }
     }
     .width('100%')
     .height('100%')
     .clip(true)
-    .renderGroup(true)
     .onAreaChange((_oldValue, newValue) => {
       const nextWidthVp: number = this.resolveVpLength(newValue.width);
       if (Math.abs(nextWidthVp - this._contentWidthVp) > 0.5) {

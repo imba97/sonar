@@ -995,7 +995,12 @@ export class PlaybackSession implements PlaybackSwitchHost {
     if (this.pipelinePhase === 'playing' && phase === 'loading') {
       return;
     }
-    this.pipelinePhase = PlaybackSession.mapSinkPhase(phase);
+    let mappedPhase: PlaybackPhase = PlaybackSession.mapSinkPhase(phase);
+    // 当队列有曲目时，不让状态掉到 idle — 防止 miniBar 状态丢失和后台任务被停止
+    if (mappedPhase === 'idle' && this.displayQueue.length > 0 && this.currentIndex >= 0) {
+      mappedPhase = 'paused';
+    }
+    this.pipelinePhase = mappedPhase;
     if (this.pipelinePhase === 'playing') {
       this.startHeartbeat();
       if (this.streamMetadataAligned) {
@@ -1029,7 +1034,10 @@ export class PlaybackSession implements PlaybackSwitchHost {
     void this.syncMediaCenter(this.snapshot, true);
     const track: NowPlayingTrack | null = this.snapshot.track;
     if (track === null) {
-      void BackgroundPlayback.stop();
+      // 只在队列为空时才停止后台任务，防止切歌窗口期后台任务被意外停止
+      if (this.displayQueue.length === 0) {
+        void BackgroundPlayback.stop();
+      }
       return;
     }
     if (this.pipelinePhase === 'paused' || this.pipelinePhase === 'idle' || this.pipelinePhase === 'error') {

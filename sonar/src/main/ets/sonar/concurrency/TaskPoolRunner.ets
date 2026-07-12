@@ -78,14 +78,16 @@ export class TaskPoolRunner {
   static async reconcileSongIndex(
     entries: ReconcileEntryInput[],
     diskFiles: ReconcileFileStat[],
-    minCompleteBytes: number
+    minCompleteBytes: number,
+    finalExt: string
   ): Promise<SongReconcileResult> {
     try {
       const result: Object = await taskpool.execute(
         reconcileSongIndexConcurrent,
         entries,
         diskFiles,
-        minCompleteBytes
+        minCompleteBytes,
+        finalExt
       );
       return result as SongReconcileResult;
     } catch (err) {

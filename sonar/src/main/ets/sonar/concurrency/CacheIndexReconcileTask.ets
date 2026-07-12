@@ -16,6 +16,12 @@ export interface ReconcileOrphanOutput {
   sizeBytes: number;
 }
 
+export interface ReconcileSongOrphanOutput {
+  songId: string;
+  fileName: string;
+  sizeBytes: number;
+}
+
 export interface CoverReconcileResult {
   staleIds: string[];
   orphans: ReconcileOrphanOutput[];
@@ -26,6 +32,7 @@ export interface CoverReconcileResult {
 export interface SongReconcileResult {
   staleIds: string[];
   sizeUpdates: ReconcileEntryInput[];
+  orphans: ReconcileSongOrphanOutput[];
 }
 
 @Concurrent
@@ -104,10 +111,13 @@ export function reconcileCoverIndexConcurrent(
 export function reconcileSongIndexConcurrent(
   entries: ReconcileEntryInput[],
   diskFiles: ReconcileFileStat[],
-  minCompleteBytes: number
+  minCompleteBytes: number,
+  finalExt: string
 ): SongReconcileResult {
   const staleIds: string[] = [];
   const sizeUpdates: ReconcileEntryInput[] = [];
+  const orphans: ReconcileSongOrphanOutput[] = [];
+  const knownFileNames: Set<string> = new Set<string>();
 
   for (let i: number = 0; i < entries.length; i++) {
     const entry: ReconcileEntryInput = entries[i];
@@ -130,6 +140,7 @@ export function reconcileSongIndexConcurrent(
       staleIds.push(entry.id);
       continue;
     }
+    knownFileNames.add(entry.fileName);
     if (entry.sizeBytes !== matchedSize) {
       sizeUpdates.push({
         id: entry.id,
@@ -140,5 +151,28 @@ export function reconcileSongIndexConcurrent(
     }
   }
 
-  return { staleIds, sizeUpdates };
+  // 找出磁盘上 final 文件（已完成）但索引里没有的 → orphan adopt
+  for (let k: number = 0; k < diskFiles.length; k++) {
+    const file: ReconcileFileStat = diskFiles[k];
+    if (knownFileNames.has(file.fileName)) {
+      continue;
+    }
+    if (!file.fileName.endsWith(finalExt)) {
+      continue;
+    }
+    if (file.sizeBytes < minCompleteBytes) {
+      continue;
+    }
+    let songId: string = file.fileName;
+    if (file.fileName.endsWith(finalExt)) {
+      songId = file.fileName.substring(0, file.fileName.length - finalExt.length);
+    }
+    orphans.push({
+      songId: songId,
+      fileName: file.fileName,
+      sizeBytes: file.sizeBytes
+    });
+  }
+
+  return { staleIds, sizeUpdates, orphans };
 }

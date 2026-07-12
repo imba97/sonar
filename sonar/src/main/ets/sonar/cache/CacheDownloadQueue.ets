@@ -1,3 +1,5 @@
+import { Logger } from '../common/Logger';
+
 /** Set 去重 + FIFO 串行下载队列，SongCache / CoverCache 共用 */
 export class CacheDownloadQueue {
   private readonly pending: Set<string> = new Set<string>();
@@ -28,19 +30,34 @@ export class CacheDownloadQueue {
     }
   }
 
+  /** 清空队列并强制解锁；仅供 release()/reset 路径使用，避免 handler 抛错后 processing 卡死 */
+  clear(): void {
+    this.pending.clear();
+    this.queue.length = 0;
+    this.processing = false;
+  }
+
   async process(handler: (id: string) => Promise<void>): Promise<void> {
     if (this.processing) {
       return;
     }
     this.processing = true;
-    while (this.queue.length > 0) {
-      const id: string | undefined = this.queue.shift();
-      if (id === undefined || id.length === 0) {
-        continue;
+    try {
+      while (this.queue.length > 0) {
+        const id: string | undefined = this.queue.shift();
+        if (id === undefined || id.length === 0) {
+          continue;
+        }
+        this.pending.delete(id);
+        // 单项 handler 抛错不应中断整条队列；吞掉 + warn，继续处理后续项
+        try {
+          await handler(id);
+        } catch (err) {
+          Logger.warn('CacheDownloadQueue', `handler failed id=${id}: ${(err as Error).message}`);
+        }
       }
-      this.pending.delete(id);
-      await handler(id);
+    } finally {
+      this.processing = false;
     }
-    this.processing = false;
   }
 }

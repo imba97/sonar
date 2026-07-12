@@ -311,6 +311,8 @@ export class PlaybackSession implements PlaybackSwitchHost {
     this.systemCommandInFlight = false;
     this.preloadCoordinator?.reset();
     await this.submitCurrentTrackCompletion('release');
+    // 先停缓存下载 + 同步持久化，再释放 orchestrator，避免 writer 在 orchestrator 释放期间还在跑
+    await SongCache.release();
     await this.orchestrator.release();
     await BackgroundPlayback.release();
     await this.mediaCenter.release();

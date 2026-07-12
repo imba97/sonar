@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import { fileIo } from '@kit.CoreFileKit';
 import { CacheFileUtil } from '../common/CacheFileUtil';
 import { Logger } from '../common/Logger';
 import { CacheAutoModeUtil } from './CacheAutoModeUtil';
@@ -120,6 +121,9 @@ export class SongCache {
   }
 
   static async removeEntry(songId: string, notifyUsage: boolean = true): Promise<void> {
+    // 先停 writer：若该 song 正在下，取消 token + 释放 fd + 删 .part，
+    // 避免 writer 继续往已被外部删除的 .part 写入（导致 EBADF / 数据错乱）
+    SongCache.writer.cancel(songId);
     const entry: SongCacheEntry | undefined = SongCache.entryMap.get(songId);
     if (entry !== undefined) {
       CacheFileUtil.removeIfExists(SongCache.entryPath(entry));
@@ -130,6 +134,17 @@ export class SongCache {
     if (notifyUsage) {
       SongCache.publishUsageState();
     }
+  }
+
+  /**
+   * 优雅释放：取消活跃下载、清空队列、同步等待 pending persist。
+   * 由 PlaybackSession.release() 在 orchestrator.release() 之前调用。
+   */
+  static async release(): Promise<void> {
+    SongCache.writer.cancel();
+    SongCache.downloadQueue.clear();
+    SongCache.pinnedSongId = '';
+    await SongCache.flushPersistIndex();
   }
 
   static async evictIfNeeded(): Promise<void> {
@@ -267,36 +282,77 @@ export class SongCache {
     const text: string | null = CacheFileUtil.readTextFile(path);
     if (text === null) {
       SongCache.entryMap.clear();
-      return;
-    }
-    try {
-      const parsed: SongCacheIndex = await TaskPoolRunner.parseJsonText<SongCacheIndex>(text);
-      const rawEntries: SongCacheEntry[] = parsed.entries ?? [];
-      SongCache.entryMap.clear();
-      for (let i: number = 0; i < rawEntries.length; i++) {
-        const raw: SongCacheEntry = rawEntries[i] as SongCacheEntry;
-        if (raw.songId === undefined || raw.fileName === undefined) {
-          continue;
+    } else {
+      try {
+        const parsed: SongCacheIndex = await TaskPoolRunner.parseJsonText<SongCacheIndex>(text);
+        const rawEntries: SongCacheEntry[] = parsed.entries ?? [];
+        SongCache.entryMap.clear();
+        for (let i: number = 0; i < rawEntries.length; i++) {
+          const raw: SongCacheEntry = rawEntries[i] as SongCacheEntry;
+          if (raw.songId === undefined || raw.fileName === undefined) {
+            continue;
+          }
+          SongCache.entryMap.set(raw.songId, {
+            songId: raw.songId,
+            fileName: raw.fileName,
+            sizeBytes: raw.sizeBytes ?? 0,
+            lastAccessedAt: raw.lastAccessedAt ?? 0,
+            completedAt: raw.completedAt ?? 0
+          });
         }
-        SongCache.entryMap.set(raw.songId, {
-          songId: raw.songId,
-          fileName: raw.fileName,
-          sizeBytes: raw.sizeBytes ?? 0,
-          lastAccessedAt: raw.lastAccessedAt ?? 0,
-          completedAt: raw.completedAt ?? 0
-        });
+      } catch (err) {
+        Logger.warn('SongCache', `loadIndex parse failed: ${(err as Error).message}`);
+        SongCache.entryMap.clear();
       }
-    } catch (err) {
-      Logger.warn('SongCache', `loadIndex parse failed: ${(err as Error).message}`);
-      SongCache.entryMap.clear();
     }
+    // 始终清理孤儿 .part（来自被杀的下载），再做索引对账（含 orphan adopt）
+    SongCache.cleanupOrphanPartFiles();
     const reconciled: boolean = await SongCache.reconcileIndexWithDisk();
     if (reconciled) {
       await SongCache.flushPersistIndex();
     }
   }
 
-  /** 剔除索引中无对应文件的条目，并校正 sizeBytes */
+  /** 启动时扫描 audioDir，删除所有 .part 孤儿（来自崩溃 / 杀进程的中途下载） */
+  private static cleanupOrphanPartFiles(): void {
+    const fileNames: string[] = SongCache.listFilesOnDisk();
+    const partSuffix: string = '.part';
+    let removed: number = 0;
+    for (let i: number = 0; i < fileNames.length; i++) {
+      const name: string = fileNames[i];
+      if (!name.endsWith(partSuffix)) {
+        continue;
+      }
+      CacheFileUtil.removeIfExists(`${SongCache.audioDir()}/${name}`);
+      removed++;
+    }
+    if (removed > 0) {
+      Logger.info('SongCache', `cleanup removed orphan .part files count=${removed}`);
+    }
+  }
+
+  private static listFilesOnDisk(): string[] {
+    const dir: string = SongCache.audioDir();
+    if (dir.length === 0) {
+      return [];
+    }
+    try {
+      const names: string[] = fileIo.listFileSync(dir);
+      const result: string[] = [];
+      for (let i: number = 0; i < names.length; i++) {
+        const name: string = names[i];
+        if (name !== INDEX_FILE) {
+          result.push(name);
+        }
+      }
+      return result;
+    } catch (err) {
+      Logger.warn('SongCache', `listFilesOnDisk failed: ${(err as Error).message}`);
+      return [];
+    }
+  }
+
+  /** 剔除索引中无对应文件的条目，校正 sizeBytes，并回填孤儿已完成文件 */
   private static async reconcileIndexWithDisk(): Promise<boolean> {
     const entries: ReconcileEntryInput[] = [];
     SongCache.entryMap.forEach((entry: SongCacheEntry, songId: string) => {
@@ -311,7 +367,8 @@ export class SongCache {
     const result = await TaskPoolRunner.reconcileSongIndex(
       entries,
       diskFiles,
-      MIN_COMPLETE_BYTES
+      MIN_COMPLETE_BYTES,
+      DEFAULT_EXT
     );
     let changed: boolean = false;
     for (let i: number = 0; i < result.staleIds.length; i++) {
@@ -338,21 +395,38 @@ export class SongCache {
         changed = true;
       }
     }
+    // 回填孤儿：磁盘上存在但索引里没有的已完成文件 → adopt 进 entryMap
+    const now: number = Date.now();
+    for (let k: number = 0; k < result.orphans.length; k++) {
+      const orphan = result.orphans[k];
+      SongCache.entryMap.set(orphan.songId, {
+        songId: orphan.songId,
+        fileName: orphan.fileName,
+        sizeBytes: orphan.sizeBytes,
+        lastAccessedAt: now,
+        completedAt: now
+      });
+      changed = true;
+      Logger.info('SongCache', `reconcile adopted orphan file=${orphan.fileName}`);
+    }
     return changed;
   }
 
   private static collectDiskFileStats(): ReconcileFileStat[] {
+    const fileNames: string[] = SongCache.listFilesOnDisk();
     const stats: ReconcileFileStat[] = [];
-    SongCache.entryMap.forEach((entry: SongCacheEntry) => {
-      const path: string = SongCache.entryPath(entry);
-      if (!CacheFileUtil.fileExists(path)) {
-        return;
+    const dir: string = SongCache.audioDir();
+    for (let i: number = 0; i < fileNames.length; i++) {
+      const fileName: string = fileNames[i];
+      // 仅统计 final 文件（.mp3）；.part 由 cleanupOrphanPartFiles 在 init 阶段清理，不进索引对账
+      if (!fileName.endsWith(DEFAULT_EXT)) {
+        continue;
       }
       stats.push({
-        fileName: entry.fileName,
-        sizeBytes: CacheFileUtil.fileSize(path)
+        fileName: fileName,
+        sizeBytes: CacheFileUtil.fileSize(`${dir}/${fileName}`)
       });
-    });
+    }
     return stats;
   }
 

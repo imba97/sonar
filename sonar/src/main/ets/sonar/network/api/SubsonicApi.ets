@@ -186,18 +186,9 @@ export class SubsonicApi {
       params.push('position', String(positionSec));
     }
     Logger.debug('SubsonicApi', `scrobble nowPlaying id=${songId} positionSec=${positionSec}`);
-    try {
-      await SubsonicApi.requestEnvelope<SubsonicEnvelope>('scrobble.view', params);
-    } catch (err) {
-      if (positionSec <= 0) {
-        throw new Error((err as Error).message);
-      }
-      Logger.warn('SubsonicApi',
-        `scrobble nowPlaying with position failed, fallback standard call: ${(err as Error).message}`);
-      await SubsonicApi.requestEnvelope<SubsonicEnvelope>('scrobble.view', [
-        'id', songId, 'submission', 'false', 'time', '0'
-      ]);
-    }
+    // 失败时直接抛出：HttpTransport.requestWithFallback 已经在 local/remote 上各做了重试，
+    // 心跳 15s 后会再次尝试。无条件 fallback 会导致瞬态故障期间向 Navidrome 发送重复 "now playing"。
+    await SubsonicApi.requestEnvelope<SubsonicEnvelope>('scrobble.view', params);
   }
 
   static async submitScrobble(songId: string, listenedAtEpochMs: number = Date.now()): Promise<void> {
